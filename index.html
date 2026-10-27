@@ -3,19 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Создание персонажа — D&amp;D 5e</title>
+<title>Кузня Героев — создание персонажа D&amp;D 5e</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=3">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 
 <div class="bg-glow"></div>
+<div class="forge-embers" aria-hidden="true">
+  <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+</div>
+
+<div class="landing-screen" id="landingScreen">
+  <div class="landing-inner">
+    <div class="landing-anvil">⚒</div>
+    <h1 class="landing-title">Кузня Героев</h1>
+    <p class="landing-sub">Выкуй своего героя D&amp;D 5e в пламени горна — раса, класс, судьба и снаряжение сложатся в единый лист персонажа.</p>
+    <button class="btn btn-gold btn-forge" id="btnForge">⚒ Выковать героя</button>
+  </div>
+</div>
 
 <header class="top-bar">
   <div class="brand">
-    <span class="brand-icon">⚔</span>
-    <span class="brand-text">Творец Героя</span>
+    <span class="brand-icon">⚒</span>
+    <span class="brand-text">Кузня Героев</span>
   </div>
   <div class="charname-display" id="headerCharName"></div>
 </header>
@@ -34,8 +46,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="js/data.js?v=4"></script>
-<script src="js/rules.js?v=4"></script>
-<script src="js/app.js?v=4"></script>
+<script src="js/data.js?v=5"></script>
+<script src="js/rules.js?v=5"></script>
+<script src="js/app.js?v=5"></script>
 </body>
 </html>

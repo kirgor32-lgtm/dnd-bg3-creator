@@ -314,6 +314,42 @@ function physiqueFlavorLines(heightCm, weightKg, avgWeightKg){
   return lines;
 }
 
+/* ===== Интерактивная миниатюра телосложения (пол/рост/вес/тип фигуры) =====
+   Вес больше не независимый произвольный ползунок: его допустимый диапазон
+   пересчитывается от текущего роста и типа фигуры (упрощённый ИМТ), поэтому
+   нельзя выставить, например, рост 200 см и вес 30 кг одновременно. */
+const BODY_TYPES = [
+  { id: "thin",     label: "Худой",       bmi: 16, widthScale: 0.82 },
+  { id: "average",  label: "Средний",     bmi: 21, widthScale: 1.0  },
+  { id: "athletic", label: "Атлетичный",  bmi: 23, widthScale: 1.08 },
+  { id: "heavy",    label: "Полный",      bmi: 30, widthScale: 1.3  }
+];
+function bodyTypeById(id){ return BODY_TYPES.find(b => b.id === id) || BODY_TYPES[1]; }
+function centerWeightForHeight(heightCm, bodyTypeId){
+  const bt = bodyTypeById(bodyTypeId);
+  const m = heightCm / 100;
+  return Math.round(bt.bmi * m * m);
+}
+function weightRangeForHeight(heightCm, bodyTypeId){
+  const center = centerWeightForHeight(heightCm, bodyTypeId);
+  return { min: Math.max(15, Math.round(center * 0.85)), max: Math.round(center * 1.15), center };
+}
+function cmToFeetInches(cm){
+  const totalIn = cm / 2.54;
+  const ft = Math.floor(totalIn / 12);
+  const inch = Math.round(totalIn - ft * 12);
+  return inch === 12 ? { ft: ft + 1, inch: 0 } : { ft, inch };
+}
+function fmtFeetInches(cm){
+  const { ft, inch } = cmToFeetInches(cm);
+  return `${ft}′${inch}″`;
+}
+
+/* ===== Ячейки применения заклинаний 1-го уровня (упрощённо, SRD уровень 1) ===== */
+const LEVEL1_SPELL_SLOTS = {
+  bard: 2, cleric: 2, druid: 2, sorcerer: 2, wizard: 2, warlock: 1
+};
+
 function rollAbilityScores(){
   const rollOne = () => {
     const d = [1,2,3,4].map(() => 1 + Math.floor(Math.random() * 6));

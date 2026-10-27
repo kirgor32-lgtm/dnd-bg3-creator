@@ -16,14 +16,14 @@ const CLASS_GLYPH = {
 
 let state = {
   step: "intro",
-  name: "", alignment: "", background: "",
+  name: "", alignment: "", background: "", photoDataUrl: null,
   raceId: null, subraceId: null, classId: null,
   abilityMode: null, diceRolls: null,
   abilities: {}, abilityAssign: {}, skillChoices: [],
-  physiqueMode: null, heightCm: null, weightKg: null,
+  physiqueMode: null, heightCm: null, weightKg: null, gender: "male", bodyType: "average",
   equipmentChoice: null,
   customEquip: { weapons: [], armorId: null, shield: false, shieldId: null, packId: null },
-  spells: [],
+  spells: [], spellSlotsUsed: 0,
 };
 
 function loadState(){
@@ -82,17 +82,16 @@ function getActiveSteps(){
 function renderRail(){
   const steps = getActiveSteps();
   const rail = document.getElementById("stepRail");
-  rail.innerHTML = "";
-  steps.forEach((id, i) => {
-    const pill = document.createElement("div");
-    const isActive = id === state.step;
-    const idxCurrent = steps.indexOf(state.step);
-    const isDone = i < idxCurrent;
-    pill.className = "step-pill" + (isActive ? " active" : "") + (isDone ? " done" : "");
-    pill.innerHTML = `<span class="num">${i+1}</span><span>${STEP_META[id].title}</span>`;
-    if (isDone) pill.onclick = () => { state.step = id; render(); };
-    rail.appendChild(pill);
-  });
+  const idxCurrent = steps.indexOf(state.step);
+  const pct = steps.length > 1 ? Math.round((idxCurrent / (steps.length - 1)) * 100) : 0;
+  rail.innerHTML = `
+    <div class="step-badge">
+      <span class="step-badge-num">Шаг ${idxCurrent+1} <span class="step-badge-of">из ${steps.length}</span></span>
+      <span class="step-badge-title">${STEP_META[state.step].title}</span>
+    </div>
+    <div class="step-progress"><div class="step-progress-fill" style="width:${pct}%"></div></div>
+    <div class="step-dots">${steps.map((id,i) => `<span class="step-dot${i===idxCurrent?' active':''}${i<idxCurrent?' done':''}"></span>`).join("")}</div>
+  `;
 }
 
 function render(){
@@ -142,27 +141,72 @@ function renderIntro(view){
       <h1>Кто ты, герой?</h1>
       <p>Прежде чем ступить на путь приключений, дай себе имя. Остальное — раса, класс и судьба — определится дальше.</p>
     </div>
-    <div style="max-width:520px;margin:0 auto;">
-      <div class="form-row">
-        <label>Имя персонажа</label>
-        <input type="text" id="inName" placeholder="Например, Астарион" value="${escapeHtml(state.name)}">
+    <div class="intro-layout">
+      <div class="intro-photo-col">
+        <div class="photo-drop" id="photoDrop">
+          ${state.photoDataUrl ? `<img id="photoPreview" src="${state.photoDataUrl}">` : `<div class="photo-placeholder"><span>🖼</span><span>Загрузить портрет</span></div>`}
+          <input type="file" id="inPhoto" accept="image/*" hidden>
+        </div>
+        ${state.photoDataUrl ? `<button class="btn btn-ghost" id="btnPhotoClear" style="margin-top:8px;">✕ Убрать фото</button>` : ""}
+        <p class="pool-note" style="margin-top:8px;">Любое фото или арт — подгонится под рамку автоматически. Появится в левом верхнем углу итогового листа.</p>
       </div>
-      <div class="form-row">
-        <label>Мировоззрение (необязательно)</label>
-        <select id="inAlign">
-          <option value="">— не выбрано —</option>
-          ${["Законно-добрый","Нейтрально-добрый","Хаотично-добрый","Законно-нейтральный","Истинно нейтральный","Хаотично-нейтральный","Законно-злой","Нейтрально-злой","Хаотично-злой"].map(a => `<option ${state.alignment===a?"selected":""}>${a}</option>`).join("")}
-        </select>
-      </div>
-      <div class="form-row">
-        <label>Предыстория / происхождение (необязательно)</label>
-        <textarea id="inBg" rows="3" placeholder="Пара строк о прошлом героя...">${escapeHtml(state.background)}</textarea>
+      <div class="intro-form-col">
+        <div class="form-row">
+          <label>Имя персонажа</label>
+          <input type="text" id="inName" placeholder="Например, Астарион" value="${escapeHtml(state.name)}">
+        </div>
+        <div class="form-row">
+          <label>Мировоззрение (необязательно)</label>
+          <select id="inAlign">
+            <option value="">— не выбрано —</option>
+            ${["Законно-добрый","Нейтрально-добрый","Хаотично-добрый","Законно-нейтральный","Истинно нейтральный","Хаотично-нейтральный","Законно-злой","Нейтрально-злой","Хаотично-злой"].map(a => `<option ${state.alignment===a?"selected":""}>${a}</option>`).join("")}
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Предыстория / происхождение (необязательно)</label>
+          <textarea id="inBg" rows="4" placeholder="Пара строк о прошлом героя...">${escapeHtml(state.background)}</textarea>
+        </div>
       </div>
     </div>
   `;
   view.querySelector("#inName").oninput = e => { state.name = e.target.value; updateNextEnabled(); };
   view.querySelector("#inAlign").onchange = e => state.alignment = e.target.value;
   view.querySelector("#inBg").oninput = e => state.background = e.target.value;
+  const drop = view.querySelector("#photoDrop");
+  const fileInput = view.querySelector("#inPhoto");
+  drop.onclick = () => fileInput.click();
+  fileInput.onchange = e => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    cropImageToSquare(file, 640).then(dataUrl => {
+      state.photoDataUrl = dataUrl;
+      saveState();
+      renderIntro(view);
+    });
+  };
+  const clearBtn = view.querySelector("#btnPhotoClear");
+  if (clearBtn) clearBtn.onclick = (e) => { e.stopPropagation(); state.photoDataUrl = null; saveState(); renderIntro(view); };
+}
+/* Авто-кадрирование: любое фото любого формата приводится к квадрату (cover-кроп по центру),
+   чтобы хорошо смотреться и в рамке загрузки, и на итоговом листе персонажа. */
+function cropImageToSquare(file, size){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = e => { img.src = e.target.result; };
+    reader.onerror = reject;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
+    };
+    img.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 /* ---------------- Step: Race ---------------- */
@@ -320,7 +364,7 @@ function renderClassDetail(el){
   const equipRoles = (c.startingEquipment||[]).map(e => `${e.choice}: ${e.role}`).join(" · ");
   el.innerHTML = `
     <div class="detail-panel">
-      <img class="entity-portrait" src="assets/img/classes/${c.id}.jpg" alt="${c.name}" loading="lazy" onerror="this.remove()">
+      <div class="class-icon-badge">${CLASS_GLYPH[c.id] || "❖"}</div>
       <h3>${c.name}</h3>
       ${c.description ? `<p class="class-flavor">${c.description}</p>` : ""}
       <div class="stat-row">
@@ -374,8 +418,8 @@ function flexBonusRemainingText(){
 }
 
 const ABILITY_MODES = [
-  { id: "dice",        label: "🎲 Бросок кубиков" },
   { id: "recommended",  label: "⭐ Рекомендованный билд" },
+  { id: "dice",        label: "🎲 Бросок кубиков" },
   { id: "free",         label: "✍ Свободное распределение" }
 ];
 
@@ -385,6 +429,7 @@ function applyRecommendedBuild(){
 
 function renderAbilities(view){
   ensureAbilityAssignInit();
+  if (!state.abilityMode){ state.abilityMode = "recommended"; applyRecommendedBuild(); }
   view.innerHTML = `
     <div class="view-header"><h1>Распредели характеристики</h1><p>Выбери способ распределения характеристик. Расовые бонусы прибавятся автоматически сверху.</p></div>
     <div class="mode-tabs" id="modeTabs"></div>
@@ -400,8 +445,8 @@ const FLEX_SPLITS = [
   { id: "111", label: "+1 / +1 / +1" }
 ];
 const FLEX_MODES = [
-  { id: "dice",        label: "🎲 Бросок кубика" },
   { id: "recommended", label: "⭐ Рекомендация" },
+  { id: "dice",        label: "🎲 Бросок кубика" },
   { id: "free",        label: "✍ Свой выбор" }
 ];
 function ensureFlexBonusInit(){
@@ -417,6 +462,7 @@ function renderFlexBonusStep(view){
   ensureFlexBonusInit();
   const r = getRace();
   const f = state.flexBonus;
+  if (!f.mode){ f.mode = "recommended"; flexApplyRecommended(view); }
   view.innerHTML = `
     <div class="view-header"><h1>Гибкий расовый бонус — ${r.name}</h1><p>Эта раса не даёт фиксированные бонусы характеристик: распредели их сама/сам.</p></div>
     <div class="mode-tabs" id="splitTabs" style="margin-bottom:10px;"></div>
@@ -468,17 +514,17 @@ function flexApplyRecommended(view){
 function flexBonusGridHTML(picksEditable){
   const f = state.flexBonus;
   const need = f.split === "111" ? [1,1,1] : [2,1];
+  const availableVals = need.includes(2) ? [2,1] : [1];
   return `
     <div class="ability-grid" id="flexGrid">
       ${ABILITY_ORDER.map(ab => `
         <div class="ability-card">
           <div class="ab-name">${ABILITY_NAMES[ab]}</div>
           ${picksEditable ? `
-            <select class="flex-pick" data-ab="${ab}">
-              <option value="">—</option>
-              ${need.includes(2) ? `<option value="2" ${f.picks[ab]===2?"selected":""}>+2</option>` : ""}
-              <option value="1" ${f.picks[ab]===1?"selected":""}>+1</option>
-            </select>
+            <div class="chip-row" data-ab="${ab}">
+              <button type="button" class="chip-btn${!f.picks[ab]?" active":""}" data-val="">—</button>
+              ${availableVals.map(v => `<button type="button" class="chip-btn${f.picks[ab]===v?" active":""}" data-val="${v}">+${v}</button>`).join("")}
+            </div>
           ` : `<div class="ab-bonus">${f.picks[ab] ? "+"+f.picks[ab] : "—"}</div>`}
         </div>
       `).join("")}
@@ -518,21 +564,24 @@ function renderFlexModeBody(view){
       hint.innerHTML = ok ? `<span style="color:var(--gold-bright);">Бонус распределён ✓</span>` : `Нужно распределить: ${need.map(n=>"+"+n).join(", ")}`;
       updateNextEnabled();
     };
-    body.querySelectorAll(".flex-pick").forEach(sel => {
-      sel.onchange = () => {
-        const ab = sel.dataset.ab;
-        const val = Number(sel.value) || null;
-        const picks = { ...state.flexBonus.picks };
-        if (val == null) delete picks[ab]; else picks[ab] = val;
-        const counts = {};
-        Object.values(picks).forEach(v => counts[v] = (counts[v]||0)+1);
-        const needCounts = {};
-        need.forEach(v => needCounts[v] = (needCounts[v]||0)+1);
-        const overflow = Object.keys(counts).some(v => counts[v] > (needCounts[v]||0));
-        if (overflow){ sel.value = state.flexBonus.picks[ab] || ""; return; }
-        state.flexBonus.picks = picks;
-        updateHint();
-      };
+    body.querySelectorAll(".chip-row").forEach(row => {
+      row.querySelectorAll(".chip-btn").forEach(btn => {
+        btn.onclick = () => {
+          const ab = row.dataset.ab;
+          const val = Number(btn.dataset.val) || null;
+          const picks = { ...state.flexBonus.picks };
+          if (val == null) delete picks[ab]; else picks[ab] = val;
+          const counts = {};
+          Object.values(picks).forEach(v => counts[v] = (counts[v]||0)+1);
+          const needCounts = {};
+          need.forEach(v => needCounts[v] = (needCounts[v]||0)+1);
+          const overflow = Object.keys(counts).some(v => counts[v] > (needCounts[v]||0));
+          if (overflow) return;
+          state.flexBonus.picks = picks;
+          renderFlexModeBody(view);
+          updateHint();
+        };
+      });
     });
     updateHint();
   }
@@ -630,17 +679,16 @@ function renderRecommendedMode(view, body){
   if (Object.keys(state.abilityAssign).length === 0) applyRecommendedBuild();
   const c = getClass();
   body.innerHTML = `
-    <p class="pool-note">Стандартный набор 15/14/13/12/10/8 автоматически расставлен по характеристикам, важным для класса «${c?c.name:""}». Можешь поправить вручную — расовые бонусы прибавятся сверху.</p>
+    <p class="pool-note">Стандартный набор 15/14/13/12/10/8 автоматически расставлен по характеристикам, важным для класса «${c?c.name:""}». Нужно что-то другое — выбери «Свободное распределение» выше.</p>
     <button class="btn btn-ghost" id="btnReapply" style="margin-bottom:14px;">↻ Применить рекомендацию заново</button>
     <div class="ability-grid" id="abGrid"></div>
-    <p class="pool-note" id="poolNote"></p>
   `;
   body.querySelector("#btnReapply").onclick = () => {
     applyRecommendedBuild();
     renderRecommendedMode(view, body);
     updateNextEnabled();
   };
-  renderAssignGrid(view, body, STANDARD_ARRAY);
+  renderReadonlyGrid(body);
 }
 
 function renderAssignGrid(view, body, pool){
@@ -740,80 +788,132 @@ function renderSkillGrid(view){
   });
 }
 
-/* ---------------- Step: Physique (рост/вес) ---------------- */
-function renderPhysique(view){
-  const r = getRace();
+/* ---------------- Step: Physique (рост/вес/телосложение, интерактивная миниатюра) ---------------- */
+function ensurePhysiqueDefaults(){
   const avg = avgHeightWeight(state.raceId, state.subraceId);
+  if (!state.heightCm) state.heightCm = avg.heightCm;
+  if (!state.bodyType) state.bodyType = "average";
+  const wr = weightRangeForHeight(state.heightCm, state.bodyType);
+  if (!state.weightKg || state.weightKg < wr.min || state.weightKg > wr.max) state.weightKg = wr.center;
+  if (!state.gender) state.gender = "male";
+}
+function renderPhysique(view){
+  ensurePhysiqueDefaults();
+  const avg = avgHeightWeight(state.raceId, state.subraceId);
+  const bounds = heightWeightBounds(state.raceId, state.subraceId);
   view.innerHTML = `
-    <div class="view-header"><h1>Рост и вес героя</h1><p>Физические параметры считаются по таблице SRD для расы «${r?r.name:""}». Они повлияют на то, сколько снаряжения герой может унести, и на описание для отыгрыша.</p></div>
-    <div class="mode-tabs" id="physTabs">
-      <button class="mode-tab${state.physiqueMode==="roll"?" active":""}" data-m="roll">🎲 Случайно (таблица SRD)</button>
-      <button class="mode-tab${state.physiqueMode==="manual"?" active":""}" data-m="manual">✍ Вручную</button>
+    <div class="view-header"><h1>Телосложение героя</h1><p>Средние значения для расы «${getRace()?getRace().name:""}»: рост ~${fmtFeetInches(avg.heightCm)} (${avg.heightCm} см), вес ~${avg.weightKg} кг. Двигай ползунки — миниатюра и вес обновятся сразу, нелепых сочетаний вроде «2 метра и 30 кг» выставить не получится.</p></div>
+    <div class="physique-wrap">
+      <div class="physique-figure-col">
+        <div class="gender-toggle" id="genderToggle">
+          <button type="button" class="gender-btn${state.gender==='male'?' active':''}" data-g="male">♂ Муж.</button>
+          <button type="button" class="gender-btn${state.gender==='female'?' active':''}" data-g="female">♀ Жен.</button>
+        </div>
+        <div class="figure-stage">
+          <div class="figure-ruler-v" id="rulerV"></div>
+          <div class="figure-ruler-h"></div>
+          <div class="figure-silhouette" id="silhouetteBox"></div>
+        </div>
+        <button class="btn btn-gold" id="btnPhysRandom" style="margin-top:10px;">🎲 Случайно в допустимых пределах</button>
+      </div>
+      <div class="physique-controls-col">
+        <div class="form-row">
+          <label>Рост: <b id="heightVal"></b></label>
+          <input type="range" id="sliderHeight" min="${bounds.heightCm.min}" max="${bounds.heightCm.max}" value="${state.heightCm}">
+        </div>
+        <div class="form-row">
+          <label>Телосложение</label>
+          <div class="chip-row" id="bodyTypeRow">
+            ${BODY_TYPES.map(b => `<button type="button" class="chip-btn${state.bodyType===b.id?' active':''}" data-bt="${b.id}">${b.label}</button>`).join("")}
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Вес: <b id="weightVal"></b> <span class="pool-note" id="weightRangeNote" style="display:inline;"></span></label>
+          <input type="range" id="sliderWeight" min="0" max="100" value="50">
+        </div>
+      </div>
     </div>
-    <div id="physBody"></div>
   `;
-  view.querySelector("#physTabs").querySelectorAll(".mode-tab").forEach(btn => {
+  wirePhysiqueControls(view, bounds);
+  renderSilhouette(view);
+}
+function wirePhysiqueControls(view, bounds){
+  const heightSlider = view.querySelector("#sliderHeight");
+  const weightSlider = view.querySelector("#sliderWeight");
+  const update = (resetWeightToCenter) => {
+    const wr = weightRangeForHeight(state.heightCm, state.bodyType);
+    if (resetWeightToCenter) state.weightKg = wr.center;
+    else state.weightKg = Math.max(wr.min, Math.min(wr.max, state.weightKg));
+    const pct = wr.max > wr.min ? Math.round(((state.weightKg - wr.min) / (wr.max - wr.min)) * 100) : 50;
+    weightSlider.value = pct;
+    view.querySelector("#heightVal").textContent = `${fmtFeetInches(state.heightCm)} (${state.heightCm} см)`;
+    view.querySelector("#weightVal").textContent = `${state.weightKg} кг`;
+    view.querySelector("#weightRangeNote").textContent = `(допустимо ${wr.min}–${wr.max} кг при этом росте и телосложении)`;
+    renderSilhouette(view);
+    saveState();
+    updateNextEnabled();
+  };
+  heightSlider.oninput = e => { state.heightCm = Number(e.target.value); update(false); };
+  weightSlider.oninput = e => {
+    const wr = weightRangeForHeight(state.heightCm, state.bodyType);
+    const pct = Number(e.target.value) / 100;
+    state.weightKg = Math.round(wr.min + pct * (wr.max - wr.min));
+    update(false);
+  };
+  view.querySelectorAll("#bodyTypeRow .chip-btn").forEach(btn => {
     btn.onclick = () => {
-      const m = btn.dataset.m;
-      if (m === state.physiqueMode) return;
-      state.physiqueMode = m;
-      if (m === "roll"){ const hw = rollHeightWeight(state.raceId, state.subraceId); state.heightCm = hw.heightCm; state.weightKg = hw.weightKg; }
-      renderPhysique(view);
-      updateNextEnabled();
+      state.bodyType = btn.dataset.bt;
+      view.querySelectorAll("#bodyTypeRow .chip-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      update(true);
     };
   });
-  renderPhysiqueBody(view, avg);
+  view.querySelectorAll("#genderToggle .gender-btn").forEach(btn => {
+    btn.onclick = () => {
+      state.gender = btn.dataset.g;
+      view.querySelectorAll("#genderToggle .gender-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderSilhouette(view);
+      saveState();
+    };
+  });
+  view.querySelector("#btnPhysRandom").onclick = () => {
+    state.heightCm = Math.round(bounds.heightCm.min + Math.random() * (bounds.heightCm.max - bounds.heightCm.min));
+    state.bodyType = BODY_TYPES[Math.floor(Math.random()*BODY_TYPES.length)].id;
+    heightSlider.value = state.heightCm;
+    view.querySelectorAll("#bodyTypeRow .chip-btn").forEach(b => b.classList.toggle("active", b.dataset.bt === state.bodyType));
+    update(true);
+  };
+  update(false);
 }
-function renderPhysiqueBody(view, avg){
-  const body = view.querySelector("#physBody");
+function renderSilhouette(view){
+  const box = view.querySelector("#silhouetteBox");
   const bounds = heightWeightBounds(state.raceId, state.subraceId);
-  if (!state.physiqueMode){
-    body.innerHTML = `<p class="pool-note">Выбери способ выше: средние значения для расы — рост ${avg.heightCm} см, вес ${avg.weightKg} кг (допустимый диапазон ${bounds.heightCm.min}–${bounds.heightCm.max} см, ${bounds.weightKg.min}–${bounds.weightKg.max} кг).</p>`;
-    return;
-  }
-  if (state.physiqueMode === "roll"){
-    body.innerHTML = `
-      <button class="btn btn-gold" id="btnReroll2" style="margin-bottom:14px;">🎲 Перебросить</button>
-      <div class="ability-grid" id="physGrid"></div>
-    `;
-    body.querySelector("#btnReroll2").onclick = () => {
-      const hw = rollHeightWeight(state.raceId, state.subraceId);
-      state.heightCm = hw.heightCm; state.weightKg = hw.weightKg;
-      renderPhysiqueBody(view, avg);
-      updateNextEnabled();
-    };
-  } else {
-    body.innerHTML = `
-      <p class="pool-note">Среднее для расы: рост ~${avg.heightCm} см, вес ~${avg.weightKg} кг. Допустимый диапазон (с учётом погрешности ±17% — если очень хочется выделяющегося героя): рост ${bounds.heightCm.min}–${bounds.heightCm.max} см, вес ${bounds.weightKg.min}–${bounds.weightKg.max} кг.</p>
-      <div class="ability-grid" id="physGrid"></div>
-    `;
-  }
-  renderPhysiqueGrid(view, body, avg, bounds);
-}
-function renderPhysiqueGrid(view, body, avg, bounds){
-  const grid = body.querySelector("#physGrid");
-  const editable = state.physiqueMode === "manual";
-  grid.innerHTML = `
-    <div class="ability-card">
-      <div class="ab-name">Рост, см</div>
-      ${editable ? `<input type="number" min="${bounds.heightCm.min}" max="${bounds.heightCm.max}" id="inHeight" value="${state.heightCm ?? ''}">` : `<div class="ab-total">${state.heightCm ?? "—"}</div>`}
-    </div>
-    <div class="ability-card">
-      <div class="ab-name">Вес, кг</div>
-      ${editable ? `<input type="number" min="${bounds.weightKg.min}" max="${bounds.weightKg.max}" id="inWeight" value="${state.weightKg ?? ''}">` : `<div class="ab-total">${state.weightKg ?? "—"}</div>`}
-    </div>
-    ${editable ? `<p class="pool-note" id="physOutOfRange" style="grid-column:1/-1;"></p>` : ""}
+  const hRange = bounds.heightCm.max - bounds.heightCm.min || 1;
+  const hPct = (state.heightCm - bounds.heightCm.min) / hRange;
+  const scaleY = 0.78 + hPct * 0.34;
+  const bt = bodyTypeById(state.bodyType);
+  const wr = weightRangeForHeight(state.heightCm, state.bodyType);
+  const weightPct = wr.max > wr.min ? (state.weightKg - wr.min) / (wr.max - wr.min) : 0.5;
+  const scaleX = (bt.widthScale * 0.88) + weightPct * 0.24;
+  const isFemale = state.gender === "female";
+  const shoulderW = isFemale ? 34 : 42, hipW = isFemale ? 38 : 32, waistW = isFemale ? 24 : 30;
+  box.innerHTML = `
+    <svg viewBox="0 0 160 320" style="width:100%;height:100%;overflow:visible;">
+      <g transform="translate(80,250) scale(${scaleX.toFixed(2)},${scaleY.toFixed(2)}) translate(-80,-250)">
+        <ellipse cx="80" cy="150" rx="${shoulderW}" ry="55" fill="var(--gold-dim,#7a5c2e)" opacity="0.9"/>
+        <path d="M ${80-shoulderW} 120 Q 80 95 ${80+shoulderW} 120 L ${80+waistW} 210 Q 80 225 ${80-waistW} 210 Z" fill="var(--parchment,#ead9b3)" opacity="0.85"/>
+        <path d="M ${80-waistW} 205 Q 80 240 ${80+waistW} 205 L ${80+hipW} 250 Q 80 268 ${80-hipW} 250 Z" fill="var(--parchment,#ead9b3)" opacity="0.8"/>
+        <rect x="${80-hipW+6}" y="248" width="${(hipW-10)}" height="95" rx="10" fill="var(--parchment,#ead9b3)" opacity="0.75"/>
+        <rect x="${80+10}" y="248" width="${(hipW-10)}" height="95" rx="10" fill="var(--parchment,#ead9b3)" opacity="0.75"/>
+      </g>
+      <circle cx="80" cy="${72 - (scaleY-1)*90}" r="26" fill="var(--parchment,#ead9b3)" opacity="0.9"/>
+    </svg>
   `;
-  if (editable){
-    const checkRange = () => {
-      const note = grid.querySelector("#physOutOfRange");
-      const hOut = state.heightCm && (state.heightCm < bounds.heightCm.min || state.heightCm > bounds.heightCm.max);
-      const wOut = state.weightKg && (state.weightKg < bounds.weightKg.min || state.weightKg > bounds.weightKg.max);
-      note.innerHTML = (hOut || wOut) ? `<span style="color:var(--blood-bright);">Значение выходит за пределы допустимого диапазона даже с учётом погрешности — так для этой расы не бывает.</span>` : "";
-      updateNextEnabled();
-    };
-    grid.querySelector("#inHeight").oninput = e => { state.heightCm = e.target.value ? Number(e.target.value) : null; checkRange(); };
-    grid.querySelector("#inWeight").oninput = e => { state.weightKg = e.target.value ? Number(e.target.value) : null; checkRange(); };
+  const rulerV = view.querySelector("#rulerV");
+  if (rulerV){
+    const marks = [4,5,6,7,8];
+    rulerV.innerHTML = marks.map(ft => `<span class="ruler-tick">${ft}′</span>`).join("");
   }
 }
 
@@ -834,6 +934,7 @@ function hasTwoHandedSelected(){
 }
 function renderEquipment(view){
   const c = getClass();
+  if (!state.equipmentChoice && c.startingEquipment && c.startingEquipment.length) state.equipmentChoice = c.startingEquipment[0].choice;
   view.innerHTML = `
     <div class="view-header"><h1>Выбери снаряжение</h1><p>Готовые, реалистично собранные комплекты для класса — или собери своё снаряжение вручную.</p></div>
     <div class="split-pane">
@@ -888,7 +989,7 @@ function renderEquipDetail(view){
   detail.innerHTML = `
     <div class="detail-panel">
       <h3>Вариант ${opt.choice}${opt.role ? " — " + opt.role : ""}</h3>
-      <ul>${opt.items.map(i => `<li><b>${i.name||i}</b>${i.info ? `<span class="eq-info">${i.info}</span>` : ""}</li>`).join("")}</ul>
+      <ul>${opt.items.map(i => `<li><b>${i.name||i}</b>${i.info ? `<span class="eq-info">— ${i.info}</span>` : ""}</li>`).join("")}</ul>
     </div>
   `;
 }
@@ -978,7 +1079,7 @@ function renderCustomEquip(view, box){
 
   box.querySelector("#custPack").onchange = e => { cw.packId = e.target.value || null; renderCustomEquip(view, box); updateNextEnabled(); };
   const pack = PACK_CATALOG.find(p => p.id === cw.packId);
-  box.querySelector("#custPackInfo").innerHTML = pack ? `<img class="item-icon" src="assets/img/items/packs/${pack.id}.png" loading="lazy" onerror="this.remove()" style="vertical-align:middle;margin-right:6px;">${pack.info}` : "";
+  box.querySelector("#custPackInfo").innerHTML = pack ? `<img class="item-icon" src="assets/img/items/packs/${pack.id}.png" loading="lazy" onerror="this.remove()" style="vertical-align:middle;margin-right:6px;"><b>${pack.name}:</b> ${pack.info}` : "";
 
   const note = box.querySelector("#custBudgetNote");
   const strNote = getTotalAbility("str") >= 16 ? " Твой герой силён — может нести больше." : "";
@@ -988,24 +1089,31 @@ function renderCustomEquip(view, box){
 }
 
 /* ---------------- Step: Magic ---------------- */
+const SCHOOL_GLYPH = {
+  "Преобразование":"✦", "Трансмутация":"✦", "Воплощение":"🔥", "Вызов":"🌀",
+  "Некромантия":"💀", "Ограждение":"🛡", "Прорицание":"👁", "Очарование":"💫",
+  "Иллюзия":"🌫"
+};
 function renderMagic(view){
   const c = getClass();
   const r = CASTER_RULES[c.id];
   const abMod = abilityMod(getTotalAbility(r.ability));
   const cantripLimit = r.cantrips;
   const spellLimit = casterKnownCount(c.id, abMod);
+  const slots = LEVEL1_SPELL_SLOTS[c.id] || 2;
   const cantrips = DND_DATA.spells.filter(s => s.level === 0 && s.classes.includes(c.id));
   const lvl1 = DND_DATA.spells.filter(s => s.level === 1 && s.classes.includes(c.id));
 
   view.innerHTML = `
-    <div class="view-header"><h1>Выбери заклинания</h1><p>${c.name} черпает силу из ${ABILITY_NAMES[r.ability]}. Выбери кантрипы и заклинания 1-го уровня.</p></div>
+    <div class="view-header"><h1>Выбери заклинания</h1><p>${c.name} черпает силу из ${ABILITY_NAMES[r.ability]}. Выбери кантрипы и заклинания 1-го уровня — внизу появится панель умений как в MOBA-играх.</p></div>
+    <div class="moba-panel" id="mobaPanel"></div>
     <div class="spell-counter" id="spCounter"></div>
     <h3 class="spell-group-title">Кантрипы (нужно выбрать: ${cantripLimit})</h3>
     <div class="spell-list" id="cantripList"></div>
-    <h3 class="spell-group-title">Заклинания 1-го уровня (нужно выбрать: ${spellLimit})</h3>
+    <h3 class="spell-group-title">Заклинания 1-го уровня (нужно выбрать: ${spellLimit}, ячеек применения в день: ${slots})</h3>
     <div class="spell-list" id="lvl1List"></div>
   `;
-  const renderList = (container, spells, limit, levelTag) => {
+  const renderList = (container, spells, limit, isCantrip) => {
     container.innerHTML = "";
     spells.forEach(sp => {
       const selected = state.spells.includes(sp.id);
@@ -1015,7 +1123,7 @@ function renderMagic(view){
       card.className = "spell-card" + (selected?" selected":"") + (atLimit?" disabled":"");
       card.style.opacity = atLimit ? .45 : 1;
       card.innerHTML = `
-        <div class="sp-top"><span class="sp-name">${sp.name}</span><span class="sp-lvl">${sp.school||""}</span></div>
+        <div class="sp-top"><span class="sp-name">${SCHOOL_GLYPH[sp.school]||"✨"} ${sp.name}</span><span class="sp-lvl">${sp.school||""}</span></div>
         <div class="sp-desc">${sp.description||""}</div>
       `;
       if (!atLimit || selected) card.onclick = () => {
@@ -1027,12 +1135,32 @@ function renderMagic(view){
       container.appendChild(card);
     });
   };
-  renderList(view.querySelector("#cantripList"), cantrips, cantripLimit);
-  renderList(view.querySelector("#lvl1List"), lvl1, spellLimit);
+  renderList(view.querySelector("#cantripList"), cantrips, cantripLimit, true);
+  renderList(view.querySelector("#lvl1List"), lvl1, spellLimit, false);
   const chosenCantrips = state.spells.filter(id => cantrips.some(s=>s.id===id)).length;
-  const chosenLvl1 = state.spells.filter(id => lvl1.some(s=>s.id===id)).length;
-  view.querySelector("#spCounter").textContent = `Выбрано кантрипов: ${chosenCantrips}/${cantripLimit} · заклинаний 1-го уровня: ${chosenLvl1}/${spellLimit}`;
+  const chosenLvl1Ids = state.spells.filter(id => lvl1.some(s=>s.id===id));
+  view.querySelector("#spCounter").textContent = `Выбрано кантрипов: ${chosenCantrips}/${cantripLimit} · заклинаний 1-го уровня: ${chosenLvl1Ids.length}/${spellLimit}`;
+  renderMobaPanel(view, cantrips, lvl1, slots);
   updateNextEnabled();
+}
+function renderMobaPanel(view, cantrips, lvl1, slots){
+  const panel = view.querySelector("#mobaPanel");
+  const chosenCantrips = DND_DATA.spells.filter(s => cantrips.some(c=>c.id===s.id) && state.spells.includes(s.id));
+  const chosenLvl1 = DND_DATA.spells.filter(s => lvl1.some(c=>c.id===s.id) && state.spells.includes(s.id));
+  if (!chosenCantrips.length && !chosenLvl1.length){
+    panel.innerHTML = `<p class="pool-note">Выбери заклинания ниже — они появятся здесь как ячейки умений, прямо как в MOBA-играх.</p>`;
+    return;
+  }
+  const slotCell = (sp, extra) => `
+    <div class="moba-slot" title="${sp.name}">
+      <div class="moba-icon">${SCHOOL_GLYPH[sp.school]||"✨"}</div>
+      <div class="moba-slot-name">${sp.name}</div>
+      ${extra||""}
+    </div>`;
+  panel.innerHTML = `
+    ${chosenCantrips.length ? `<div class="moba-row"><span class="moba-row-label">Кантрипы ∞</span>${chosenCantrips.map(sp=>slotCell(sp,`<div class="moba-charges"><span class="moba-charge infinite">∞</span></div>`)).join("")}</div>` : ""}
+    ${chosenLvl1.length ? `<div class="moba-row"><span class="moba-row-label">1-й уровень</span>${chosenLvl1.map(sp=>slotCell(sp,`<div class="moba-charges">${Array.from({length:slots}).map((_,i)=>`<span class="moba-charge"></span>`).join("")}</div>`)).join("")}</div>` : ""}
+  `;
 }
 function getTotalAbility(ab){
   const base = state.abilityAssign[ab];
@@ -1094,13 +1222,15 @@ function computeFinal(){
   const equip = getEquip(c);
   const ac = computeAC(mods.dex, equip);
   const initiative = mods.dex;
-  const spellNames = state.spells.map(id => (DND_DATA.spells.find(sp=>sp.id===id)||{}).name).filter(Boolean);
+  const spellsDetailed = state.spells.map(id => DND_DATA.spells.find(sp=>sp.id===id)).filter(Boolean);
+  const spellNames = spellsDetailed.map(sp => sp.name);
+  const slots = c ? (LEVEL1_SPELL_SLOTS[c.id] || 0) : 0;
   const avg = avgHeightWeight(state.raceId, state.subraceId);
   const roleplayLines = [
     ...abilityFlavorLines(totals),
     ...physiqueFlavorLines(state.heightCm, state.weightKg, avg.weightKg)
   ];
-  return { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellNames, roleplayLines };
+  return { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellNames, spellsDetailed, slots, roleplayLines };
 }
 
 function renderSheet(view){
@@ -1109,23 +1239,35 @@ function renderSheet(view){
     <div class="view-header"><h1>Твой герой готов</h1><p>Проверь лист персонажа и экспортируй его в PDF — или вернись назад, чтобы что-то изменить.</p></div>
     <div class="sheet-actions">
       <button class="btn btn-gold" id="btnPdf">⇩ Скачать PDF</button>
-      <button class="btn btn-ghost" id="btnPrint">🖨 Печать</button>
       <button class="btn btn-ghost" id="btnRestart">↻ Начать заново</button>
     </div>
     <div class="sheet-wrap"><div id="charSheet">${sheetHTML(d)}</div></div>
   `;
   view.querySelector("#btnPdf").onclick = () => exportPDF();
-  view.querySelector("#btnPrint").onclick = () => window.print();
   view.querySelector("#btnRestart").onclick = () => {
     if (confirm("Начать создание персонажа заново? Все данные будут сброшены.")){
       localStorage.removeItem(STORAGE_KEY);
       location.reload();
     }
   };
+  const sheet = view.querySelector("#charSheet");
+  sheet.querySelectorAll(".sheet-spell-charge").forEach(ch => {
+    ch.onclick = () => {
+      ch.classList.toggle("used");
+      const spellId = ch.closest(".sheet-spell-row").dataset.spellId;
+      const key = "used_" + spellId + "_" + ch.dataset.idx;
+      state.usedCharges = state.usedCharges || {};
+      state.usedCharges[key] = ch.classList.contains("used");
+      saveState();
+    };
+    const spellId = ch.closest(".sheet-spell-row").dataset.spellId;
+    const key = "used_" + spellId + "_" + ch.dataset.idx;
+    if (state.usedCharges && state.usedCharges[key]) ch.classList.add("used");
+  });
 }
 
 function sheetHTML(d){
-  const { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellNames, roleplayLines } = d;
+  const { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellsDetailed, slots, roleplayLines } = d;
   const abBox = ab => `
     <div class="ab-box">
       <div class="n">${ABILITY_NAMES[ab]}</div>
@@ -1138,11 +1280,20 @@ function sheetHTML(d){
     ...(r ? (r.traits||[]) : []),
     ...(s ? (s.traits||[]) : [])
   ];
+  const spellRow = sp => {
+    const isCantrip = sp.level === 0;
+    return `
+    <div class="sheet-spell-row" data-spell-id="${sp.id}">
+      <span class="sheet-spell-name">${SCHOOL_GLYPH[sp.school]||"✨"} ${sp.name}</span>
+      <span class="sheet-spell-charges">${isCantrip ? `<span class="sheet-spell-charge infinite">∞</span>` : Array.from({length:slots}).map((_,i)=>`<span class="sheet-spell-charge" data-idx="${i}"></span>`).join("")}</span>
+    </div>`;
+  };
   return `
     <div class="sheet-head">
-      <div>
+      ${state.photoDataUrl ? `<img class="sheet-photo" src="${state.photoDataUrl}" alt="Портрет">` : ""}
+      <div class="sheet-head-text">
         <h2>${escapeHtml(state.name) || "Безымянный герой"}</h2>
-        <div class="sub">${r?r.name:""}${s?(" ("+s.name+")"):""} · ${c?c.name:""}${state.alignment?(" · "+state.alignment):""}${(state.heightCm&&state.weightKg)?(" · "+state.heightCm+" см, "+state.weightKg+" кг"):""}</div>
+        <div class="sub">${r?r.name:""}${s?(" ("+s.name+")"):""} · ${c?c.name:""}${state.alignment?(" · "+state.alignment):""}${(state.heightCm&&state.weightKg)?(" · "+fmtFeetInches(state.heightCm)+", "+state.weightKg+" кг"):""}</div>
       </div>
       <div class="lvlbox">Уровень 1<br>Бонус мастерства ${fmtMod(pb)}</div>
     </div>
@@ -1165,7 +1316,7 @@ function sheetHTML(d){
           <h4>Снаряжение</h4>
           <ul>${equip ? equip.items.map(i=>`<li><b>${i.name||i}</b>${i.info?` <span style="color:var(--text-dim);font-size:.78rem;">(${i.info})</span>`:""}</li>`).join("") : "<li>—</li>"}</ul>
         </div>
-        ${spellNames.length ? `<div class="spells-box"><h4>Заклинания</h4><ul>${spellNames.map(n=>`<li>${n}</li>`).join("")}</ul></div>` : ""}
+        ${spellsDetailed.length ? `<div class="spells-box"><h4>Заклинания <span class="pool-note" style="display:inline;">(ячейки сбрасываются после отдыха — щёлкни, чтобы отметить использование)</span></h4>${spellsDetailed.map(spellRow).join("")}</div>` : ""}
       </div>
     </div>
     <div class="traits-box" style="margin-top:14px;">
@@ -1174,7 +1325,7 @@ function sheetHTML(d){
     </div>
     ${roleplayLines && roleplayLines.length ? `<div class="notes-box" style="margin-top:12px;"><h4>Отыгрыш</h4><ul>${roleplayLines.map(l=>`<li>${l}</li>`).join("")}</ul></div>` : ""}
     ${state.background ? `<div class="notes-box" style="margin-top:12px;"><h4>Предыстория</h4><div>${escapeHtml(state.background)}</div></div>` : ""}
-    <div class="sheet-footer"><span>Творец Героя — редактор персонажей D&amp;D 5e</span><span>SRD (Open Game License)</span></div>
+    <div class="sheet-footer"><span>Кузня Героев — редактор персонажей D&amp;D 5e</span><span>SRD (Open Game License)</span></div>
   `;
 }
 
@@ -1185,7 +1336,7 @@ async function exportPDF(){
     const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ead9b3" });
     const img = canvas.toDataURL("image/jpeg", 0.95);
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "b4" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const ratio = canvas.width / canvas.height;
@@ -1223,10 +1374,7 @@ function validateStep(stepId){
       return true;
     }
     case "physique": {
-      if (!state.heightCm || !state.weightKg) return "Укажи рост и вес героя";
-      const b = heightWeightBounds(state.raceId, state.subraceId);
-      const ok = state.heightCm >= b.heightCm.min && state.heightCm <= b.heightCm.max && state.weightKg >= b.weightKg.min && state.weightKg <= b.weightKg.max;
-      return ok || "Рост/вес выходят за допустимые пределы даже с погрешностью ±17%";
+      return (!!state.heightCm && !!state.weightKg) || "Укажи рост и вес героя";
     }
     case "equipment": {
       if (state.equipmentChoice === "D"){
@@ -1273,5 +1421,13 @@ document.addEventListener("DOMContentLoaded", () => {
   loadState();
   document.getElementById("btnNext").onclick = next;
   document.getElementById("btnBack").onclick = back;
+  const landing = document.getElementById("landingScreen");
+  const hasProgress = !!(state.name || state.raceId || state.classId);
+  if (hasProgress && landing) landing.remove();
+  const forgeBtn = document.getElementById("btnForge");
+  if (forgeBtn) forgeBtn.onclick = () => {
+    landing.classList.add("hide");
+    setTimeout(() => landing.remove(), 500);
+  };
   render();
 });
