@@ -152,7 +152,7 @@ h1,h2,h3,.brand-text,.step-rail,.btn,.card-title,.pick-name{
   position:relative;
 }
 .pick-row:hover{border-color:var(--gold-bright);}
-.pick-row.selected{border-color:var(--gold); background:rgba(202,162,74,.14); box-shadow:0 0 0 1px var(--gold);}
+.pick-row.selected{border-color:var(--gold); background:rgba(202,162,74,.14);}
 .pick-row .glyph{font-size:1.25rem; flex-shrink:0;}
 .pick-row .pr-text{min-width:0; flex:1;}
 .pick-row .pr-name{color:var(--parchment); font-family:'Cinzel'; font-size:.95rem; line-height:1.2;}
