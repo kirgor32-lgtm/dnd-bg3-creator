@@ -310,15 +310,24 @@ function renderClassStep(view){
 function renderClassDetail(el){
   const c = getClass();
   if (!c){ el.innerHTML = `<p class="pool-note">Выбери класс слева.</p>`; return; }
+  const featuresHtml = (c.features||[]).map(f =>
+    `<li><b style="color:var(--gold-bright)">${f.name}</b> — ${f.info}</li>`
+  ).join("");
+  const skillOpts = (c.skillChoices && c.skillChoices.options) || [];
+  const equipRoles = (c.startingEquipment||[]).map(e => `${e.choice}: ${e.role}`).join(" · ");
   el.innerHTML = `
     <div class="detail-panel">
       <h3>${c.name}</h3>
+      ${c.description ? `<p class="class-flavor">${c.description}</p>` : ""}
       <div class="stat-row">
         <span class="stat-chip"><b>Кость хитов</b> к${c.hitDie}</span>
-        <span class="stat-chip"><b>Спасброски</b> ${(c.savingThrows||[]).join(", ")}</span>
+        <span class="stat-chip"><b>Спасброски</b> ${(c.savingThrows||[]).map(s => ABILITY_NAMES[s.toLowerCase()] || s).join(", ")}</span>
       </div>
       <p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Доспехи:</b> ${(c.armorProficiency||[]).join(", ") || "—"}</p>
       <p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Оружие:</b> ${(c.weaponProficiency||[]).join(", ") || "—"}</p>
+      ${featuresHtml ? `<p style="margin:10px 0 4px;color:var(--parchment)"><b>Умения 1 уровня:</b></p><ul class="feature-list">${featuresHtml}</ul>` : ""}
+      ${skillOpts.length ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Навыки на выбор (${c.skillChoices.count}):</b> ${skillOpts.join(", ")}</p>` : ""}
+      ${equipRoles ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Снаряжение:</b> ${equipRoles}</p>` : ""}
     </div>
   `;
 }

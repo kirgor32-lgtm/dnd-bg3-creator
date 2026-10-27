@@ -127,6 +127,12 @@ h1,h2,h3,.brand-text,.step-rail,.btn,.card-title,.pick-name{
   padding:6px 12px; font-size:.85rem; color:var(--text-dim);
 }
 .stat-chip b{color:var(--parchment); font-family:'Cinzel'; }
+.class-flavor{
+  color:var(--text-light); font-style:italic; line-height:1.5;
+  border-left:2px solid var(--gold); padding-left:10px; margin:0 0 12px;
+}
+.feature-list{margin:0 0 6px; padding-left:20px; color:var(--text-light);}
+.feature-list li{margin-bottom:6px; line-height:1.45;}
 
 /* ---------- Split-pane layout: choices left, live detail right (desktop) ----------
    Keeps logically connected choice+description on one screen; each column scrolls
