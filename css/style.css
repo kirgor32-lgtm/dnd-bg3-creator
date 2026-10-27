@@ -134,9 +134,11 @@ h1,h2,h3,.brand-text,.step-rail,.btn,.card-title,.pick-name{
 .feature-list{margin:0 0 6px; padding-left:20px; color:var(--text-light);}
 .feature-list li{margin-bottom:6px; line-height:1.45;}
 .entity-portrait{
-  display:block; width:100%; max-height:260px; object-fit:cover;
-  border:1px solid var(--line); border-radius:8px; margin-bottom:12px;
+  display:block; width:100%; max-width:320px; margin:0 auto 12px;
+  aspect-ratio:2/3; object-fit:cover; object-position:50% 12%;
+  border:1px solid var(--line); border-radius:8px;
   box-shadow:0 4px 18px rgba(0,0,0,.4);
+  background:var(--panel-2);
 }
 .item-icon{
   width:22px; height:22px; object-fit:contain; border-radius:4px;
@@ -538,14 +540,14 @@ input[type=number]{text-align:center;}
 .moba-charge.infinite{ width:auto; height:auto; border-radius:0; background:none; color:var(--gold-bright); font-size:.78rem; }
 
 /* ---------- Лист персонажа: заклинания со слотами, фото героя ---------- */
-.sheet-spell-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; font-size:.85rem; }
+.sheet-spell-row{ margin-bottom:7px; font-size:.83rem; }
+.sheet-spell-top{ display:flex; justify-content:space-between; align-items:center; }
+.sheet-spell-brief{ font-size:.74rem; color:#5a4525; font-style:italic; line-height:1.3; margin-top:1px; }
 .sheet-spell-charges{ display:flex; gap:4px; }
 .sheet-spell-charge{
-  width:11px; height:11px; border-radius:50%; border:1.5px solid #6b5330;
-  cursor:pointer; background:transparent;
+  width:11px; height:11px; border:1.3px solid #6b5330; background:transparent;
 }
-.sheet-spell-charge.used{ background:#7c2020; border-color:#7c2020; }
-.sheet-spell-charge.infinite{ width:auto; height:auto; border:none; font-size:.8rem; color:#4a3618; cursor:default; }
+.sheet-spell-charge.infinite{ width:auto; height:auto; border:none; font-size:.8rem; color:#4a3618; }
 .sheet-photo{
   width:20%; aspect-ratio:1/1; object-fit:cover; border-radius:6px; border:2px solid #6b5330;
   box-shadow:0 2px 10px rgba(0,0,0,.35); flex-shrink:0;
@@ -587,3 +589,53 @@ input[type=number]{text-align:center;}
   #charSheet, #charSheet *{visibility:visible;}
   #charSheet{position:absolute; left:0; top:0; box-shadow:none; border:none;}
 }
+
+/* ===== ПРАВИЛО: любой нативный браузерный контрол (range, select, number
+   spinner) обязан быть переоформлен в теме проекта — никаких синих/белых
+   стандартных слайдеров, стрелочек или выпадающих меню браузера. ===== */
+input[type="range"]{
+  -webkit-appearance:none; appearance:none; width:100%; height:6px;
+  background:linear-gradient(90deg, var(--gold) 0%, var(--line) 0%);
+  border-radius:4px; outline:none; cursor:pointer; accent-color:var(--gold);
+}
+input[type="range"]::-webkit-slider-runnable-track{
+  height:6px; border-radius:4px; background:var(--line);
+}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:18px; height:18px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 70%);
+  border:1.5px solid #5e4620; box-shadow:0 2px 6px rgba(0,0,0,.5); margin-top:-6px;
+}
+input[type="range"]::-moz-range-track{ height:6px; border-radius:4px; background:var(--line); }
+input[type="range"]::-moz-range-thumb{
+  width:16px; height:16px; border-radius:50%; border:1.5px solid #5e4620;
+  background:radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 70%);
+}
+
+select{
+  -webkit-appearance:none; -moz-appearance:none; appearance:none;
+  background:var(--panel-2) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 8"><path d="M1 1l5 5 5-5" fill="none" stroke="%23caa24a" stroke-width="1.6"/></svg>') no-repeat right 10px center;
+  background-size:11px 7px;
+  color:var(--parchment); border:1px solid var(--line); border-radius:6px;
+  padding:8px 30px 8px 10px; font-family:inherit; font-size:.95rem; cursor:pointer;
+}
+select:focus{ outline:none; border-color:var(--gold); }
+
+.num-stepper{ display:flex; align-items:center; gap:0; margin:6px 0; }
+.num-stepper input[type="number"]{
+  -moz-appearance:textfield; appearance:textfield;
+  width:52px; text-align:center; background:var(--panel-2); color:var(--parchment);
+  border:1px solid var(--line); border-left:none; border-right:none;
+  padding:7px 2px; font-family:inherit; font-size:1rem;
+}
+.num-stepper input[type="number"]::-webkit-outer-spin-button,
+.num-stepper input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+.step-btn{
+  width:30px; height:34px; flex-shrink:0; border:1px solid var(--line);
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  color:var(--gold-bright); font-size:1.1rem; line-height:1; cursor:pointer;
+}
+.step-btn:first-child{ border-radius:6px 0 0 6px; }
+.step-btn:last-child{ border-radius:0 6px 6px 0; }
+.step-btn:hover{ background:var(--gold); color:var(--ink); }
+.step-btn:active{ background:var(--gold-bright); }

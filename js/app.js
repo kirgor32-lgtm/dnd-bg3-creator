@@ -749,18 +749,34 @@ function renderFreeGrid(view, body){
     card.className = "ability-card";
     card.innerHTML = `
       <div class="ab-name">${ABILITY_NAMES[ab]}</div>
-      <input type="number" min="3" max="18" data-ab="${ab}" value="${current}">
+      <div class="num-stepper">
+        <button type="button" class="step-btn" data-dir="-1">−</button>
+        <input type="number" min="3" max="18" data-ab="${ab}" value="${current}">
+        <button type="button" class="step-btn" data-dir="1">+</button>
+      </div>
       <div class="ab-total">${total ?? "—"}</div>
       <div class="ab-mod">модификатор ${total!=null?fmtMod(abilityMod(total)):"—"}</div>
       ${bonus ? `<div class="ab-bonus">расовый бонус +${bonus}</div>` : ""}
     `;
-    card.querySelector("input").oninput = e => {
+    const input = card.querySelector("input");
+    input.oninput = e => {
       let v = e.target.value === "" ? null : Number(e.target.value);
       if (v != null){ v = Math.max(3, Math.min(18, Math.round(v))); }
       state.abilityAssign[ab] = v;
       renderFreeGrid(view, body);
       updateNextEnabled();
     };
+    card.querySelectorAll(".step-btn").forEach(btn => {
+      btn.onclick = () => {
+        const dir = Number(btn.dataset.dir);
+        let v = state.abilityAssign[ab];
+        v = v == null ? 10 : v + dir;
+        v = Math.max(3, Math.min(18, v));
+        state.abilityAssign[ab] = v;
+        renderFreeGrid(view, body);
+        updateNextEnabled();
+      };
+    });
     grid.appendChild(card);
   });
 }
@@ -986,13 +1002,22 @@ function renderEquipDetail(view){
     return;
   }
   const opt = (c.startingEquipment||[]).find(e => e.choice === state.equipmentChoice);
-  detail.innerHTML = `
-    <div class="detail-panel">
-      <h3>Вариант ${opt.choice}${opt.role ? " — " + opt.role : ""}</h3>
-      <ul>${opt.items.map(i => `<li><b>${i.name||i}</b>${i.info ? `<span class="eq-info">— ${i.info}</span>` : ""}</li>`).join("")}</ul>
-    </div>
-  `;
-}
+    detail.innerHTML = `
+      <div class="detail-panel">
+        <h3>Вариант ${opt.choice}${opt.role ? " — " + opt.role : ""}</h3>
+        <ul>${opt.items.map(i => `<li>${itemIconHTML(i.name||i)}<b>${i.name||i}</b>${i.info ? `<span class="eq-info">— ${i.info}</span>` : ""}</li>`).join("")}</ul>
+      </div>
+    `;
+  }
+  function itemIconHTML(name){
+    const w = WEAPON_CATALOG.find(x => x.name === name);
+    if (w) return `<img class="item-icon" src="assets/img/items/weapons/${w.id}.png" loading="lazy" onerror="this.remove()">`;
+    const a = ARMOR_CATALOG.find(x => x.name === name);
+    if (a) return `<img class="item-icon" src="assets/img/items/armor/${a.id}.png" loading="lazy" onerror="this.remove()">`;
+    const p = PACK_CATALOG.find(x => x.name === name);
+    if (p) return `<img class="item-icon" src="assets/img/items/packs/${p.id}.png" loading="lazy" onerror="this.remove()">`;
+    return "";
+  }
 function renderCustomEquip(view, box){
   const c = getClass();
   const cw = state.customEquip;
@@ -1083,7 +1108,7 @@ function renderCustomEquip(view, box){
 
   const note = box.querySelector("#custBudgetNote");
   const strNote = getTotalAbility("str") >= 16 ? " Твой герой силён — может нести больше." : "";
-  const sizeNote = (state.weightKg && avgHeightWeight(state.raceId, state.subraceId).weightKg && state.weightKg >= avgHeightWeight(state.raceId, state.subraceId).weightKg * 1.25) ? " Крупное телосложение добавляет ещё одну ячейку." : "";
+  const sizeNote = (state.weightKg && avgHeightWeight(state.raceId, state.subraceId).weightKg && state.weightKg >= avgHeightWeight(state.raceId, state.subraceId).weightKg * 1.25) ? " Крупная фигура добавляет ещё одну ячейку." : "";
   note.innerHTML = `Занято ячеек переноски оружия/щита: <b style="color:${cost>budget?'var(--blood-bright)':'var(--gold-bright)'}">${cost} / ${budget}</b>.${strNote}${sizeNote}
     ${cost>budget ? `<br><span style="color:var(--blood-bright);">Слишком много снаряжения — его просто не унести и не удержать в бою одновременно. Сними что-нибудь или повысь Силу / телосложение.</span>` : ""}`;
 }
@@ -1105,10 +1130,9 @@ function renderMagic(view){
   const lvl1 = DND_DATA.spells.filter(s => s.level === 1 && s.classes.includes(c.id));
 
   view.innerHTML = `
-    <div class="view-header"><h1>Выбери заклинания</h1><p>${c.name} черпает силу из ${ABILITY_NAMES[r.ability]}. Выбери кантрипы и заклинания 1-го уровня — внизу появится панель умений как в MOBA-играх.</p></div>
-    <div class="moba-panel" id="mobaPanel"></div>
+    <div class="view-header"><h1>Выбери заклинания</h1><p>${c.name} черпает силу из ${ABILITY_NAMES[r.ability]}. Выбери фокусы и заклинания 1-го уровня — они появятся в листе персонажа со слотами применения.</p></div>
     <div class="spell-counter" id="spCounter"></div>
-    <h3 class="spell-group-title">Кантрипы (нужно выбрать: ${cantripLimit})</h3>
+    <h3 class="spell-group-title">Фокусы (нужно выбрать: ${cantripLimit})</h3>
     <div class="spell-list" id="cantripList"></div>
     <h3 class="spell-group-title">Заклинания 1-го уровня (нужно выбрать: ${spellLimit}, ячеек применения в день: ${slots})</h3>
     <div class="spell-list" id="lvl1List"></div>
@@ -1139,28 +1163,8 @@ function renderMagic(view){
   renderList(view.querySelector("#lvl1List"), lvl1, spellLimit, false);
   const chosenCantrips = state.spells.filter(id => cantrips.some(s=>s.id===id)).length;
   const chosenLvl1Ids = state.spells.filter(id => lvl1.some(s=>s.id===id));
-  view.querySelector("#spCounter").textContent = `Выбрано кантрипов: ${chosenCantrips}/${cantripLimit} · заклинаний 1-го уровня: ${chosenLvl1Ids.length}/${spellLimit}`;
-  renderMobaPanel(view, cantrips, lvl1, slots);
+  view.querySelector("#spCounter").textContent = `Выбрано фокусов: ${chosenCantrips}/${cantripLimit} · заклинаний 1-го уровня: ${chosenLvl1Ids.length}/${spellLimit}`;
   updateNextEnabled();
-}
-function renderMobaPanel(view, cantrips, lvl1, slots){
-  const panel = view.querySelector("#mobaPanel");
-  const chosenCantrips = DND_DATA.spells.filter(s => cantrips.some(c=>c.id===s.id) && state.spells.includes(s.id));
-  const chosenLvl1 = DND_DATA.spells.filter(s => lvl1.some(c=>c.id===s.id) && state.spells.includes(s.id));
-  if (!chosenCantrips.length && !chosenLvl1.length){
-    panel.innerHTML = `<p class="pool-note">Выбери заклинания ниже — они появятся здесь как ячейки умений, прямо как в MOBA-играх.</p>`;
-    return;
-  }
-  const slotCell = (sp, extra) => `
-    <div class="moba-slot" title="${sp.name}">
-      <div class="moba-icon">${SCHOOL_GLYPH[sp.school]||"✨"}</div>
-      <div class="moba-slot-name">${sp.name}</div>
-      ${extra||""}
-    </div>`;
-  panel.innerHTML = `
-    ${chosenCantrips.length ? `<div class="moba-row"><span class="moba-row-label">Кантрипы ∞</span>${chosenCantrips.map(sp=>slotCell(sp,`<div class="moba-charges"><span class="moba-charge infinite">∞</span></div>`)).join("")}</div>` : ""}
-    ${chosenLvl1.length ? `<div class="moba-row"><span class="moba-row-label">1-й уровень</span>${chosenLvl1.map(sp=>slotCell(sp,`<div class="moba-charges">${Array.from({length:slots}).map((_,i)=>`<span class="moba-charge"></span>`).join("")}</div>`)).join("")}</div>` : ""}
-  `;
 }
 function getTotalAbility(ab){
   const base = state.abilityAssign[ab];
@@ -1250,20 +1254,6 @@ function renderSheet(view){
       location.reload();
     }
   };
-  const sheet = view.querySelector("#charSheet");
-  sheet.querySelectorAll(".sheet-spell-charge").forEach(ch => {
-    ch.onclick = () => {
-      ch.classList.toggle("used");
-      const spellId = ch.closest(".sheet-spell-row").dataset.spellId;
-      const key = "used_" + spellId + "_" + ch.dataset.idx;
-      state.usedCharges = state.usedCharges || {};
-      state.usedCharges[key] = ch.classList.contains("used");
-      saveState();
-    };
-    const spellId = ch.closest(".sheet-spell-row").dataset.spellId;
-    const key = "used_" + spellId + "_" + ch.dataset.idx;
-    if (state.usedCharges && state.usedCharges[key]) ch.classList.add("used");
-  });
 }
 
 function sheetHTML(d){
@@ -1282,10 +1272,14 @@ function sheetHTML(d){
   ];
   const spellRow = sp => {
     const isCantrip = sp.level === 0;
+    const brief = (sp.description || "").split(". ").slice(0,1).join(". ").replace(/\.*$/, ".");
     return `
     <div class="sheet-spell-row" data-spell-id="${sp.id}">
-      <span class="sheet-spell-name">${SCHOOL_GLYPH[sp.school]||"✨"} ${sp.name}</span>
-      <span class="sheet-spell-charges">${isCantrip ? `<span class="sheet-spell-charge infinite">∞</span>` : Array.from({length:slots}).map((_,i)=>`<span class="sheet-spell-charge" data-idx="${i}"></span>`).join("")}</span>
+      <div class="sheet-spell-top">
+        <span class="sheet-spell-name">${SCHOOL_GLYPH[sp.school]||"✨"} ${sp.name}${isCantrip?" <i>(фокус)</i>":""}</span>
+        <span class="sheet-spell-charges">${isCantrip ? `<span class="sheet-spell-charge infinite">∞</span>` : Array.from({length:slots}).map((_,i)=>`<span class="sheet-spell-charge" data-idx="${i}"></span>`).join("")}</span>
+      </div>
+      <div class="sheet-spell-brief">${brief}</div>
     </div>`;
   };
   return `
@@ -1316,7 +1310,7 @@ function sheetHTML(d){
           <h4>Снаряжение</h4>
           <ul>${equip ? equip.items.map(i=>`<li><b>${i.name||i}</b>${i.info?` <span style="color:var(--text-dim);font-size:.78rem;">(${i.info})</span>`:""}</li>`).join("") : "<li>—</li>"}</ul>
         </div>
-        ${spellsDetailed.length ? `<div class="spells-box"><h4>Заклинания <span class="pool-note" style="display:inline;">(ячейки сбрасываются после отдыха — щёлкни, чтобы отметить использование)</span></h4>${spellsDetailed.map(spellRow).join("")}</div>` : ""}
+        ${spellsDetailed.length ? `<div class="spells-box"><h4>Заклинания <span class="pool-note" style="display:inline;">(отмечай использованные ячейки карандашом ✎)</span></h4>${spellsDetailed.map(spellRow).join("")}</div>` : ""}
       </div>
     </div>
     <div class="traits-box" style="margin-top:14px;">
@@ -1422,8 +1416,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnNext").onclick = next;
   document.getElementById("btnBack").onclick = back;
   const landing = document.getElementById("landingScreen");
-  const hasProgress = !!(state.name || state.raceId || state.classId);
-  if (hasProgress && landing) landing.remove();
   const forgeBtn = document.getElementById("btnForge");
   if (forgeBtn) forgeBtn.onclick = () => {
     landing.classList.add("hide");
