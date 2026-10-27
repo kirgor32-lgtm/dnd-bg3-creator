@@ -312,11 +312,7 @@ const ABILITY_MODES = [
 ];
 
 function applyRecommendedBuild(){
-  const c = getClass();
-  const order = (c && CLASS_ABILITY_PRIORITY[c.id]) || ["str","dex","con","int","wis","cha"];
-  const values = STANDARD_ARRAY.slice().sort((a,b) => b - a);
-  state.abilityAssign = {};
-  order.forEach((ab, i) => { state.abilityAssign[ab] = values[i]; });
+  autoAssignPool(STANDARD_ARRAY);
 }
 
 function renderAbilities(view){
@@ -367,17 +363,28 @@ function renderModeBody(view){
   else renderFreeMode(view, body);
 }
 
+function autoAssignPool(pool){
+  const c = getClass();
+  const order = (c && CLASS_ABILITY_PRIORITY[c.id]) || ["str","dex","con","int","wis","cha"];
+  const sorted = pool.slice().sort((a,b) => b - a);
+  state.abilityAssign = {};
+  order.forEach((ab, i) => { state.abilityAssign[ab] = sorted[i]; });
+}
+
 function renderDiceMode(view, body){
-  if (!state.diceRolls) state.diceRolls = rollAbilityScores();
+  if (!state.diceRolls){
+    state.diceRolls = rollAbilityScores();
+    autoAssignPool(state.diceRolls);
+  }
   body.innerHTML = `
-    <p class="pool-note">Для каждой характеристики брошено 4к6, худший кубик отброшен. Распредели результаты по характеристикам.</p>
+    <p class="pool-note">Для каждой характеристики брошено 4к6, худший кубик отброшен. Значения сразу расставлены по важным для класса характеристикам — можешь поменять местами вручную.</p>
     <button class="btn btn-ghost" id="btnReroll" style="margin-bottom:14px;">🎲 Перебросить кубики</button>
     <div class="ability-grid" id="abGrid"></div>
     <p class="pool-note" id="poolNote"></p>
   `;
   body.querySelector("#btnReroll").onclick = () => {
     state.diceRolls = rollAbilityScores();
-    state.abilityAssign = {};
+    autoAssignPool(state.diceRolls);
     renderDiceMode(view, body);
     updateNextEnabled();
   };
