@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Создание персонажа — D&amp;D 5e</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="bg-glow"></div>
+
+<header class="top-bar">
+  <div class="brand">
+    <span class="brand-icon">⚔</span>
+    <span class="brand-text">Творец Героя</span>
+  </div>
+  <div class="charname-display" id="headerCharName"></div>
+</header>
+
+<nav class="step-rail" id="stepRail" aria-label="Шаги создания персонажа"></nav>
+
+<main class="stage" id="stage"></main>
+
+<footer class="nav-controls">
+  <button id="btnBack" class="btn btn-ghost">← Назад</button>
+  <div class="step-caption" id="stepCaption"></div>
+  <button id="btnNext" class="btn btn-gold">Далее →</button>
+</footer>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/rules.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1670 @@
+{
+ "races": [
+  {
+   "id": "human",
+   "name": "Человек",
+   "nameEn": "Human",
+   "abilityBonuses": {
+    "all": 1
+   },
+   "speed": 30,
+   "size": "Средний",
+   "traits": [
+    "Способный ученик - человеческое любопытство и амбиции",
+    "Дополнительный язык - люди часто изучают языки других народов"
+   ],
+   "languages": [
+    "Общий"
+   ],
+   "subraces": []
+  },
+  {
+   "id": "elf",
+   "name": "Эльф",
+   "nameEn": "Elf",
+   "abilityBonuses": {
+    "dex": 2
+   },
+   "speed": 30,
+   "size": "Средний",
+   "traits": [
+    "Ночное зрение - видеть в темноте на 60 футов",
+    "Острые чувства - мастерство в Восприятии",
+    "Фейное наследие - преимущество против зачарования и магического сна",
+    "Транс - эльфы не спят, медитируют 4 часа в день"
+   ],
+   "languages": [
+    "Общий",
+    "Эльфийский"
+   ],
+   "subraces": [
+    {
+     "id": "high-elf",
+     "name": "Высокий эльф",
+     "nameEn": "High Elf",
+     "abilityBonuses": {
+      "int": 1
+     },
+     "traits": [
+      "Боевое мастерство эльфов - владение мечами и луками",
+      "Кантрип - один кантрип на выбор из списка волшебника"
+     ]
+    },
+    {
+     "id": "wood-elf",
+     "name": "Лесной эльф",
+     "nameEn": "Wood Elf",
+     "abilityBonuses": {
+      "wis": 1
+     },
+     "speed": 35,
+     "traits": [
+      "Боевое мастерство эльфов - владение мечами и луками",
+      "Быстрые ноги - базовая скорость 35 футов вместо 30",
+      "Маска дикой природы - можно скрываться в легком затемнении природой"
+     ]
+    },
+    {
+     "id": "drow",
+     "name": "Тёмный эльф (Дроу)",
+     "nameEn": "Drow (Dark Elf)",
+     "abilityBonuses": {
+      "cha": 1
+     },
+     "traits": [
+      "Превосходное ночное зрение - видеть в темноте на 120 футов",
+      "Боевое мастерство дроу - владение рапирами и ручными арбалетами",
+      "Чувствительность к солнечному свету - помеха в атаках и Восприятии на солнце",
+      "Магия дроу - заклинания дроу на 1, 3 и 5 уровнях"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "dwarf",
+   "name": "Дворф",
+   "nameEn": "Dwarf",
+   "abilityBonuses": {
+    "con": 2
+   },
+   "speed": 25,
+   "size": "Средний",
+   "traits": [
+    "Ночное зрение - видеть в темноте на 60 футов",
+    "Устойчивость к ядам - преимущество к спасбросокам против яда",
+    "Боевое мастерство дворфов - владение боевыми топорами и молотами",
+    "Умение с инструментами - владение кузнечными инструментами",
+    "Чувство камня - двойной бонус при проверках Истории о каменных предметах"
+   ],
+   "languages": [
+    "Общий",
+    "Дварфийский"
+   ],
+   "subraces": [
+    {
+     "id": "hill-dwarf",
+     "name": "Холмовой дворф",
+     "nameEn": "Hill Dwarf",
+     "abilityBonuses": {
+      "wis": 1
+     },
+     "traits": [
+      "Дворфийская стойкость - максимум хитов увеличивается на 1 за каждый уровень"
+     ]
+    },
+    {
+     "id": "mountain-dwarf",
+     "name": "Горный дворф",
+     "nameEn": "Mountain Dwarf",
+     "abilityBonuses": {
+      "str": 2
+     },
+     "traits": [
+      "Обучение броне - владение лёгкой и средней броней"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "halfling",
+   "name": "Полурослик",
+   "nameEn": "Halfling",
+   "abilityBonuses": {
+    "dex": 2
+   },
+   "speed": 25,
+   "size": "Маленький",
+   "traits": [
+    "Удача - переброс 1 на d20 для атак, проверок и спасбросков",
+    "Храбрость - преимущество против испуга",
+    "Ловкость полуросликов - движение сквозь более крупных существ"
+   ],
+   "languages": [
+    "Общий",
+    "Полуросликов"
+   ],
+   "subraces": [
+    {
+     "id": "lightfoot-halfling",
+     "name": "Лёгконогий полурослик",
+     "nameEn": "Lightfoot Halfling",
+     "abilityBonuses": {
+      "cha": 1
+     },
+     "traits": [
+      "Незаметность - склонность оставаться незамеченным"
+     ]
+    },
+    {
+     "id": "stout-halfling",
+     "name": "Крепкий полурослик",
+     "nameEn": "Stout Halfling",
+     "abilityBonuses": {
+      "con": 1
+     },
+     "traits": [
+      "Устойчивость к ядам - преимущество к спасбросокам против яда"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "gnome",
+   "name": "Гном",
+   "nameEn": "Gnome",
+   "abilityBonuses": {
+    "int": 2
+   },
+   "speed": 25,
+   "size": "Маленький",
+   "traits": [
+    "Ночное зрение - видеть в темноте на 60 футов",
+    "Гномья хитрость - преимущество против магических спасбросков"
+   ],
+   "languages": [
+    "Общий",
+    "Гномий"
+   ],
+   "subraces": [
+    {
+     "id": "forest-gnome",
+     "name": "Лесной гном",
+     "nameEn": "Forest Gnome",
+     "abilityBonuses": {
+      "dex": 1
+     },
+     "traits": [
+      "Природный иллюзионист - кантрип Малая иллюзия",
+      "Разговор с животными - можно говорить с малыми животными"
+     ]
+    },
+    {
+     "id": "rock-gnome",
+     "name": "Скальный гном",
+     "nameEn": "Rock Gnome",
+     "abilityBonuses": {
+      "con": 1
+     },
+     "traits": [
+      "Знания артизана - двойной бонус при проверках о магических предметах",
+      "Мастер на все руки - владение инструментами для работы с металлом и создание механизмов"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "dragonborn",
+   "name": "Драконорождённый",
+   "nameEn": "Dragonborn",
+   "abilityBonuses": {
+    "str": 2,
+    "cha": 1
+   },
+   "speed": 30,
+   "size": "Средний",
+   "traits": [
+    "Драконье происхождение - выбрать тип дракона и соответствующее оружие дыхания",
+    "Оружие дыхания - выдыхать разрушающую энергию, наносящую урон в зависимости от типа",
+    "Сопротивление урону - зависит от типа драконовского происхождения"
+   ],
+   "languages": [
+    "Общий",
+    "Драконий"
+   ],
+   "subraces": []
+  },
+  {
+   "id": "half-elf",
+   "name": "Полуэльф",
+   "nameEn": "Half-Elf",
+   "abilityBonuses": {
+    "cha": 2
+   },
+   "speed": 30,
+   "size": "Средний",
+   "traits": [
+    "Ночное зрение - видеть в темноте на 60 футов",
+    "Фейное наследие - преимущество против зачарования и магического сна",
+    "Универсальность навыков - выбрать два дополнительных навыка"
+   ],
+   "languages": [
+    "Общий",
+    "Эльфийский"
+   ],
+   "subraces": []
+  },
+  {
+   "id": "half-orc",
+   "name": "Полуорк",
+   "nameEn": "Half-Orc",
+   "abilityBonuses": {
+    "str": 2,
+    "con": 1
+   },
+   "speed": 30,
+   "size": "Средний",
+   "traits": [
+    "Ночное зрение - видеть в темноте на 60 футов",
+    "Угрожающий вид - владение навыком Запугивание",
+    "Неумолимая выносливость - когда здоровье достигает 0, можно остаться в сознании 1 раз"
+   ],
+   "languages": [
+    "Общий",
+    "Орочий"
+   ],
+   "subraces": []
+  },
+  {
+   "id": "tiefling",
+   "name": "Тифлинг",
+   "nameEn": "Tiefling",
+   "abilityBonuses": {
+    "cha": 2,
+    "int": 1
+   },
+   "speed": 30,
+   "size": "Средний",
+   "traits": [
+    "Ночное зрение - видеть в темноте на 60 футов",
+    "Адское сопротивление - сопротивление урону огнём",
+    "Адское наследие - кантрип Чудотворство (Thaumaturgy), заклинания в зависимости от уровня"
+   ],
+   "languages": [
+    "Общий",
+    "Инфернальный"
+   ],
+   "subraces": []
+  }
+ ],
+ "classes": [
+  {
+   "id": "barbarian",
+   "name": "Варвар",
+   "nameEn": "Barbarian",
+   "hitDie": 12,
+   "primaryAbility": "STR",
+   "savingThrows": [
+    "STR",
+    "CON"
+   ],
+   "armorProficiency": [
+    "Light armor",
+    "Medium armor",
+    "Shields"
+   ],
+   "weaponProficiency": [
+    "Simple weapons",
+    "Martial weapons"
+   ],
+   "skillChoices": {
+    "count": 2,
+    "options": [
+     "Уход за животными",
+     "Атлетика",
+     "Запугивание",
+     "Природа",
+     "Восприятие",
+     "Выживание"
+    ]
+   },
+   "startingEquipment": [
+    {
+     "choice": "A",
+     "items": [
+      "Секира",
+      "Два ручных топора",
+      "Набор путника",
+      "4 дротика"
+     ]
+    },
+    {
+     "choice": "B",
+     "items": [
+      "Любое воинское оружие ближнего боя",
+      "Любое простое оружие",
+      "Набор путника",
+      "4 дротика"
+     ]
+    }
+   ],
+   "spellcasting": null
+  },
+  {
+   "id": "bard",
+   "name": "Бард",
+   "nameEn": "Bard",
+   "hitDie": 8,
+   "primaryAbility": "CHA",
+   "savingThrows": [
+    "DEX",
+    "CHA"
+   ],
+   "armorProficiency": [
+    "Light armor"
+   ],
+   "weaponProficiency": [
+    "Simple weapons",
+    "Hand crossbows",
+    "Longswords",
+    "Rapiers",
+    "Shortswords"
+   ],
+   "skillChoices": {
+    "count": 4,
+    "options": [
+     "Акробатика",
+     "Уход за животными",
+     "Магия",
+     "Атлетика",
+     "Обман",
+     "История",
+     "Проницательность",
+     "Запугивание",
+     "Анализ",
+     "Медицина",
+     "Природа",
+     "Восприятие",
+     "Выступление",
+     "Убеждение",
+     "Религия",
+     "Ловкость рук",
+     "Скрытность"
+    ]
+   },
+   "startingEquipment": [
+    {
+     "choice": "A",
+     "items": [
+      "Рапира",
+      "Набор дипломата",
+      "Лютня",
+      "Кожаный доспех",
+      "Кинжал"
+     ]
+    },
+    {
+     "choice": "B",
+     "items": [
+      "Длинный меч",
+      "Набор артиста",
+      "Любой другой музыкальный инструмент",
+      "Кожаный доспех",
+      "Кинжал"
+     ]
+    },
+    {
+     "choice": "C",
+     "items": [
+      "Любое простое оружие ближнего боя",
+      "Набор дипломата",
+      "Лютня",
+      "Кожаный доспех",
+      "Кинжал"
+     ]
+    }
+   ],
+   "spellcasting": {
+    "ability": "CHA",
+    "cantripsKnown": 2,
+    "spellsKnown": "4 at 1st level"
+   }
+  },
+  {
+   "id": "cleric",
+   "name": "Жрец",
+   "nameEn": "Cleric",
+   "hitDie": 8,
+   "primaryAbility": "WIS",
+   "savingThrows": [
+    "WIS",
+    "CHA"
+   ],
+   "armorProficiency": [
+    "Light armor",
+    "Medium armor",
+    "Shields"
+   ],
+   "weaponProficiency": [
+    "Simple weapons"
+   ],
+   "skillChoices": {
+    "count": 2,
+    "options": [
+     "Проницательность",
+     "Медицина",
+     "Убеждение",
+     "Религия"
+    ]
+   },
+   "startingEquipment": [
+    {
+     "choice": "A",
+     "items": [
+      "Булава",
+      "Чешуйчатый доспех",
+      "Лёгкий арбалет и 20 болтов",
+      "Набор священника",
+      "Щит",
+      "Священный символ"
+     ]
+    },
+    {
+     "choice": "B",
+     "items": [
+      "Боевой молот (при владении)",
+      "Кожаный доспех",
+      "Любое простое оружие",
+      "Набор путника",
+      "Щит",
+      "Священный символ"
+     ]
+    },
+    {
+     "choice": "C",
+     "items": [
+      "Булава",
+      "Кольчуга (при владении)",
+      "Лёгкий арбалет и 20 болтов",
+      "Набор священника",
+      "Щит",
+      "Священный символ"
+     ]
+    }
+   ],
+   "spellcasting": {
+    "ability": "WIS",
+    "cantripsKnown": 3,
+    "spellsKnown": "Prepared from class spell list"
+   }
+  },
+  {
+   "id": "druid",
+   "name": "Друид",
+   "nameEn": "Druid",
+   "hitDie": 8,
+   "primaryAbility": "WIS",
+   "savingThrows": [
+    "INT",
+    "WIS"
+   ],
+   "armorProficiency": [
+    "Light armor",
+    "Medium armor",
+    "Shields"
+   ],
+   "weaponProficiency": [
+    "Clubs",
+    "Daggers",
+    "Darts",
+    "Javelins",
+    "Maces",
+    "Quarterstaffs",
+    "Scimitars",
+    "Sickles",
+    "Slings",
+    "Spears"
+   ],
+   "skillChoices": {
+    "count": 2,
+    "options": [
+     "Магия",
+     "Уход за животными",
+     "Проницательность",
+     "Медицина",
+     "Природа",
+     "Восприятие",
+     "Религия",
+     "Выживание"
+    ]
+   },
+   "startingEquipment": [
+    {
+     "choice": "A",
+     "items": [
+      "Деревянный щит",
+      "Скимитар",
+      "Кожаный доспех",
+      "Набор путника",
+      "Друидический фокус"
+     ]
+    },
+    {
+     "choice": "B",
+     "items": [
+      "Любое простое оружие",
+      "Любое простое оружие ближнего боя",
+      "Кожаный доспех",
+      "Набор путника",
+      "Друидический фокус"
+     ]
+    }
+   ],
+   "spellcasting": {
+    "ability": "WIS",
+    "cantripsKnown": 2,
+    "spellsKnown": "Prepared from class spell list"
+   }
+  },
+  {
+   "id": "fighter",
+   "name": "Воин",
+   "nameEn": "Fighter",
+   "hitDie": 10,
+   "primaryAbility": "STR or DEX",
+   "savingThrows": [
+    "STR",
+    "CON"
+   ],
+   "armorProficiency": [
+    "All armor",
+    "Shields"
+   ],
+   "weaponProficiency": [
+    "Simple weapons",
+    "Martial weapons"
+   ],
+   "skillChoices": {
+    "count": 2,
+    "options": [
+     "Акробатика",
+     "Уход за животными",
+     "Атлетика",
+     "История",
+     "Проницательность",
+     "Запугивание",
+     "Восприятие",
+     "Выживание"
+    ]
+   },
+   "startingEquipment": [
+    {
+     "choice": "A",
+     "items": [
+      "Кольчуга",
+      "Воинское оружие и щит",
+      "Лёгкий арбалет и 20 болтов",
+      "Набор исследователя подземелий"
+     ]
+    },
+    {
+     "choice": "B",
+     "items": [
+      "Кожаный доспех, длинный лук и 20 стрел",
+      "Два воинских оружия",
+      "Два ручных топора",
+      "Набор путника"
+     ]
+    }
+   ],
+   "spellcasting": null
+  },
+  {
+   "id": "monk",
+   "name": "Монах",
+   "nameEn": "Monk",
+   "hitDie": 8,
+   "primaryAbility": "DEX or WIS",
+   "savingThrows": [
+    "STR",
+    "DEX"
+   ],
+   "armorProficiency": [],
+   "weaponProficiency": [
+    "Simple weapons",
+    "Shortswords"
+   ],
+   "skillChoices": {
+    "count": 2,
+    "options": [
+     "Акробатика",
+     "Атлетика",
+     "История",
+     "Проницательность",
+     "Религия",
+     "Скрытность"
+    ]
+   },
+   "startingEquipment": [
+    {
+     "choice": "A",
+     "items": [
+      "Короткий меч",
+      "Набор исследователя подземелий",
+      "10 дротиков"
+     ]
+    },
+    {
+     "choice": "B",
+     "items": [
+      "Любое простое оружие",
+      "Набор путника",
+      "10 дротиков"
+     ]
+    }
+   ],
+   "spellcasting": null
+  },
+  {
+   "id": "paladin",
+   "name": "Паладин",
+   "nameEn": "Paladin",
+   "hitDie": 10,
+   "primaryAbility": "STR",
+   "savingThrows": [
+    "WIS",
+    "CHA"
+   ],
+   "armorProficiency": [
+    "All armor",
+    "Shields"
+   ],
+   "weaponProficiency": [
+    "Simple weapons",
+    "Martial weapons"
+   ],
+   "skillChoices": {
+    "count": 2,
+    "options": [
+     "Атлетика",
+     "Проницательность",
+     "Запугивание",
+     "Медицина",
+     "Убеждение",
+     "Религия"
+    ]
+   },
+   "startingEquipment": [
+    {
+     "choice": "A",
+     "items": [
+      "Воинское оружие и щит",
+      "Пять дротиков",
+      "Набор священника",
+      "Кольчуга",
+      "Священный символ"
+     ]
+    },
+    {
+     "choice": "B",
+     "items": [
+      "Два воинских оружия",
+      "Воинское оружие ближнего боя",
+      "Набор путника",
+      "Кольчуга",
+      "Священный символ"
+     ]
+    }
+   ],
+   "spellcasting": {
+    "ability": "CHA",
+    "cantripsKnown": 0,
+    "spellsKnown": "Prepared from class spell list (starts at 2nd level)"
+   }
+  },
+  {
+   "id": "ranger",
+   "name": "Следопыт",
+   "nameEn": "Ranger",
+   "hitDie": 10,
+   "primaryAbility": "DEX or WIS",
+   "savingThrows": [
+    "STR",
+    "DEX"
+   ],
+   "armorProficiency": [
+    "Light armor",
+    "Medium armor",
+    "Shields"
+   ],
+   "weaponProficiency": [
+    "Simple weapons",
+    "Martial weapons"
+   ],
+   "skillChoices": {
+    "count": 3,
+    "options": [
+     "Уход за животными",
+     "Атлетика",
+     "Акробатика",
+     "Проницательность",
+     "Анализ",
+     "Природа",
+     "Восприятие",
+     "Скрытность",
+     "Выживание"
+    ]
+   },
+   "startingEquipment": [
+    {
+     "choice": "A",
+     "items": [
+      "Чешуйчатый доспех",
+      "Два коротких меча",
+      "Набор исследователя подземелий",
+      "Длинный лук и колчан с 20 стрелами"
+     ]
+    },
+    {
+     "choice": "B",
+     "items": [
+      "Кожаный доспех",
+      "Два простых оружия ближнего боя",
+      "Набор путника",
+      "Длинный лук и колчан с 20 стрелами"
+     ]
+    }
+   ],
+   "spellcasting": {
+    "ability": "WIS",
+    "cantripsKnown": 0,
+    "spellsKnown": "Prepared from class spell list (starts at 2nd level)"
+   }
+  },
+  {
+   "id": "rogue",
+   "name": "Плут",
+   "nameEn": "Rogue",
+   "hitDie": 8,
+   "primaryAbility": "DEX",
+   "savingThrows": [
+    "DEX",
+    "INT"
+   ],
+   "armorProficiency": [
+    "Light armor"
+   ],
+   "weaponProficiency": [
+    "Simple weapons",
+    "Hand crossbows",
+    "Longswords",
+    "Rapiers",
+    "Shortswords"
+   ],
+   "skillChoices": {
+    "count": 4,
+    "options": [
+     "Акробатика",
+     "Атлетика",
+     "Обман",
+     "Проницательность",
+     "Запугивание",
+     "Анализ",
+     "Восприятие",
+     "Выступление",
+     "Убеждение",
+     "Ловкость рук",
+     "Скрытность"
+    ]
+   },
+   "startingEquipment": [
+    {
+     "choice": "A",
+     "items": [
+      "Рапира",
+      "Короткий лук и колчан с 20 стрелами",
+      "Набор взломщика",
+      "Кожаный доспех",
+      "Два кинжала",
+      "Воровские инструменты"
+     ]
+    },
+    {
+     "choice": "B",
+     "items": [
+      "Короткий меч",
+      "Короткий меч",
+      "Набор исследователя подземелий",
+      "Кожаный доспех",
+      "Два кинжала",
+      "Воровские инструменты"
+     ]
+    },
+    {
+     "choice": "C",
+     "items": [
+      "Рапира",
+      "Короткий лук и колчан с 20 стрелами",
+      "Набор путника",
+      "Кожаный доспех",
+      "Два кинжала",
+      "Воровские инструменты"
+     ]
+    }
+   ],
+   "spellcasting": null
+  },
+  {
+   "id": "sorcerer",
+   "name": "Чародей",
+   "nameEn": "Sorcerer",
+   "hitDie": 6,
+   "primaryAbility": "CHA",
+   "savingThrows": [
+    "CON",
+    "CHA"
+   ],
+   "armorProficiency": [],
+   "weaponProficiency": [
+    "Daggers",
+    "Darts",
+    "Slings",
+    "Quarterstaffs",
+    "Light crossbows"
+   ],
+   "skillChoices": {
+    "count": 2,
+    "options": [
+     "Магия",
+     "Обман",
+     "Проницательность",
+     "Запугивание",
+     "Убеждение",
+     "Религия"
+    ]
+   },
+   "startingEquipment": [
+    {
+     "choice": "A",
+     "items": [
+      "Лёгкий арбалет и 20 болтов",
+      "Компонентный мешочек",
+      "Набор исследователя подземелий",
+      "Два кинжала"
+     ]
+    },
+    {
+     "choice": "B",
+     "items": [
+      "Любое простое оружие",
+      "Магический фокус",
+      "Набор путника",
+      "Два кинжала"
+     ]
+    }
+   ],
+   "spellcasting": {
+    "ability": "CHA",
+    "cantripsKnown": 4,
+    "spellsKnown": "2 at 1st level"
+   }
+  },
+  {
+   "id": "warlock",
+   "name": "Колдун",
+   "nameEn": "Warlock",
+   "hitDie": 8,
+   "primaryAbility": "CHA",
+   "savingThrows": [
+    "WIS",
+    "CHA"
+   ],
+   "armorProficiency": [
+    "Light armor"
+   ],
+   "weaponProficiency": [
+    "Simple weapons"
+   ],
+   "skillChoices": {
+    "count": 2,
+    "options": [
+     "Магия",
+     "Обман",
+     "История",
+     "Проницательность",
+     "Запугивание",
+     "Анализ",
+     "Природа",
+     "Религия"
+    ]
+   },
+   "startingEquipment": [
+    {
+     "choice": "A",
+     "items": [
+      "Лёгкий арбалет и 20 болтов",
+      "Компонентный мешочек",
+      "Набор учёного",
+      "Кожаный доспех",
+      "Любое простое оружие",
+      "Два кинжала"
+     ]
+    },
+    {
+     "choice": "B",
+     "items": [
+      "Любое простое оружие",
+      "Магический фокус",
+      "Набор исследователя подземелий",
+      "Кожаный доспех",
+      "Любое простое оружие",
+      "Два кинжала"
+     ]
+    }
+   ],
+   "spellcasting": {
+    "ability": "CHA",
+    "cantripsKnown": 2,
+    "spellsKnown": "2 at 1st level (Pact Magic)"
+   }
+  },
+  {
+   "id": "wizard",
+   "name": "Волшебник",
+   "nameEn": "Wizard",
+   "hitDie": 6,
+   "primaryAbility": "INT",
+   "savingThrows": [
+    "INT",
+    "WIS"
+   ],
+   "armorProficiency": [],
+   "weaponProficiency": [
+    "Daggers",
+    "Darts",
+    "Slings",
+    "Quarterstaffs",
+    "Light crossbows"
+   ],
+   "skillChoices": {
+    "count": 2,
+    "options": [
+     "Магия",
+     "История",
+     "Проницательность",
+     "Анализ",
+     "Медицина",
+     "Религия"
+    ]
+   },
+   "startingEquipment": [
+    {
+     "choice": "A",
+     "items": [
+      "Посох",
+      "Компонентный мешочек",
+      "Набор учёного",
+      "Книга заклинаний"
+     ]
+    },
+    {
+     "choice": "B",
+     "items": [
+      "Кинжал",
+      "Магический фокус",
+      "Набор путника",
+      "Книга заклинаний"
+     ]
+    }
+   ],
+   "spellcasting": {
+    "ability": "INT",
+    "cantripsKnown": 3,
+    "spellsKnown": "6 at 1st level (in spellbook)"
+   }
+  }
+ ],
+ "spells": [
+  {
+   "id": "acid-splash",
+   "name": "Брызги кислоты",
+   "nameEn": "Acid Splash",
+   "level": 0,
+   "school": "Вызов",
+   "classes": [
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "Брызг кислоты поражает одного или двух врагов в пределах 60 футов."
+  },
+  {
+   "id": "chill-touch",
+   "name": "Ледяной щупальец",
+   "nameEn": "Chill Touch",
+   "level": 0,
+   "school": "Некромантия",
+   "classes": [
+    "sorcerer",
+    "warlock",
+    "wizard"
+   ],
+   "description": "Вы протягиваете руку и вспышка ледяной голубизны вырывается из ладони."
+  },
+  {
+   "id": "dancing-lights",
+   "name": "Танцующие огоньки",
+   "nameEn": "Dancing Lights",
+   "level": 0,
+   "school": "Воплощение",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "Вы создаёте до четырёх огоньков размером с факел в пределах 120 футов."
+  },
+  {
+   "id": "fire-bolt",
+   "name": "Огненный снаряд",
+   "nameEn": "Fire Bolt",
+   "level": 0,
+   "school": "Воплощение",
+   "classes": [
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "Вы метаёте огненный снаряд на цель в пределах 120 футов."
+  },
+  {
+   "id": "light",
+   "name": "Свет",
+   "nameEn": "Light",
+   "level": 0,
+   "school": "Воплощение",
+   "classes": [
+    "bard",
+    "cleric",
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "Вы касаетесь предмета, который никто не держит, и предмет испускает свет."
+  },
+  {
+   "id": "mage-hand",
+   "name": "Рука магии",
+   "nameEn": "Mage Hand",
+   "level": 0,
+   "school": "Вызов",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "warlock",
+    "wizard"
+   ],
+   "description": "Спектральная рука появляется в точке в пределах 30 футов от вас."
+  },
+  {
+   "id": "mending",
+   "name": "Починка",
+   "nameEn": "Mending",
+   "level": 0,
+   "school": "Трансмутация",
+   "classes": [
+    "bard",
+    "cleric",
+    "druid",
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "Это заклинание восстанавливает один разрыв в предмете, который вы касаетесь."
+  },
+  {
+   "id": "message",
+   "name": "Послание",
+   "nameEn": "Message",
+   "level": 0,
+   "school": "Трансмутация",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "Вы указываете на видимое существо в пределах 120 футов и шепчете сообщение."
+  },
+  {
+   "id": "minor-illusion",
+   "name": "Малая иллюзия",
+   "nameEn": "Minor Illusion",
+   "level": 0,
+   "school": "Иллюзия",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "warlock",
+    "wizard"
+   ],
+   "description": "Вы создаёте звук или образ неживого объекта."
+  },
+  {
+   "id": "poison-spray",
+   "name": "Ядовитый брызг",
+   "nameEn": "Poison Spray",
+   "level": 0,
+   "school": "Вызов",
+   "classes": [
+    "druid",
+    "sorcerer",
+    "warlock",
+    "wizard"
+   ],
+   "description": "Вы расплёвываете ядовитую жидкость на существо в пределах 10 футов."
+  },
+  {
+   "id": "prestidigitation",
+   "name": "Престидигитация",
+   "nameEn": "Prestidigitation",
+   "level": 0,
+   "school": "Трансмутация",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "warlock",
+    "wizard"
+   ],
+   "description": "Это заклинание - магический трюк, создающий один из следующих эффектов."
+  },
+  {
+   "id": "ray-of-frost",
+   "name": "Луч мороза",
+   "nameEn": "Ray of Frost",
+   "level": 0,
+   "school": "Воплощение",
+   "classes": [
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "Замороженный луч протягивается из вашей руки к существу в пределах 60 футов."
+  },
+  {
+   "id": "sacred-flame",
+   "name": "Святой огонь",
+   "nameEn": "Sacred Flame",
+   "level": 0,
+   "school": "Воплощение",
+   "classes": [
+    "cleric"
+   ],
+   "description": "Пламя вспыхивает около существа в пределах 60 футов, видимого для вас."
+  },
+  {
+   "id": "shocking-grasp",
+   "name": "Шокирующий толчок",
+   "nameEn": "Shocking Grasp",
+   "level": 0,
+   "school": "Воплощение",
+   "classes": [
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "Электричество прыгает с вашей руки к касающемуся существу."
+  },
+  {
+   "id": "spare-the-dying",
+   "name": "Спасти жизнь",
+   "nameEn": "Spare the Dying",
+   "level": 0,
+   "school": "Некромантия",
+   "classes": [
+    "cleric"
+   ],
+   "description": "Вы касаетесь живого существа, которое имеет 0 хитов и стабилизируете его."
+  },
+  {
+   "id": "true-strike",
+   "name": "Верный удар",
+   "nameEn": "True Strike",
+   "level": 0,
+   "school": "Прорицание",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "warlock",
+    "wizard"
+   ],
+   "description": "Вы видите движения цели на доле секунды в будущем."
+  },
+  {
+   "id": "vicious-mockery",
+   "name": "Едкие насмешки",
+   "nameEn": "Vicious Mockery",
+   "level": 0,
+   "school": "Очарование",
+   "classes": [
+    "bard"
+   ],
+   "description": "Вы издаёте оскорбляющий ругань, смешанную с подколкой магии."
+  },
+  {
+   "id": "druidcraft",
+   "name": "Мастерство друида",
+   "nameEn": "Druidcraft",
+   "level": 0,
+   "school": "Трансмутация",
+   "classes": [
+    "druid"
+   ],
+   "description": "Вы предчувствуете погоду, общаетесь с растениями и животными."
+  },
+  {
+   "id": "guidance",
+   "name": "Наставление",
+   "nameEn": "Guidance",
+   "level": 0,
+   "school": "Прорицание",
+   "classes": [
+    "cleric",
+    "druid"
+   ],
+   "description": "Вы касаетесь добровольца и дарите ему магическое наставление."
+  },
+  {
+   "id": "resistance",
+   "name": "Сопротивление",
+   "nameEn": "Resistance",
+   "level": 0,
+   "school": "Ограждение",
+   "classes": [
+    "cleric",
+    "druid"
+   ],
+   "description": "Вы касаетесь добровольца и укрепляете его защиту против урона."
+  },
+  {
+   "id": "thaumaturgy",
+   "name": "Теургия",
+   "nameEn": "Thaumaturgy",
+   "level": 0,
+   "school": "Трансмутация",
+   "classes": [
+    "cleric"
+   ],
+   "description": "Вы производите заметный но безопасный чудо-эффект в пределах 30 футов."
+  },
+  {
+   "id": "eldritch-blast",
+   "name": "Адское бичевание",
+   "nameEn": "Eldritch Blast",
+   "level": 0,
+   "school": "Воплощение",
+   "classes": [
+    "warlock"
+   ],
+   "description": "Мощный луч магической силы вспыхивает из вашей руки."
+  },
+  {
+   "id": "produce-flame",
+   "name": "Создать пламя",
+   "nameEn": "Produce Flame",
+   "level": 0,
+   "school": "Вызов",
+   "classes": [
+    "druid"
+   ],
+   "description": "Пламя вспыхивает в вашей руке, создавая свет."
+  },
+  {
+   "id": "shillelagh",
+   "name": "Шилеле",
+   "nameEn": "Shillelagh",
+   "level": 0,
+   "school": "Трансмутация",
+   "classes": [
+    "druid"
+   ],
+   "description": "Вы касаетесь деревянного посоха и превращаете его в магическое оружие."
+  },
+  {
+   "id": "bane",
+   "name": "Проклятие",
+   "nameEn": "Bane",
+   "level": 1,
+   "school": "Очарование",
+   "classes": [
+    "bard"
+   ],
+   "description": "До трёх существ в пределах 30 футов должны совершить спасбросок Харизме или получить штраф -1d4 к атакам и спасбросокам."
+  },
+  {
+   "id": "charm-person",
+   "name": "Очаровать человека",
+   "nameEn": "Charm Person",
+   "level": 1,
+   "school": "Очарование",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "warlock",
+    "wizard"
+   ],
+   "description": "Одно гуманоидное существо видимое вам в пределах 30 футов должно совершить спасбросок Мудрости."
+  },
+  {
+   "id": "comprehend-languages",
+   "name": "Понять языки",
+   "nameEn": "Comprehend Languages",
+   "level": 1,
+   "school": "Прорицание",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "warlock",
+    "wizard"
+   ],
+   "description": "Вы касаетесь добровольца и даёте ему способность понимать любую говоримую речь."
+  },
+  {
+   "id": "cure-wounds",
+   "name": "Исцелить раны",
+   "nameEn": "Cure Wounds",
+   "level": 1,
+   "school": "Воплощение",
+   "classes": [
+    "bard",
+    "cleric",
+    "druid"
+   ],
+   "description": "Существо, которого вы касаетесь, восстанавливает 1d8 хитов плюс ваш модификатор способности."
+  },
+  {
+   "id": "detect-magic",
+   "name": "Определить магию",
+   "nameEn": "Detect Magic",
+   "level": 1,
+   "school": "Прорицание",
+   "classes": [
+    "bard",
+    "cleric",
+    "druid",
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "В течение концентрации вы чувствуете наличие магии в пределах 30 футов."
+  },
+  {
+   "id": "disguise-self",
+   "name": "Переодеться",
+   "nameEn": "Disguise Self",
+   "level": 1,
+   "school": "Иллюзия",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "Вы становитесь неузнаваемыми, маскируя свой облик."
+  },
+  {
+   "id": "expeditious-retreat",
+   "name": "Спешное отступление",
+   "nameEn": "Expeditious Retreat",
+   "level": 1,
+   "school": "Трансмутация",
+   "classes": [
+    "sorcerer",
+    "warlock",
+    "wizard"
+   ],
+   "description": "Это заклинание позволяет вам перемещаться быстрее обычного."
+  },
+  {
+   "id": "faerie-fire",
+   "name": "Волшебный огонь",
+   "nameEn": "Faerie Fire",
+   "level": 1,
+   "school": "Воплощение",
+   "classes": [
+    "bard",
+    "druid"
+   ],
+   "description": "Объекты в пределах 20 футов сферы засвечиваются синим, зелёным или фиолетовым светом."
+  },
+  {
+   "id": "feather-fall",
+   "name": "Падение пера",
+   "nameEn": "Feather Fall",
+   "level": 1,
+   "school": "Трансмутация",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "До пяти существ, которых вы видите в пределах 60 футов, замедляют своё падение."
+  },
+  {
+   "id": "guiding-bolt",
+   "name": "Направляющий удар",
+   "nameEn": "Guiding Bolt",
+   "level": 1,
+   "school": "Воплощение",
+   "classes": [
+    "cleric"
+   ],
+   "description": "Вы метаёте магический удар на существо в пределах 120 футов, наносящий 1d4+4 урона."
+  },
+  {
+   "id": "healing-word",
+   "name": "Слово исцеления",
+   "nameEn": "Healing Word",
+   "level": 1,
+   "school": "Воплощение",
+   "classes": [
+    "bard",
+    "cleric",
+    "druid"
+   ],
+   "description": "Существо в пределах 60 футов, видимое вам, восстанавливает хиты."
+  },
+  {
+   "id": "heroism",
+   "name": "Героизм",
+   "nameEn": "Heroism",
+   "level": 1,
+   "school": "Очарование",
+   "classes": [
+    "bard",
+    "paladin"
+   ],
+   "description": "Вы касаетесь добровольца, даруя ему смелость и отвагу."
+  },
+  {
+   "id": "hideous-laughter",
+   "name": "Отвратительный смех",
+   "nameEn": "Hideous Laughter",
+   "level": 1,
+   "school": "Очарование",
+   "classes": [
+    "bard",
+    "wizard"
+   ],
+   "description": "Существо видимое вам в пределах 30 футов начинает смеяться непредвиденно."
+  },
+  {
+   "id": "identify",
+   "name": "Определить",
+   "nameEn": "Identify",
+   "level": 1,
+   "school": "Прорицание",
+   "classes": [
+    "bard",
+    "wizard"
+   ],
+   "description": "Вы выбираете один предмет и определяете его магические свойства."
+  },
+  {
+   "id": "illusory-script",
+   "name": "Иллюзорный письмо",
+   "nameEn": "Illusory Script",
+   "level": 1,
+   "school": "Иллюзия",
+   "classes": [
+    "bard",
+    "warlock",
+    "wizard"
+   ],
+   "description": "Вы пишете на пергаменте, ткани или другой поверхности иллюзорное письмо."
+  },
+  {
+   "id": "inflict-wounds",
+   "name": "Нанести раны",
+   "nameEn": "Inflict Wounds",
+   "level": 1,
+   "school": "Некромантия",
+   "classes": [
+    "cleric"
+   ],
+   "description": "Вы касаетесь существа и наносите 1d10 урона некротическим энергией."
+  },
+  {
+   "id": "longstrider",
+   "name": "Долгая ходьба",
+   "nameEn": "Longstrider",
+   "level": 1,
+   "school": "Трансмутация",
+   "classes": [
+    "bard",
+    "druid",
+    "ranger",
+    "wizard"
+   ],
+   "description": "Вы касаетесь существа и его скорость увеличивается на 10 футов."
+  },
+  {
+   "id": "protection-from-evil-and-good",
+   "name": "Защита от добра и зла",
+   "nameEn": "Protection from Evil and Good",
+   "level": 1,
+   "school": "Ограждение",
+   "classes": [
+    "cleric",
+    "paladin",
+    "warlock",
+    "wizard"
+   ],
+   "description": "Существо защищено от определённых типов существ и магического воздействия."
+  },
+  {
+   "id": "purify-food-and-drink",
+   "name": "Очистить пищу и напиток",
+   "nameEn": "Purify Food and Drink",
+   "level": 1,
+   "school": "Трансмутация",
+   "classes": [
+    "cleric",
+    "druid"
+   ],
+   "description": "Вся грязная еда и напитки в пределах 5 футов сферы становятся чистыми."
+  },
+  {
+   "id": "sanctuary",
+   "name": "Святилище",
+   "nameEn": "Sanctuary",
+   "level": 1,
+   "school": "Ограждение",
+   "classes": [
+    "cleric"
+   ],
+   "description": "Существо, видимое вам в пределах 30 футов, получает защиту."
+  },
+  {
+   "id": "shield-of-faith",
+   "name": "Щит веры",
+   "nameEn": "Shield of Faith",
+   "level": 1,
+   "school": "Ограждение",
+   "classes": [
+    "cleric",
+    "paladin"
+   ],
+   "description": "Существо, видимое вам в пределах 60 футов, получает +2 к КД."
+  },
+  {
+   "id": "silent-image",
+   "name": "Молчаливый образ",
+   "nameEn": "Silent Image",
+   "level": 1,
+   "school": "Иллюзия",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "Вы создаёте образ объекта в пределах видимости."
+  },
+  {
+   "id": "sleep",
+   "name": "Сон",
+   "nameEn": "Sleep",
+   "level": 1,
+   "school": "Очарование",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "Вы бросаете волшебное семя сна на существ в пределах 30 футов."
+  },
+  {
+   "id": "speak-with-animals",
+   "name": "Говорить с животными",
+   "nameEn": "Speak with Animals",
+   "level": 1,
+   "school": "Прорицание",
+   "classes": [
+    "bard",
+    "druid",
+    "ranger"
+   ],
+   "description": "Вы получаете способность понимать и говорить с животными."
+  },
+  {
+   "id": "tasha-hideous-laughter",
+   "name": "Отвратительный смех Таши",
+   "nameEn": "Tasha's Hideous Laughter",
+   "level": 1,
+   "school": "Очарование",
+   "classes": [
+    "bard",
+    "wizard"
+   ],
+   "description": "Существо видимое вам в пределах 30 футов должно совершить спасбросок Мудрости."
+  },
+  {
+   "id": "thunderwave",
+   "name": "Волна грома",
+   "nameEn": "Thunderwave",
+   "level": 1,
+   "school": "Воплощение",
+   "classes": [
+    "bard",
+    "druid",
+    "sorcerer",
+    "wizard"
+   ],
+   "description": "Волна грома разворачивается из вас в 15-футовом кубе."
+  },
+  {
+   "id": "unseen-servant",
+   "name": "Невидимый слуга",
+   "nameEn": "Unseen Servant",
+   "level": 1,
+   "school": "Вызов",
+   "classes": [
+    "bard",
+    "sorcerer",
+    "warlock",
+    "wizard"
+   ],
+   "description": "Вы создаёте невидимую силу, работающую от ваших команд."
+  }
+ ]
+}
