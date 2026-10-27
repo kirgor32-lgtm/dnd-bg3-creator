@@ -18,7 +18,9 @@ let state = {
   raceId: null, subraceId: null, classId: null,
   abilityMode: null, diceRolls: null,
   abilities: {}, abilityAssign: {}, skillChoices: [],
+  physiqueMode: null, heightCm: null, weightKg: null,
   equipmentChoice: null,
+  customEquip: { weapons: [], armorId: null, shield: false, shieldId: null, packId: null },
   spells: [],
 };
 
@@ -51,9 +53,10 @@ const STEP_META = {
   subrace:   { title: "Выбор подрасы", caption: "Шаг 3 — Подраса" },
   class:     { title: "Выбор класса", caption: "Шаг 4 — Класс" },
   abilities: { title: "Характеристики", caption: "Шаг 5 — Характеристики и навыки" },
-  equipment: { title: "Снаряжение", caption: "Шаг 6 — Снаряжение" },
-  magic:     { title: "Магия", caption: "Шаг 7 — Заклинания" },
-  sheet:     { title: "Лист персонажа", caption: "Шаг 8 — Итог" }
+  physique:  { title: "Телосложение", caption: "Шаг 6 — Рост и вес" },
+  equipment: { title: "Снаряжение", caption: "Шаг 7 — Снаряжение" },
+  magic:     { title: "Магия", caption: "Шаг 8 — Заклинания" },
+  sheet:     { title: "Лист персонажа", caption: "Шаг 9 — Итог" }
 };
 
 function getActiveSteps(){
@@ -62,6 +65,7 @@ function getActiveSteps(){
   if (r && r.subraces && r.subraces.length) steps.push("subrace");
   steps.push("class");
   steps.push("abilities");
+  steps.push("physique");
   steps.push("equipment");
   const c = getClass();
   if (c && c.spellcasting && CASTER_RULES[c.id]) steps.push("magic");
@@ -103,7 +107,7 @@ function render(){
 
   const renderers = {
     intro: renderIntro, race: renderRace, subrace: renderSubrace, class: renderClassStep,
-    abilities: renderAbilities, equipment: renderEquipment, magic: renderMagic, sheet: renderSheet
+    abilities: renderAbilities, physique: renderPhysique, equipment: renderEquipment, magic: renderMagic, sheet: renderSheet
   };
   renderers[state.step](view);
 
@@ -176,8 +180,10 @@ function renderRace(view){
       </div>
     `;
     card.onclick = () => {
+      if (state.raceId === r.id) return;
       state.raceId = r.id;
       if (!r.subraces || !r.subraces.some(s => s.id === state.subraceId)) state.subraceId = null;
+      state.physiqueMode = null; state.heightCm = null; state.weightKg = null;
       render();
     };
     grid.appendChild(card);
@@ -220,7 +226,12 @@ function renderSubrace(view){
       <div class="pick-name">${s.name}</div>
       <div class="pick-meta">${abilityBonusChips(s.abilityBonuses)}</div>
     `;
-    card.onclick = () => { state.subraceId = s.id; render(); };
+    card.onclick = () => {
+      if (state.subraceId === s.id) return;
+      state.subraceId = s.id;
+      state.physiqueMode = null; state.heightCm = null; state.weightKg = null;
+      render();
+    };
     grid.appendChild(card);
   });
   renderSubraceDetail(view.querySelector("#subDetail"));
@@ -262,6 +273,7 @@ function renderClassStep(view){
       state.classId = c.id;
       state.skillChoices = [];
       state.equipmentChoice = null;
+      state.customEquip = { weapons: [], armorId: null, shield: false, shieldId: null, packId: null };
       state.spells = [];
       state.abilityMode = null;
       state.abilityAssign = {};
@@ -528,11 +540,93 @@ function renderSkillGrid(view){
   });
 }
 
+/* ---------------- Step: Physique (рост/вес) ---------------- */
+function renderPhysique(view){
+  const r = getRace();
+  const avg = avgHeightWeight(state.raceId, state.subraceId);
+  view.innerHTML = `
+    <div class="view-header"><h1>Рост и вес героя</h1><p>Физические параметры считаются по таблице SRD для расы «${r?r.name:""}». Они повлияют на то, сколько снаряжения герой может унести, и на описание для отыгрыша.</p></div>
+    <div class="mode-tabs" id="physTabs">
+      <button class="mode-tab${state.physiqueMode==="roll"?" active":""}" data-m="roll">🎲 Случайно (таблица SRD)</button>
+      <button class="mode-tab${state.physiqueMode==="manual"?" active":""}" data-m="manual">✍ Вручную</button>
+    </div>
+    <div id="physBody"></div>
+  `;
+  view.querySelector("#physTabs").querySelectorAll(".mode-tab").forEach(btn => {
+    btn.onclick = () => {
+      const m = btn.dataset.m;
+      if (m === state.physiqueMode) return;
+      state.physiqueMode = m;
+      if (m === "roll"){ const hw = rollHeightWeight(state.raceId, state.subraceId); state.heightCm = hw.heightCm; state.weightKg = hw.weightKg; }
+      renderPhysique(view);
+      updateNextEnabled();
+    };
+  });
+  renderPhysiqueBody(view, avg);
+}
+function renderPhysiqueBody(view, avg){
+  const body = view.querySelector("#physBody");
+  if (!state.physiqueMode){
+    body.innerHTML = `<p class="pool-note">Выбери способ выше: средние значения для расы — рост ${avg.heightCm} см, вес ${avg.weightKg} кг.</p>`;
+    return;
+  }
+  if (state.physiqueMode === "roll"){
+    body.innerHTML = `
+      <button class="btn btn-gold" id="btnReroll2" style="margin-bottom:14px;">🎲 Перебросить</button>
+      <div class="ability-grid" id="physGrid"></div>
+    `;
+    body.querySelector("#btnReroll2").onclick = () => {
+      const hw = rollHeightWeight(state.raceId, state.subraceId);
+      state.heightCm = hw.heightCm; state.weightKg = hw.weightKg;
+      renderPhysiqueBody(view, avg);
+      updateNextEnabled();
+    };
+  } else {
+    body.innerHTML = `
+      <p class="pool-note">Среднее для расы: рост ~${avg.heightCm} см, вес ~${avg.weightKg} кг. Впиши свои значения.</p>
+      <div class="ability-grid" id="physGrid"></div>
+    `;
+  }
+  renderPhysiqueGrid(view, body, avg);
+}
+function renderPhysiqueGrid(view, body, avg){
+  const grid = body.querySelector("#physGrid");
+  const editable = state.physiqueMode === "manual";
+  grid.innerHTML = `
+    <div class="ability-card">
+      <div class="ab-name">Рост, см</div>
+      ${editable ? `<input type="number" min="60" max="260" id="inHeight" value="${state.heightCm ?? ''}">` : `<div class="ab-total">${state.heightCm ?? "—"}</div>`}
+    </div>
+    <div class="ability-card">
+      <div class="ab-name">Вес, кг</div>
+      ${editable ? `<input type="number" min="10" max="400" id="inWeight" value="${state.weightKg ?? ''}">` : `<div class="ab-total">${state.weightKg ?? "—"}</div>`}
+    </div>
+  `;
+  if (editable){
+    grid.querySelector("#inHeight").oninput = e => { state.heightCm = e.target.value ? Number(e.target.value) : null; updateNextEnabled(); };
+    grid.querySelector("#inWeight").oninput = e => { state.weightKg = e.target.value ? Number(e.target.value) : null; updateNextEnabled(); };
+  }
+}
+
 /* ---------------- Step: Equipment ---------------- */
+function getCarryBudget(){
+  const avg = avgHeightWeight(state.raceId, state.subraceId);
+  return carrySlotBudget(getTotalAbility("str"), state.weightKg, avg.weightKg);
+}
+function customEquipCost(){
+  const cw = state.customEquip || { weapons: [], shield: false };
+  let cost = 0;
+  (cw.weapons||[]).forEach(wid => cost += weaponSlotCost(wid));
+  if (cw.shield) cost += 1;
+  return cost;
+}
+function hasTwoHandedSelected(){
+  return (state.customEquip.weapons||[]).some(wid => weaponSlotCost(wid) === 2);
+}
 function renderEquipment(view){
   const c = getClass();
   view.innerHTML = `
-    <div class="view-header"><h1>Выбери снаряжение</h1><p>Готовые, реалистично собранные комплекты для класса — продуманы так, чтобы герой мог унести и использовать всё сразу.</p></div>
+    <div class="view-header"><h1>Выбери снаряжение</h1><p>Готовые, реалистично собранные комплекты для класса — или собери своё снаряжение вручную.</p></div>
     <div id="eqList"></div>
   `;
   renderEquipList(view);
@@ -555,6 +649,116 @@ function renderEquipList(view){
     };
     list.appendChild(div);
   });
+  // Вариант D — своя сборка
+  const divD = document.createElement("div");
+  divD.className = "equip-choice" + (state.equipmentChoice === "D" ? " selected" : "");
+  divD.innerHTML = `<span class="eq-label">Вариант D — Своя сборка</span><p class="pool-note" style="margin:0;">Выбери оружие, доспех и набор снаряжения сам — ниже появится конструктор.</p>`;
+  divD.onclick = () => {
+    state.equipmentChoice = "D";
+    renderEquipList(view);
+    updateNextEnabled();
+  };
+  list.appendChild(divD);
+  if (state.equipmentChoice === "D"){
+    const box = document.createElement("div");
+    box.id = "customBox";
+    list.appendChild(box);
+    renderCustomEquip(view, box);
+  }
+}
+function renderCustomEquip(view, box){
+  const c = getClass();
+  const cw = state.customEquip;
+  const budget = getCarryBudget();
+  const cost = customEquipCost();
+  const twoHanded = hasTwoHandedSelected();
+  const weapons = WEAPON_CATALOG.filter(w => weaponAllowedForClass(c.id, w.id));
+  const armors = ARMOR_CATALOG.filter(a => a.type !== "shield" && armorAllowedForClass(c.id, a.id));
+  const shields = ARMOR_CATALOG.filter(a => a.type === "shield" && armorAllowedForClass(c.id, a.id));
+
+  box.innerHTML = `
+    <div class="detail-panel" style="margin-top:14px;">
+      <h3>Оружие (доступно классу «${c.name}»)</h3>
+      <div class="skill-grid" id="custWeapons"></div>
+      <h3 style="margin-top:16px;">Доспех</h3>
+      <div class="skill-grid" id="custArmor"></div>
+      ${shields.length ? `<h3 style="margin-top:16px;">Щит</h3><div class="skill-grid" id="custShield"></div>` : ""}
+      <h3 style="margin-top:16px;">Набор снаряжения</h3>
+      <select id="custPack"><option value="">— выбери набор —</option>${PACK_CATALOG.map(p => `<option value="${p.id}" ${cw.packId===p.id?"selected":""}>${p.name}</option>`).join("")}</select>
+      <p class="pool-note" id="custPackInfo" style="margin-top:6px;"></p>
+      <p class="pool-note" id="custBudgetNote" style="margin-top:14px;"></p>
+    </div>
+  `;
+  const wGrid = box.querySelector("#custWeapons");
+  weapons.forEach(w => {
+    const checked = cw.weapons.includes(w.id);
+    const wouldCost = weaponSlotCost(w.id);
+    const blockedByHands = !checked && twoHanded && w.hands === 2 && getTotalAbility("str") < 18; // искл.: очень сильные (СИЛ 18+) могут таскать второе двуручное
+    const overBudget = !checked && (cost + wouldCost > budget);
+    const disabled = blockedByHands || overBudget;
+    const opt = document.createElement("label");
+    opt.className = "skill-opt" + (checked?" checked":"") + (disabled?" disabled":"");
+    opt.innerHTML = `<input type="checkbox" ${checked?"checked":""} ${disabled?"disabled":""}> ${w.name} <span style="color:var(--text-dim);font-size:.72rem;margin-left:auto;">${w.info}</span>`;
+    opt.querySelector("input").onchange = e => {
+      if (e.target.checked) cw.weapons.push(w.id);
+      else cw.weapons = cw.weapons.filter(x => x !== w.id);
+      if (hasTwoHandedSelected()) { cw.shield = false; }
+      renderCustomEquip(view, box);
+      updateNextEnabled();
+    };
+    wGrid.appendChild(opt);
+  });
+
+  const aGrid = box.querySelector("#custArmor");
+  armors.forEach(a => {
+    const checked = cw.armorId === a.id;
+    const str = getTotalAbility("str");
+    const opt = document.createElement("label");
+    opt.className = "skill-opt" + (checked?" checked":"");
+    const warn = a.strReq && str < a.strReq ? ` ⚠ нужна Сила ${a.strReq}, у тебя ${str} — скорость будет снижена` : "";
+    opt.innerHTML = `<input type="radio" name="custArmorRadio" ${checked?"checked":""}> ${a.name} <span style="color:var(--text-dim);font-size:.72rem;margin-left:auto;">${a.info}${warn}</span>`;
+    opt.querySelector("input").onchange = () => {
+      cw.armorId = a.id;
+      renderCustomEquip(view, box);
+      updateNextEnabled();
+    };
+    aGrid.appendChild(opt);
+  });
+  if (armors.length){
+    const noneOpt = document.createElement("label");
+    noneOpt.className = "skill-opt" + (!cw.armorId ? " checked" : "");
+    noneOpt.innerHTML = `<input type="radio" name="custArmorRadio" ${!cw.armorId?"checked":""}> Без доспеха`;
+    noneOpt.querySelector("input").onchange = () => { cw.armorId = null; renderCustomEquip(view, box); updateNextEnabled(); };
+    aGrid.insertBefore(noneOpt, aGrid.firstChild);
+  }
+
+  if (shields.length){
+    const sGrid = box.querySelector("#custShield");
+    shields.forEach(sh => {
+      const checked = cw.shield && cw.shieldId === sh.id;
+      const disabled = !checked && (twoHanded || (cost + 1 > budget));
+      const opt = document.createElement("label");
+      opt.className = "skill-opt" + (checked?" checked":"") + (disabled?" disabled":"");
+      const note = twoHanded ? " (нельзя — обе руки заняты двуручным оружием)" : "";
+      opt.innerHTML = `<input type="checkbox" ${checked?"checked":""} ${disabled?"disabled":""}> ${sh.name} <span style="color:var(--text-dim);font-size:.72rem;margin-left:auto;">${sh.info}${note}</span>`;
+      opt.querySelector("input").onchange = e => {
+        cw.shield = e.target.checked; cw.shieldId = e.target.checked ? sh.id : null;
+        renderCustomEquip(view, box);
+        updateNextEnabled();
+      };
+      sGrid.appendChild(opt);
+    });
+  }
+
+  box.querySelector("#custPack").onchange = e => { cw.packId = e.target.value || null; renderCustomEquip(view, box); updateNextEnabled(); };
+  const pack = PACK_CATALOG.find(p => p.id === cw.packId);
+  box.querySelector("#custPackInfo").textContent = pack ? pack.info : "";
+
+  const note = box.querySelector("#custBudgetNote");
+  const strNote = getTotalAbility("str") >= 16 ? " Твой герой силён — может нести больше." : "";
+  const sizeNote = (state.weightKg && avgHeightWeight(state.raceId, state.subraceId).weightKg && state.weightKg >= avgHeightWeight(state.raceId, state.subraceId).weightKg * 1.25) ? " Крупное телосложение добавляет ещё одну ячейку." : "";
+  note.innerHTML = `Занято ячеек переноски оружия/щита: <b style="color:${cost>budget?'var(--blood-bright)':'var(--gold-bright)'}">${cost} / ${budget}</b>.${strNote}${sizeNote}
+    ${cost>budget ? `<br><span style="color:var(--blood-bright);">Слишком много снаряжения — его просто не унести и не удержать в бою одновременно. Сними что-нибудь или повысь Силу / телосложение.</span>` : ""}`;
 }
 
 /* ---------------- Step: Magic ---------------- */
@@ -611,20 +815,39 @@ function getTotalAbility(ab){
 }
 
 /* ---------------- Step: Sheet ---------------- */
-function computeAC(dexMod, equip){
-  if (!equip) return 10 + dexMod;
-  const names = equip.items.map(i => i.name || i);
-  let armorAC = 10 + dexMod; // без доспеха
-  for (const n of names){
-    const a = ARMOR_AC[n];
-    if (a){
-      const dexBonus = a.dexCap === 0 ? 0 : (a.dexCap != null ? Math.min(dexMod, a.dexCap) : dexMod);
-      armorAC = a.base + dexBonus;
-      break;
+function getEquip(c){
+  if (state.equipmentChoice === "D"){
+    const cw = state.customEquip || { weapons: [], armorId: null, shield: false, packId: null };
+    const items = [];
+    let armorMeta = null;
+    (cw.weapons||[]).forEach(wid => { const w = WEAPON_CATALOG.find(x=>x.id===wid); if (w) items.push({ name: w.name, info: w.info }); });
+    if (cw.armorId){
+      const a = ARMOR_CATALOG.find(x=>x.id===cw.armorId);
+      if (a){ armorMeta = { base: a.base, dexCap: a.dexCap }; items.push({ name: a.name, info: a.info }); }
     }
+    if (cw.shield){
+      const sh = ARMOR_CATALOG.find(x=>x.id===cw.shieldId) || ARMOR_CATALOG.find(x=>x.type==="shield");
+      if (sh) items.push({ name: sh.name, info: sh.info });
+    }
+    if (cw.packId){
+      const p = PACK_CATALOG.find(x=>x.id===cw.packId);
+      if (p) items.push({ name: p.name, info: p.info });
+    }
+    return { choice: "D", role: "Своя сборка", items, armorMeta, hasShield: !!cw.shield };
   }
-  const hasShield = names.some(n => SHIELD_NAMES.includes(n));
-  return armorAC + (hasShield ? 2 : 0);
+  const opt = c ? (c.startingEquipment||[]).find(e => e.choice === state.equipmentChoice) : null;
+  if (!opt) return null;
+  let armorMeta = null;
+  opt.items.forEach(i => { const n = i.name || i; if (ARMOR_AC[n]) armorMeta = ARMOR_AC[n]; });
+  const hasShield = opt.items.some(i => SHIELD_NAMES.includes(i.name || i));
+  return { choice: opt.choice, role: opt.role, items: opt.items, armorMeta, hasShield };
+}
+function computeAC(dexMod, equip){
+  const hasShield = equip && equip.hasShield;
+  if (!equip || !equip.armorMeta) return 10 + dexMod + (hasShield ? 2 : 0);
+  const a = equip.armorMeta;
+  const dexBonus = a.dexCap === 0 ? 0 : (a.dexCap != null ? Math.min(dexMod, a.dexCap) : dexMod);
+  return a.base + dexBonus + (hasShield ? 2 : 0);
 }
 function computeFinal(){
   const r = getRace(), s = getSubrace(), c = getClass();
@@ -642,11 +865,16 @@ function computeFinal(){
     return { name, ab, prof, value: mods[ab] + (prof ? pb : 0) };
   });
   const hp = (c ? c.hitDie : 8) + mods.con;
-  const equip = c ? (c.startingEquipment||[]).find(e => e.choice === state.equipmentChoice) : null;
+  const equip = getEquip(c);
   const ac = computeAC(mods.dex, equip);
   const initiative = mods.dex;
   const spellNames = state.spells.map(id => (DND_DATA.spells.find(sp=>sp.id===id)||{}).name).filter(Boolean);
-  return { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellNames };
+  const avg = avgHeightWeight(state.raceId, state.subraceId);
+  const roleplayLines = [
+    ...abilityFlavorLines(totals),
+    ...physiqueFlavorLines(state.heightCm, state.weightKg, avg.weightKg)
+  ];
+  return { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellNames, roleplayLines };
 }
 
 function renderSheet(view){
@@ -671,7 +899,7 @@ function renderSheet(view){
 }
 
 function sheetHTML(d){
-  const { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellNames } = d;
+  const { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellNames, roleplayLines } = d;
   const abBox = ab => `
     <div class="ab-box">
       <div class="n">${ABILITY_NAMES[ab]}</div>
@@ -688,7 +916,7 @@ function sheetHTML(d){
     <div class="sheet-head">
       <div>
         <h2>${escapeHtml(state.name) || "Безымянный герой"}</h2>
-        <div class="sub">${r?r.name:""}${s?(" ("+s.name+")"):""} · ${c?c.name:""}${state.alignment?(" · "+state.alignment):""}</div>
+        <div class="sub">${r?r.name:""}${s?(" ("+s.name+")"):""} · ${c?c.name:""}${state.alignment?(" · "+state.alignment):""}${(state.heightCm&&state.weightKg)?(" · "+state.heightCm+" см, "+state.weightKg+" кг"):""}</div>
       </div>
       <div class="lvlbox">Уровень 1<br>Бонус мастерства ${fmtMod(pb)}</div>
     </div>
@@ -718,6 +946,7 @@ function sheetHTML(d){
       <h4>Расовые и классовые черты</h4>
       <div>${traits.join(" · ")}</div>
     </div>
+    ${roleplayLines && roleplayLines.length ? `<div class="notes-box" style="margin-top:12px;"><h4>Отыгрыш</h4><ul>${roleplayLines.map(l=>`<li>${l}</li>`).join("")}</ul></div>` : ""}
     ${state.background ? `<div class="notes-box" style="margin-top:12px;"><h4>Предыстория</h4><div>${escapeHtml(state.background)}</div></div>` : ""}
     <div class="sheet-footer"><span>Творец Героя — редактор персонажей D&amp;D 5e</span><span>SRD (Open Game License)</span></div>
   `;
@@ -760,7 +989,16 @@ function validateStep(stepId){
       if (c && c.skillChoices && state.skillChoices.length < c.skillChoices.count) return `Выбери ${c.skillChoices.count} навыка(ов)`;
       return true;
     }
-    case "equipment": return !!state.equipmentChoice || "Выбери комплект снаряжения";
+    case "physique": return !!(state.heightCm && state.weightKg) || "Укажи рост и вес героя";
+    case "equipment": {
+      if (state.equipmentChoice === "D"){
+        const cw = state.customEquip;
+        if (!cw || (!cw.weapons.length && !cw.armorId) || !cw.packId) return "Выбери хотя бы оружие или доспех, и набор снаряжения";
+        if (customEquipCost() > getCarryBudget()) return "Слишком много снаряжения — его не унести. Сними что-нибудь";
+        return true;
+      }
+      return !!state.equipmentChoice || "Выбери комплект снаряжения";
+    }
     case "magic": {
       const c = getClass(); const r = CASTER_RULES[c.id];
       const abMod = abilityMod(getTotalAbility(r.ability));
