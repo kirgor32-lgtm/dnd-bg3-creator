@@ -4,7 +4,9 @@ const STORAGE_KEY = "dnd-bg3-creator-state-v1";
 
 const RACE_GLYPH = {
   human:"🙂", elf:"🧝", dwarf:"⛏", halfling:"🍀", dragonborn:"🐉",
-  gnome:"🔧", "half-elf":"🌙", "half-orc":"🪓", tiefling:"🔥"
+  gnome:"🔧", "half-elf":"🌙", "half-orc":"🪓", tiefling:"🔥",
+  genasi:"🌪", kenku:"🐦", shifter:"🐺", aasimar:"👼", tabaxi:"🐱",
+  goliath:"⛰", triton:"🔱", goblin:"🗿", centaur:"🐎", changeling:"🎭"
 };
 const CLASS_GLYPH = {
   barbarian:"🪓", bard:"🎵", cleric:"✝", druid:"🌿", fighter:"⚔",
@@ -162,37 +164,37 @@ function renderIntro(view){
 function renderRace(view){
   view.innerHTML = `
     <div class="view-header"><h1>Выбери расу</h1><p>Раса определяет врождённые способности, бонусы характеристик и часть истории твоего героя.</p></div>
-    <div class="choice-grid" id="raceGrid"></div>
-    <div id="raceDetail"></div>
+    <div class="split-pane">
+      <div class="split-list" id="raceGrid"></div>
+      <div class="split-detail" id="raceDetail"></div>
+    </div>
   `;
   const grid = view.querySelector("#raceGrid");
   DND_DATA.races.forEach(r => {
-    const card = document.createElement("div");
-    card.className = "choice-card" + (state.raceId === r.id ? " selected" : "");
-    card.innerHTML = `
-      <span class="check">✓</span>
+    const row = document.createElement("div");
+    row.className = "pick-row" + (state.raceId === r.id ? " selected" : "");
+    row.innerHTML = `
       <span class="glyph">${RACE_GLYPH[r.id] || "❖"}</span>
-      <div class="pick-name">${r.name}</div>
-      <div class="pick-sub">${r.nameEn || ""}</div>
-      <div class="pick-meta">
-        <span class="tag">Скорость ${r.speed} фт</span>
-        <span class="tag">${r.size}</span>
+      <div class="pr-text">
+        <div class="pr-name">${r.name}</div>
+        <div class="pr-sub">${r.nameEn || ""} · ${r.size}, ${r.speed} фт</div>
       </div>
     `;
-    card.onclick = () => {
+    row.onclick = () => {
       if (state.raceId === r.id) return;
       state.raceId = r.id;
       if (!r.subraces || !r.subraces.some(s => s.id === state.subraceId)) state.subraceId = null;
       state.physiqueMode = null; state.heightCm = null; state.weightKg = null;
+      state.flexBonus = null;
       render();
     };
-    grid.appendChild(card);
+    grid.appendChild(row);
   });
   renderRaceDetail(view.querySelector("#raceDetail"));
 }
 function renderRaceDetail(el){
   const r = getRace();
-  if (!r){ el.innerHTML = ""; return; }
+  if (!r){ el.innerHTML = `<p class="pool-note">Выбери расу в списке слева, чтобы увидеть её черты.</p>`; return; }
   el.innerHTML = `
     <div class="detail-panel">
       <h3>${r.name}</h3>
@@ -204,6 +206,7 @@ function renderRaceDetail(el){
 }
 function abilityBonusChips(bonuses){
   if (!bonuses) return "";
+  if (bonuses.flexible) return `<span class="stat-chip"><b>Гибкий бонус</b> игрок распределяет сам</span>`;
   if (bonuses.all) return `<span class="stat-chip"><b>+${bonuses.all}</b> ко всем характеристикам</span>`;
   return Object.entries(bonuses).map(([k,v]) => `<span class="stat-chip"><b>${ABILITY_NAMES[k]||k.toUpperCase()}</b> +${v}</span>`).join("");
 }
@@ -213,35 +216,39 @@ function renderSubrace(view){
   const r = getRace();
   view.innerHTML = `
     <div class="view-header"><h1>Выбери подрасу ${r.name.toLowerCase()}а</h1><p>Подраса добавляет особые черты и усиливает твои характеристики.</p></div>
-    <div class="choice-grid" id="subGrid"></div>
-    <div id="subDetail"></div>
+    <div class="split-pane">
+      <div class="split-list" id="subGrid"></div>
+      <div class="split-detail" id="subDetail"></div>
+    </div>
   `;
   const grid = view.querySelector("#subGrid");
   r.subraces.forEach(s => {
-    const card = document.createElement("div");
-    card.className = "choice-card" + (state.subraceId === s.id ? " selected" : "");
-    card.innerHTML = `
-      <span class="check">✓</span>
+    const row = document.createElement("div");
+    row.className = "pick-row" + (state.subraceId === s.id ? " selected" : "");
+    row.innerHTML = `
       <span class="glyph">◈</span>
-      <div class="pick-name">${s.name}</div>
-      <div class="pick-meta">${abilityBonusChips(s.abilityBonuses)}</div>
+      <div class="pr-text">
+        <div class="pr-name">${s.name}</div>
+        <div class="pr-sub">${abilityBonusChips(s.abilityBonuses).replace(/<[^>]+>/g,"").trim()}</div>
+      </div>
     `;
-    card.onclick = () => {
+    row.onclick = () => {
       if (state.subraceId === s.id) return;
       state.subraceId = s.id;
       state.physiqueMode = null; state.heightCm = null; state.weightKg = null;
       render();
     };
-    grid.appendChild(card);
+    grid.appendChild(row);
   });
   renderSubraceDetail(view.querySelector("#subDetail"));
 }
 function renderSubraceDetail(el){
   const s = getSubrace();
-  if (!s){ el.innerHTML = ""; return; }
+  if (!s){ el.innerHTML = `<p class="pool-note">Выбери подрасу слева.</p>`; return; }
   el.innerHTML = `
     <div class="detail-panel">
       <h3>${s.name}</h3>
+      <div class="stat-row">${abilityBonusChips(s.abilityBonuses)}</div>
       <ul>${(s.traits||[]).map(t => `<li>${t}</li>`).join("")}</ul>
     </div>
   `;
@@ -251,24 +258,23 @@ function renderSubraceDetail(el){
 function renderClassStep(view){
   view.innerHTML = `
     <div class="view-header"><h1>Выбери класс</h1><p>Класс — твой путь к силе: воин меча, хранитель тайных знаний или клинок в тенях.</p></div>
-    <div class="choice-grid" id="classGrid"></div>
-    <div id="classDetail"></div>
+    <div class="split-pane">
+      <div class="split-list" id="classGrid"></div>
+      <div class="split-detail" id="classDetail"></div>
+    </div>
   `;
   const grid = view.querySelector("#classGrid");
   DND_DATA.classes.forEach(c => {
-    const card = document.createElement("div");
-    card.className = "choice-card" + (state.classId === c.id ? " selected" : "");
-    card.innerHTML = `
-      <span class="check">✓</span>
+    const row = document.createElement("div");
+    row.className = "pick-row" + (state.classId === c.id ? " selected" : "");
+    row.innerHTML = `
       <span class="glyph">${CLASS_GLYPH[c.id] || "❖"}</span>
-      <div class="pick-name">${c.name}</div>
-      <div class="pick-sub">${c.nameEn || ""}</div>
-      <div class="pick-meta">
-        <span class="tag">Кость хитов k${c.hitDie}</span>
-        ${c.spellcasting ? `<span class="tag">Заклинатель</span>` : ""}
+      <div class="pr-text">
+        <div class="pr-name">${c.name}</div>
+        <div class="pr-sub">${c.nameEn || ""} · к${c.hitDie}${c.spellcasting ? " · заклинатель" : ""}</div>
       </div>
     `;
-    card.onclick = () => {
+    row.onclick = () => {
       if (state.classId === c.id) return;
       state.classId = c.id;
       state.skillChoices = [];
@@ -280,18 +286,18 @@ function renderClassStep(view){
       state.diceRolls = null;
       render();
     };
-    grid.appendChild(card);
+    grid.appendChild(row);
   });
   renderClassDetail(view.querySelector("#classDetail"));
 }
 function renderClassDetail(el){
   const c = getClass();
-  if (!c){ el.innerHTML = ""; return; }
+  if (!c){ el.innerHTML = `<p class="pool-note">Выбери класс слева.</p>`; return; }
   el.innerHTML = `
     <div class="detail-panel">
       <h3>${c.name}</h3>
       <div class="stat-row">
-        <span class="stat-chip"><b>Кость хитов</b> k${c.hitDie}</span>
+        <span class="stat-chip"><b>Кость хитов</b> к${c.hitDie}</span>
         <span class="stat-chip"><b>Спасброски</b> ${(c.savingThrows||[]).join(", ")}</span>
       </div>
       <p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Доспехи:</b> ${(c.armorProficiency||[]).join(", ") || "—"}</p>
@@ -311,7 +317,8 @@ function racialBonusFor(ability){
   const r = getRace(); const s = getSubrace();
   let bonus = 0;
   if (r && r.abilityBonuses){
-    if (r.abilityBonuses.all) bonus += r.abilityBonuses.all;
+    if (r.abilityBonuses.flexible) bonus += flexBonusFor(ability);
+    else if (r.abilityBonuses.all) bonus += r.abilityBonuses.all;
     else if (r.abilityBonuses[ability]) bonus += r.abilityBonuses[ability];
   }
   if (s && s.abilityBonuses){
@@ -319,6 +326,21 @@ function racialBonusFor(ability){
     else if (s.abilityBonuses[ability]) bonus += s.abilityBonuses[ability];
   }
   return bonus;
+}
+/* Гибкий расовый бонус (MPMM/Monsters of the Multiverse): игрок сам распределяет
+   +2/+1 на две характеристики или +1/+1/+1 на три. */
+function flexBonusFor(ability){
+  const f = state.flexBonus;
+  if (!f || !f.picks) return 0;
+  return f.picks[ability] || 0;
+}
+function flexBonusRemainingText(){
+  const r = getRace();
+  if (!r || !r.abilityBonuses || !r.abilityBonuses.flexible) return null;
+  const f = state.flexBonus || { mode: "21", picks: {} };
+  const need = f.mode === "111" ? [1,1,1] : [2,1];
+  const used = Object.values(f.picks || {});
+  return { need, used, done: used.sort().join(",") === need.slice().sort().join(",") };
 }
 
 const ABILITY_MODES = [
@@ -335,17 +357,88 @@ function renderAbilities(view){
   ensureAbilityAssignInit();
   view.innerHTML = `
     <div class="view-header"><h1>Распредели характеристики</h1><p>Выбери способ распределения характеристик. Расовые бонусы прибавятся автоматически сверху.</p></div>
-    <div class="mode-tabs" id="modeTabs"></div>
-    <div id="modeBody"></div>
-    <div class="detail-panel">
-      <h3>Навыки класса</h3>
-      <p style="color:var(--text-dim);margin-top:0;" id="skillHint"></p>
-      <div class="skill-grid" id="skillGrid"></div>
+    <div class="split-pane dual">
+      <div class="split-detail" id="abLeft">
+        <div id="flexBonusBox"></div>
+        <div class="mode-tabs" id="modeTabs"></div>
+        <div id="modeBody"></div>
+      </div>
+      <div class="split-detail" id="abRight">
+        <div class="detail-panel">
+          <h3>Навыки класса</h3>
+          <p style="color:var(--text-dim);margin-top:0;" id="skillHint"></p>
+          <div class="skill-grid" id="skillGrid"></div>
+        </div>
+      </div>
     </div>
   `;
   renderModeTabs(view);
   renderModeBody(view);
   renderSkillGrid(view);
+  renderFlexBonusBox(view);
+}
+/* UI гибкого расового бонуса (MPMM): игрок выбирает две характеристики (+2/+1)
+   или три характеристики (+1 каждая) под новые "подарочные" расы. */
+function renderFlexBonusBox(view){
+  const box = view.querySelector("#flexBonusBox");
+  const r = getRace();
+  if (!r || !r.abilityBonuses || !r.abilityBonuses.flexible){ box.innerHTML = ""; return; }
+  if (!state.flexBonus) state.flexBonus = { mode: "21", picks: {} };
+  const f = state.flexBonus;
+  const setMode = (mode) => { state.flexBonus = { mode, picks: {} }; renderFlexBonusBox(view); updateNextEnabled(); };
+  const need = f.mode === "111" ? [1,1,1] : [2,1];
+  const assignedVals = Object.values(f.picks);
+  box.innerHTML = `
+    <div class="detail-panel" style="margin-bottom:14px;">
+      <h3>Гибкий расовый бонус — ${r.name}</h3>
+      <p style="color:var(--text-dim);margin-top:0;">Эта раса не даёт фиксированные бонусы: выбери сам, какие характеристики усилить.</p>
+      <div class="mode-tabs" style="margin-bottom:10px;">
+        <button class="mode-tab${f.mode==="21"?" active":""}" id="flexMode21">+2 / +1</button>
+        <button class="mode-tab${f.mode==="111"?" active":""}" id="flexMode111">+1 / +1 / +1</button>
+      </div>
+      <div class="ability-grid">
+        ${ABILITY_ORDER.map(ab => `
+          <div class="ability-card">
+            <div class="ab-name">${ABILITY_NAMES[ab]}</div>
+            <select class="flex-pick" data-ab="${ab}">
+              <option value="">—</option>
+              ${need.includes(2) ? `<option value="2" ${f.picks[ab]===2?"selected":""}>+2</option>` : ""}
+              <option value="1" ${f.picks[ab]===1?"selected":""}>+1</option>
+            </select>
+          </div>
+        `).join("")}
+      </div>
+      <p class="pool-note" id="flexHint" style="margin-top:8px;"></p>
+    </div>
+  `;
+  box.querySelector("#flexMode21").onclick = () => setMode("21");
+  box.querySelector("#flexMode111").onclick = () => setMode("111");
+  const hint = box.querySelector("#flexHint");
+  const updateHint = () => {
+    const used = Object.values(state.flexBonus.picks);
+    const ok = used.sort().join(",") === need.slice().sort().join(",");
+    hint.innerHTML = ok ? `<span style="color:var(--gold-bright);">Бонус распределён ✓</span>` : `Нужно распределить: ${need.map(n=>"+"+n).join(", ")}`;
+    updateNextEnabled();
+  };
+  box.querySelectorAll(".flex-pick").forEach(sel => {
+    sel.onchange = () => {
+      const ab = sel.dataset.ab;
+      const val = Number(sel.value) || null;
+      const want = need.slice().sort((a,b)=>b-a);
+      // не даём выбрать одно и то же значение больше раз, чем оно встречается в need
+      const picks = { ...state.flexBonus.picks };
+      if (val == null) delete picks[ab]; else picks[ab] = val;
+      const counts = {};
+      Object.values(picks).forEach(v => counts[v] = (counts[v]||0)+1);
+      const needCounts = {};
+      need.forEach(v => needCounts[v] = (needCounts[v]||0)+1);
+      const overflow = Object.keys(counts).some(v => counts[v] > (needCounts[v]||0));
+      if (overflow){ sel.value = state.flexBonus.picks[ab] || ""; return; }
+      state.flexBonus.picks = picks;
+      updateHint();
+    };
+  });
+  updateHint();
 }
 
 function renderModeTabs(view){
@@ -566,8 +659,9 @@ function renderPhysique(view){
 }
 function renderPhysiqueBody(view, avg){
   const body = view.querySelector("#physBody");
+  const bounds = heightWeightBounds(state.raceId, state.subraceId);
   if (!state.physiqueMode){
-    body.innerHTML = `<p class="pool-note">Выбери способ выше: средние значения для расы — рост ${avg.heightCm} см, вес ${avg.weightKg} кг.</p>`;
+    body.innerHTML = `<p class="pool-note">Выбери способ выше: средние значения для расы — рост ${avg.heightCm} см, вес ${avg.weightKg} кг (допустимый диапазон ${bounds.heightCm.min}–${bounds.heightCm.max} см, ${bounds.weightKg.min}–${bounds.weightKg.max} кг).</p>`;
     return;
   }
   if (state.physiqueMode === "roll"){
@@ -583,28 +677,36 @@ function renderPhysiqueBody(view, avg){
     };
   } else {
     body.innerHTML = `
-      <p class="pool-note">Среднее для расы: рост ~${avg.heightCm} см, вес ~${avg.weightKg} кг. Впиши свои значения.</p>
+      <p class="pool-note">Среднее для расы: рост ~${avg.heightCm} см, вес ~${avg.weightKg} кг. Допустимый диапазон (с учётом погрешности ±17% — если очень хочется выделяющегося героя): рост ${bounds.heightCm.min}–${bounds.heightCm.max} см, вес ${bounds.weightKg.min}–${bounds.weightKg.max} кг.</p>
       <div class="ability-grid" id="physGrid"></div>
     `;
   }
-  renderPhysiqueGrid(view, body, avg);
+  renderPhysiqueGrid(view, body, avg, bounds);
 }
-function renderPhysiqueGrid(view, body, avg){
+function renderPhysiqueGrid(view, body, avg, bounds){
   const grid = body.querySelector("#physGrid");
   const editable = state.physiqueMode === "manual";
   grid.innerHTML = `
     <div class="ability-card">
       <div class="ab-name">Рост, см</div>
-      ${editable ? `<input type="number" min="60" max="260" id="inHeight" value="${state.heightCm ?? ''}">` : `<div class="ab-total">${state.heightCm ?? "—"}</div>`}
+      ${editable ? `<input type="number" min="${bounds.heightCm.min}" max="${bounds.heightCm.max}" id="inHeight" value="${state.heightCm ?? ''}">` : `<div class="ab-total">${state.heightCm ?? "—"}</div>`}
     </div>
     <div class="ability-card">
       <div class="ab-name">Вес, кг</div>
-      ${editable ? `<input type="number" min="10" max="400" id="inWeight" value="${state.weightKg ?? ''}">` : `<div class="ab-total">${state.weightKg ?? "—"}</div>`}
+      ${editable ? `<input type="number" min="${bounds.weightKg.min}" max="${bounds.weightKg.max}" id="inWeight" value="${state.weightKg ?? ''}">` : `<div class="ab-total">${state.weightKg ?? "—"}</div>`}
     </div>
+    ${editable ? `<p class="pool-note" id="physOutOfRange" style="grid-column:1/-1;"></p>` : ""}
   `;
   if (editable){
-    grid.querySelector("#inHeight").oninput = e => { state.heightCm = e.target.value ? Number(e.target.value) : null; updateNextEnabled(); };
-    grid.querySelector("#inWeight").oninput = e => { state.weightKg = e.target.value ? Number(e.target.value) : null; updateNextEnabled(); };
+    const checkRange = () => {
+      const note = grid.querySelector("#physOutOfRange");
+      const hOut = state.heightCm && (state.heightCm < bounds.heightCm.min || state.heightCm > bounds.heightCm.max);
+      const wOut = state.weightKg && (state.weightKg < bounds.weightKg.min || state.weightKg > bounds.weightKg.max);
+      note.innerHTML = (hOut || wOut) ? `<span style="color:var(--blood-bright);">Значение выходит за пределы допустимого диапазона даже с учётом погрешности — так для этой расы не бывает.</span>` : "";
+      updateNextEnabled();
+    };
+    grid.querySelector("#inHeight").oninput = e => { state.heightCm = e.target.value ? Number(e.target.value) : null; checkRange(); };
+    grid.querySelector("#inWeight").oninput = e => { state.weightKg = e.target.value ? Number(e.target.value) : null; checkRange(); };
   }
 }
 
@@ -627,44 +729,61 @@ function renderEquipment(view){
   const c = getClass();
   view.innerHTML = `
     <div class="view-header"><h1>Выбери снаряжение</h1><p>Готовые, реалистично собранные комплекты для класса — или собери своё снаряжение вручную.</p></div>
-    <div id="eqList"></div>
+    <div class="split-pane">
+      <div class="split-list" id="eqGrid"></div>
+      <div class="split-detail" id="eqDetail"></div>
+    </div>
   `;
   renderEquipList(view);
 }
 function renderEquipList(view){
   const c = getClass();
-  const list = view.querySelector("#eqList");
-  list.innerHTML = "";
+  const grid = view.querySelector("#eqGrid");
+  grid.innerHTML = "";
   (c.startingEquipment||[]).forEach(opt => {
-    const div = document.createElement("div");
-    div.className = "equip-choice" + (state.equipmentChoice === opt.choice ? " selected" : "");
-    div.innerHTML = `
-      <span class="eq-label">Вариант ${opt.choice}${opt.role ? " — " + opt.role : ""}</span>
-      <ul>${opt.items.map(i => `<li><b>${i.name||i}</b>${i.info ? `<span class="eq-info">${i.info}</span>` : ""}</li>`).join("")}</ul>
+    const row = document.createElement("div");
+    row.className = "pick-row" + (state.equipmentChoice === opt.choice ? " selected" : "");
+    row.innerHTML = `
+      <span class="glyph">${opt.choice}</span>
+      <div class="pr-text"><div class="pr-name">Вариант ${opt.choice}</div><div class="pr-sub">${opt.role || ""}</div></div>
     `;
-    div.onclick = () => {
+    row.onclick = () => {
       state.equipmentChoice = opt.choice;
       renderEquipList(view);
       updateNextEnabled();
     };
-    list.appendChild(div);
+    grid.appendChild(row);
   });
-  // Вариант D — своя сборка
-  const divD = document.createElement("div");
-  divD.className = "equip-choice" + (state.equipmentChoice === "D" ? " selected" : "");
-  divD.innerHTML = `<span class="eq-label">Вариант D — Своя сборка</span><p class="pool-note" style="margin:0;">Выбери оружие, доспех и набор снаряжения сам — ниже появится конструктор.</p>`;
-  divD.onclick = () => {
+  const rowD = document.createElement("div");
+  rowD.className = "pick-row" + (state.equipmentChoice === "D" ? " selected" : "");
+  rowD.innerHTML = `<span class="glyph">D</span><div class="pr-text"><div class="pr-name">Своя сборка</div><div class="pr-sub">оружие, доспех, набор</div></div>`;
+  rowD.onclick = () => {
     state.equipmentChoice = "D";
     renderEquipList(view);
     updateNextEnabled();
   };
-  list.appendChild(divD);
-  if (state.equipmentChoice === "D"){
-    const box = document.createElement("div");
-    box.id = "customBox";
-    list.appendChild(box);
-    renderCustomEquip(view, box);
+  grid.appendChild(rowD);
+  renderEquipDetail(view);
+}
+function renderEquipDetail(view){
+  const c = getClass();
+  const detail = view.querySelector("#eqDetail");
+  if (!state.equipmentChoice){
+    detail.innerHTML = `<p class="pool-note">Выбери вариант снаряжения слева.</p>`;
+    return;
   }
+  if (state.equipmentChoice === "D"){
+    detail.innerHTML = `<div id="customBox"></div>`;
+    renderCustomEquip(view, detail.querySelector("#customBox"));
+    return;
+  }
+  const opt = (c.startingEquipment||[]).find(e => e.choice === state.equipmentChoice);
+  detail.innerHTML = `
+    <div class="detail-panel">
+      <h3>Вариант ${opt.choice}${opt.role ? " — " + opt.role : ""}</h3>
+      <ul>${opt.items.map(i => `<li><b>${i.name||i}</b>${i.info ? `<span class="eq-info">${i.info}</span>` : ""}</li>`).join("")}</ul>
+    </div>
+  `;
 }
 function renderCustomEquip(view, box){
   const c = getClass();
@@ -985,11 +1104,18 @@ function validateStep(stepId){
     case "abilities": {
       const allAssigned = ABILITY_ORDER.every(ab => state.abilityAssign[ab] != null);
       if (!allAssigned) return "Распредели все шесть значений характеристик";
+      const flex = flexBonusRemainingText();
+      if (flex && !flex.done) return "Распредели гибкий расовый бонус между характеристиками";
       const c = getClass();
       if (c && c.skillChoices && state.skillChoices.length < c.skillChoices.count) return `Выбери ${c.skillChoices.count} навыка(ов)`;
       return true;
     }
-    case "physique": return !!(state.heightCm && state.weightKg) || "Укажи рост и вес героя";
+    case "physique": {
+      if (!state.heightCm || !state.weightKg) return "Укажи рост и вес героя";
+      const b = heightWeightBounds(state.raceId, state.subraceId);
+      const ok = state.heightCm >= b.heightCm.min && state.heightCm <= b.heightCm.max && state.weightKg >= b.weightKg.min && state.weightKg <= b.weightKg.max;
+      return ok || "Рост/вес выходят за допустимые пределы даже с погрешностью ±17%";
+    }
     case "equipment": {
       if (state.equipmentChoice === "D"){
         const cw = state.customEquip;

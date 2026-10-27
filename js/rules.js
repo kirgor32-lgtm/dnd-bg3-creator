@@ -214,7 +214,31 @@ const HEIGHT_WEIGHT_TABLE = {
   dragonborn:     { baseHeightIn:66, heightDice:[2,8],  baseWeightLb:175, weightMult:[2,6] },
   "half-elf":     { baseHeightIn:57, heightDice:[2,8],  baseWeightLb:110, weightMult:[2,4] },
   "half-orc":     { baseHeightIn:58, heightDice:[2,10], baseWeightLb:140, weightMult:[2,6] },
-  tiefling:       { baseHeightIn:57, heightDice:[2,8],  baseWeightLb:110, weightMult:[2,4] }
+  tiefling:       { baseHeightIn:57, heightDice:[2,8],  baseWeightLb:110, weightMult:[2,4] },
+  /* Ниже — расы из Mordenkainen Presents: Monsters of the Multiverse.
+     Точных официальных таблиц рост/вес для них в базовых правилах нет (кроме табакси/голиафа/тритона
+     из Volo's Guide) — используются полуофициальные значения по описанию рас и Volo's Guide, не выдуманные с нуля. */
+  genasi:         { baseHeightIn:56, heightDice:[2,10], baseWeightLb:110, weightMult:[2,4] },
+  "air-genasi":   { baseHeightIn:56, heightDice:[2,10], baseWeightLb:100, weightMult:[1,4] },
+  "earth-genasi": { baseHeightIn:56, heightDice:[2,10], baseWeightLb:120, weightMult:[2,6] },
+  "fire-genasi":  { baseHeightIn:56, heightDice:[2,10], baseWeightLb:105, weightMult:[2,4] },
+  "water-genasi": { baseHeightIn:56, heightDice:[2,10], baseWeightLb:110, weightMult:[2,4] },
+  kenku:          { baseHeightIn:54, heightDice:[2,8],  baseWeightLb:80,  weightMult:[1,4] },
+  shifter:        { baseHeightIn:56, heightDice:[2,10], baseWeightLb:125, weightMult:[2,6] },
+  "beasthide-shifter":   { baseHeightIn:58, heightDice:[2,10], baseWeightLb:135, weightMult:[2,6] },
+  "longtooth-shifter":   { baseHeightIn:57, heightDice:[2,10], baseWeightLb:130, weightMult:[2,6] },
+  "swiftstride-shifter": { baseHeightIn:56, heightDice:[2,10], baseWeightLb:115, weightMult:[2,4] },
+  "wildhunt-shifter":    { baseHeightIn:56, heightDice:[2,10], baseWeightLb:120, weightMult:[2,4] },
+  aasimar:        { baseHeightIn:57, heightDice:[2,10], baseWeightLb:110, weightMult:[2,4] },
+  "protector-aasimar": { baseHeightIn:58, heightDice:[2,10], baseWeightLb:115, weightMult:[2,4] },
+  "scourge-aasimar":   { baseHeightIn:57, heightDice:[2,10], baseWeightLb:110, weightMult:[2,4] },
+  "fallen-aasimar":    { baseHeightIn:57, heightDice:[2,10], baseWeightLb:110, weightMult:[2,4] },
+  tabaxi:         { baseHeightIn:58, heightDice:[2,10], baseWeightLb:90,  weightMult:[2,4] },
+  goliath:        { baseHeightIn:84, heightDice:[2,10], baseWeightLb:280, weightMult:[2,6] },
+  triton:         { baseHeightIn:63, heightDice:[2,8],  baseWeightLb:130, weightMult:[2,6] },
+  goblin:         { baseHeightIn:35, heightDice:[2,4],  baseWeightLb:30,  weightMult:[1,1] },
+  centaur:        { baseHeightIn:70, heightDice:[2,10], baseWeightLb:400, weightMult:[2,10] },
+  changeling:     { baseHeightIn:56, heightDice:[2,10], baseWeightLb:110, weightMult:[2,4] }
 };
 function diceSum(n, sides){
   let t = 0; for (let i=0;i<n;i++) t += 1 + Math.floor(Math.random()*sides); return t;
@@ -237,6 +261,24 @@ function avgHeightWeight(raceId, subraceId){
   const heightIn = t.baseHeightIn + avgExtraIn;
   const weightLb = t.baseWeightLb + avgExtraIn * avgMultRoll;
   return { heightCm: Math.round(heightIn * 2.54), weightKg: Math.round(weightLb * 0.4536) };
+}
+/* Границы роста/веса по таблице SRD (минимум/максимум возможных бросков) + допуск ±17%
+   на случай если игрок хочет выделяющегося персонажа (очень высокий/низкий, лёгкий/тяжёлый). */
+const SIZE_TOLERANCE = 0.17;
+function heightWeightBounds(raceId, subraceId){
+  const t = hwTable(raceId, subraceId);
+  const minExtraIn = t.heightDice[0] * 1;
+  const maxExtraIn = t.heightDice[0] * t.heightDice[1];
+  const minMult = t.weightMult[0] * 1;
+  const maxMult = t.weightMult[0] * t.weightMult[1];
+  const heightMinIn = t.baseHeightIn + minExtraIn;
+  const heightMaxIn = t.baseHeightIn + maxExtraIn;
+  const weightMinLb = t.baseWeightLb + minExtraIn * minMult;
+  const weightMaxLb = t.baseWeightLb + maxExtraIn * maxMult;
+  return {
+    heightCm: { min: Math.round(heightMinIn * 2.54 * (1 - SIZE_TOLERANCE)), max: Math.round(heightMaxIn * 2.54 * (1 + SIZE_TOLERANCE)) },
+    weightKg: { min: Math.round(weightMinLb * 0.4536 * (1 - SIZE_TOLERANCE)), max: Math.round(weightMaxLb * 0.4536 * (1 + SIZE_TOLERANCE)) }
+  };
 }
 
 /* ===== Текст для отыгрыша: что высокие/низкие характеристики и телосложение значат "в жизни". ===== */
