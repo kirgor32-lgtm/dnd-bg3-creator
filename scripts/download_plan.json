@@ -1,0 +1,78 @@
+{
+  "human": {
+    "search": "human dnd 5e character art painting concept fantasy",
+    "description": "Ordinary human adventurer in fantasy art style"
+  },
+  "elf": {
+    "search": "elf dnd 5e character art pointed ears ethereal painting",
+    "description": "Slim elf with pointed ears, ethereal features"
+  },
+  "dwarf": {
+    "search": "dwarf dnd 5e character art beard stocky painting concept",
+    "description": "Short stocky dwarf with thick beard and broad shoulders"
+  },
+  "halfling": {
+    "search": "halfling dnd 5e character art small childlike portrait",
+    "description": "Very short halfling with childlike proportions, round friendly face"
+  },
+  "gnome": {
+    "search": "gnome dnd 5e character art small tinkerer expressive concept",
+    "description": "Small gnome with big expressive features, tinkerer aesthetic"
+  },
+  "dragonborn": {
+    "search": "dragonborn dnd 5e dragon head scales reptile humanoid",
+    "description": "Humanoid with literal dragon/reptile head, scales"
+  },
+  "half-elf": {
+    "search": "half-elf dnd 5e character art subtle pointed ears human",
+    "description": "Human features with subtly pointed ears, half-elf heritage"
+  },
+  "half-orc": {
+    "search": "half-orc dnd 5e tusks green grey skin muscular character",
+    "description": "Green/grey skin with prominent tusks, muscular build"
+  },
+  "tiefling": {
+    "search": "tiefling dnd 5e horns tail red purple skin character",
+    "description": "Humanoid with horns and tail, red/purple skin tones"
+  },
+  "genasi": {
+    "search": "genasi dnd 5e elemental skin tone fire water air earth character",
+    "description": "Elemental-touched skin tone with elemental motifs"
+  },
+  "kenku": {
+    "search": "kenku dnd 5e bird head raven crow feathers character art",
+    "description": "Bird-like humanoid with crow/raven head and feathers"
+  },
+  "shifter": {
+    "search": "shifter dnd 5e animalistic features fur patches feral eyes",
+    "description": "Humanoid with animalistic features, fur patches, feral eyes"
+  },
+  "aasimar": {
+    "search": "aasimar dnd 5e angelic glowing eyes celestial character",
+    "description": "Angelic humanoid with glowing eyes, celestial features"
+  },
+  "tabaxi": {
+    "search": "tabaxi dnd 5e cat feline head ears tail character art",
+    "description": "Cat-humanoid with feline head/ears/tail/fur"
+  },
+  "goliath": {
+    "search": "goliath dnd 5e grey stone muscular large character tattoos",
+    "description": "Huge muscular humanoid with grey stone-patterned skin"
+  },
+  "triton": {
+    "search": "triton dnd 5e aquatic merfolk blue green skin fins",
+    "description": "Aquatic humanoid with fish-like/merfolk features, blue-green skin"
+  },
+  "goblin": {
+    "search": "goblin dnd 5e small green sharp teeth big ears character",
+    "description": "Small green-skinned goblin with sharp teeth and big ears"
+  },
+  "centaur": {
+    "search": "centaur dnd 5e humanoid horse body four legs character",
+    "description": "Humanoid torso on a horse body with four legs"
+  },
+  "changeling": {
+    "search": "changeling dnd 5e shapeshifter featureless grey malleable",
+    "description": "Humanoid with subtly featureless/malleable grey-ish face"
+  }
+}

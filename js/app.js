@@ -318,21 +318,16 @@ function renderSubraceDetail(el){
 function renderClassStep(view){
   view.innerHTML = `
     <div class="view-header"><h1>Выбери класс</h1><p>Класс — твой путь к силе: воин меча, хранитель тайных знаний или клинок в тенях.</p></div>
-    <div class="split-pane">
-      <div class="split-list" id="classGrid"></div>
-      <div class="split-detail" id="classDetail"></div>
-    </div>
+    <div class="class-icon-grid" id="classGrid"></div>
+    <div class="split-detail" id="classDetail"></div>
   `;
   const grid = view.querySelector("#classGrid");
   DND_DATA.classes.forEach(c => {
     const row = document.createElement("div");
-    row.className = "pick-row" + (state.classId === c.id ? " selected" : "");
+    row.className = "class-icon-item" + (state.classId === c.id ? " selected" : "");
     row.innerHTML = `
-      <span class="glyph">${CLASS_GLYPH[c.id] || "❖"}</span>
-      <div class="pr-text">
-        <div class="pr-name">${c.name}</div>
-        <div class="pr-sub">${c.nameEn || ""} · к${c.hitDie}${c.spellcasting ? " · заклинатель" : ""}</div>
-      </div>
+      <div class="class-icon-square">${CLASS_GLYPH[c.id] || "❖"}</div>
+      <div class="class-icon-label">${c.name}</div>
     `;
     row.onclick = () => {
       if (state.classId === c.id) return;
@@ -344,7 +339,7 @@ function renderClassStep(view){
       state.abilityMode = null;
       state.abilityAssign = {};
       state.diceRolls = null;
-      grid.querySelectorAll(".pick-row.selected").forEach(n => n.classList.remove("selected"));
+      grid.querySelectorAll(".class-icon-item.selected").forEach(n => n.classList.remove("selected"));
       row.classList.add("selected");
       renderClassDetail(view.querySelector("#classDetail"));
       saveState();
