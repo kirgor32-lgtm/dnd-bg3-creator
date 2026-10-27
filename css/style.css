@@ -176,12 +176,27 @@ h1,h2,h3,.brand-text,.step-rail,.btn,.card-title,.pick-name{
 /* ---------- Forms ---------- */
 .form-row{margin-bottom:18px; max-width:480px;}
 .form-row label{display:block; margin-bottom:6px; color:var(--parchment-dark); font-size:.9rem; text-transform:uppercase; letter-spacing:.04em;}
-input[type=text], select, textarea{
+input[type=text], input[type=number], select, textarea{
   width:100%; padding:10px 12px; border-radius:6px;
   background:#120b06; border:1px solid var(--line); color:var(--text-light);
   font-family:'EB Garamond', serif; font-size:1rem;
 }
-input[type=text]:focus, select:focus, textarea:focus{outline:none; border-color:var(--gold);}
+input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus{outline:none; border-color:var(--gold);}
+input[type=number]{text-align:center;}
+
+/* ---------- Ability mode tabs ---------- */
+.mode-tabs{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px;}
+.mode-tab{
+  padding:10px 18px; border-radius:8px; border:1px solid var(--line);
+  background:var(--panel-2); color:var(--text-dim); font-family:'Cinzel', serif;
+  font-size:.85rem; text-transform:uppercase; letter-spacing:.03em; cursor:pointer;
+  transition:all .18s;
+}
+.mode-tab:hover{border-color:var(--gold-bright); color:var(--parchment);}
+.mode-tab.active{
+  background:linear-gradient(165deg,#3a2c17,#2a1f13); border-color:var(--gold);
+  color:var(--gold-bright); box-shadow:0 0 0 1px var(--gold);
+}
 
 /* ---------- Ability score assignment ---------- */
 .ability-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-bottom:20px;}

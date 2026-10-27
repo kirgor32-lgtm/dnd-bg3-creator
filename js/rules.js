@@ -56,3 +56,30 @@ function casterKnownCount(classId, abilityScoreMod){
   // prepared: mod + 1 (уровень персонажа = 1), минимум 1
   return Math.max(1, abilityScoreMod + 1);
 }
+
+/* Рекомендованный приоритет характеристик по классу (от важнейшей к наименее важной).
+   Используется для авто-билда: стандартный набор 15/14/13/12/10/8 раздаётся по этому порядку. */
+const CLASS_ABILITY_PRIORITY = {
+  barbarian: ["str","con","dex","wis","cha","int"],
+  bard:      ["cha","dex","con","int","wis","str"],
+  cleric:    ["wis","con","str","cha","dex","int"],
+  druid:     ["wis","con","dex","int","cha","str"],
+  fighter:   ["str","con","dex","wis","cha","int"],
+  monk:      ["dex","wis","con","str","cha","int"],
+  paladin:   ["str","cha","con","wis","dex","int"],
+  ranger:    ["dex","wis","con","str","cha","int"],
+  rogue:     ["dex","int","con","wis","cha","str"],
+  sorcerer:  ["cha","con","dex","wis","int","str"],
+  warlock:   ["cha","con","dex","wis","int","str"],
+  wizard:    ["int","con","dex","wis","cha","str"]
+};
+
+/* Бросок 4к6 с отбрасыванием худшего кубика — шесть раз, по правилам SRD. */
+function rollAbilityScores(){
+  const rollOne = () => {
+    const d = [1,2,3,4].map(() => 1 + Math.floor(Math.random() * 6));
+    d.sort((a,b) => a - b);
+    return d[1] + d[2] + d[3];
+  };
+  return Array.from({ length: 6 }, rollOne).sort((a,b) => b - a);
+}

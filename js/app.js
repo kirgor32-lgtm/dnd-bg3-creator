@@ -16,6 +16,7 @@ let state = {
   step: "intro",
   name: "", alignment: "", background: "",
   raceId: null, subraceId: null, classId: null,
+  abilityMode: null, diceRolls: null,
   abilities: {}, abilityAssign: {}, skillChoices: [],
   equipmentChoice: null,
   spells: [],
@@ -108,6 +109,7 @@ function render(){
   const nextBtn = document.getElementById("btnNext");
   nextBtn.style.display = state.step === "sheet" ? "none" : "inline-block";
   nextBtn.textContent = (idx === steps.length - 2) ? "К итоговому листу →" : "Далее →";
+  updateNextEnabled();
 }
 
 function toast(msg){
@@ -143,7 +145,7 @@ function renderIntro(view){
       </div>
     </div>
   `;
-  view.querySelector("#inName").oninput = e => state.name = e.target.value;
+  view.querySelector("#inName").oninput = e => { state.name = e.target.value; updateNextEnabled(); };
   view.querySelector("#inAlign").onchange = e => state.alignment = e.target.value;
   view.querySelector("#inBg").oninput = e => state.background = e.target.value;
 }
@@ -252,10 +254,14 @@ function renderClassStep(view){
       </div>
     `;
     card.onclick = () => {
+      if (state.classId === c.id) return;
       state.classId = c.id;
       state.skillChoices = [];
       state.equipmentChoice = null;
       state.spells = [];
+      state.abilityMode = null;
+      state.abilityAssign = {};
+      state.diceRolls = null;
       render();
     };
     grid.appendChild(card);
@@ -280,9 +286,7 @@ function renderClassDetail(el){
 
 /* ---------------- Step: Abilities ---------------- */
 function ensureAbilityAssignInit(){
-  if (!state.abilityAssign || Object.keys(state.abilityAssign).length === 0){
-    state.abilityAssign = {};
-  }
+  if (!state.abilityAssign) state.abilityAssign = {};
 }
 function usedArrayValues(){
   return Object.values(state.abilityAssign).filter(v => v != null);
@@ -300,35 +304,119 @@ function racialBonusFor(ability){
   }
   return bonus;
 }
+
+const ABILITY_MODES = [
+  { id: "dice",        label: "🎲 Бросок кубиков" },
+  { id: "recommended",  label: "⭐ Рекомендованный билд" },
+  { id: "free",         label: "✍ Свободное распределение" }
+];
+
+function applyRecommendedBuild(){
+  const c = getClass();
+  const order = (c && CLASS_ABILITY_PRIORITY[c.id]) || ["str","dex","con","int","wis","cha"];
+  const values = STANDARD_ARRAY.slice().sort((a,b) => b - a);
+  state.abilityAssign = {};
+  order.forEach((ab, i) => { state.abilityAssign[ab] = values[i]; });
+}
+
 function renderAbilities(view){
   ensureAbilityAssignInit();
   view.innerHTML = `
-    <div class="view-header"><h1>Распредели характеристики</h1><p>Стандартный набор: 15, 14, 13, 12, 10, 8 — распредели каждое значение по одной характеристике. Расовые бонусы прибавятся автоматически.</p></div>
-    <p class="pool-note" id="poolNote"></p>
-    <div class="ability-grid" id="abGrid"></div>
+    <div class="view-header"><h1>Распредели характеристики</h1><p>Выбери способ распределения характеристик. Расовые бонусы прибавятся автоматически сверху.</p></div>
+    <div class="mode-tabs" id="modeTabs"></div>
+    <div id="modeBody"></div>
     <div class="detail-panel">
       <h3>Навыки класса</h3>
       <p style="color:var(--text-dim);margin-top:0;" id="skillHint"></p>
       <div class="skill-grid" id="skillGrid"></div>
     </div>
   `;
-  renderAbilityGrid(view);
+  renderModeTabs(view);
+  renderModeBody(view);
   renderSkillGrid(view);
 }
-function renderAbilityGrid(view){
-  const grid = view.querySelector("#abGrid");
+
+function renderModeTabs(view){
+  const el = view.querySelector("#modeTabs");
+  el.innerHTML = ABILITY_MODES.map(m =>
+    `<button class="mode-tab${state.abilityMode===m.id?" active":""}" data-mode="${m.id}">${m.label}</button>`
+  ).join("");
+  el.querySelectorAll(".mode-tab").forEach(btn => {
+    btn.onclick = () => {
+      const newMode = btn.dataset.mode;
+      if (newMode === state.abilityMode) return;
+      state.abilityMode = newMode;
+      state.abilityAssign = {};
+      state.diceRolls = null;
+      if (newMode === "recommended") applyRecommendedBuild();
+      renderModeTabs(view);
+      renderModeBody(view);
+      updateNextEnabled();
+    };
+  });
+}
+
+function renderModeBody(view){
+  const body = view.querySelector("#modeBody");
+  if (!state.abilityMode){
+    body.innerHTML = `<p class="pool-note">Выбери способ распределения характеристик выше, чтобы продолжить.</p>`;
+    return;
+  }
+  if (state.abilityMode === "dice") renderDiceMode(view, body);
+  else if (state.abilityMode === "recommended") renderRecommendedMode(view, body);
+  else renderFreeMode(view, body);
+}
+
+function renderDiceMode(view, body){
+  if (!state.diceRolls) state.diceRolls = rollAbilityScores();
+  body.innerHTML = `
+    <p class="pool-note">Для каждой характеристики брошено 4к6, худший кубик отброшен. Распредели результаты по характеристикам.</p>
+    <button class="btn btn-ghost" id="btnReroll" style="margin-bottom:14px;">🎲 Перебросить кубики</button>
+    <div class="ability-grid" id="abGrid"></div>
+    <p class="pool-note" id="poolNote"></p>
+  `;
+  body.querySelector("#btnReroll").onclick = () => {
+    state.diceRolls = rollAbilityScores();
+    state.abilityAssign = {};
+    renderDiceMode(view, body);
+    updateNextEnabled();
+  };
+  renderAssignGrid(view, body, state.diceRolls);
+}
+
+function renderRecommendedMode(view, body){
+  if (Object.keys(state.abilityAssign).length === 0) applyRecommendedBuild();
+  const c = getClass();
+  body.innerHTML = `
+    <p class="pool-note">Стандартный набор 15/14/13/12/10/8 автоматически расставлен по характеристикам, важным для класса «${c?c.name:""}». Можешь поправить вручную — расовые бонусы прибавятся сверху.</p>
+    <button class="btn btn-ghost" id="btnReapply" style="margin-bottom:14px;">↻ Применить рекомендацию заново</button>
+    <div class="ability-grid" id="abGrid"></div>
+    <p class="pool-note" id="poolNote"></p>
+  `;
+  body.querySelector("#btnReapply").onclick = () => {
+    applyRecommendedBuild();
+    renderRecommendedMode(view, body);
+    updateNextEnabled();
+  };
+  renderAssignGrid(view, body, STANDARD_ARRAY);
+}
+
+function renderAssignGrid(view, body, pool){
+  const grid = body.querySelector("#abGrid");
   grid.innerHTML = "";
   const used = usedArrayValues();
   ABILITY_ORDER.forEach(ab => {
     const current = state.abilityAssign[ab] ?? "";
-    const card = document.createElement("div");
-    card.className = "ability-card";
-    const options = STANDARD_ARRAY.map(v => {
-      const disabled = used.includes(v) && current !== v;
+    const options = pool.map(v => {
+      const usedCount = used.filter(u => u === v).length;
+      const poolCount = pool.filter(p => p === v).length;
+      const disabled = usedCount >= poolCount && current !== v;
       return `<option value="${v}" ${v===current?"selected":""} ${disabled?"disabled":""}>${v}</option>`;
     }).join("");
     const bonus = racialBonusFor(ab);
     const total = current === "" ? null : Number(current) + bonus;
+    const card = document.createElement("div");
+    card.className = "ability-card";
     card.innerHTML = `
       <div class="ab-name">${ABILITY_NAMES[ab]}</div>
       <select data-ab="${ab}"><option value="">—</option>${options}</select>
@@ -339,21 +427,54 @@ function renderAbilityGrid(view){
     card.querySelector("select").onchange = e => {
       const v = e.target.value === "" ? null : Number(e.target.value);
       state.abilityAssign[ab] = v;
-      renderAbilityGrid(view);
+      renderAssignGrid(view, body, pool);
       updateNextEnabled();
     };
     grid.appendChild(card);
   });
-  const remaining = STANDARD_ARRAY.filter(v => !used.includes(v) || used.indexOf(v) !== used.lastIndexOf(v));
-  const leftVals = STANDARD_ARRAY.slice().sort((a,b)=>b-a);
-  const usedSorted = used.slice().sort((a,b)=>b-a);
-  const leftover = [...leftVals];
-  usedSorted.forEach(v => { const i = leftover.indexOf(v); if (i>-1) leftover.splice(i,1); });
-  view.querySelector("#poolNote").textContent = leftover.length
-    ? `Осталось распределить: ${leftover.join(", ")}`
+  const leftover = pool.slice();
+  usedArrayValues().forEach(v => { const i = leftover.indexOf(v); if (i>-1) leftover.splice(i,1); });
+  const note = body.querySelector("#poolNote");
+  if (note) note.textContent = leftover.length
+    ? `Осталось распределить: ${leftover.slice().sort((a,b)=>b-a).join(", ")}`
     : "Все значения распределены ✓";
-  updateNextEnabled();
 }
+
+function renderFreeMode(view, body){
+  body.innerHTML = `
+    <p class="pool-note">Впиши любое значение от 3 до 18 для каждой характеристики — без ограничения стандартным набором.</p>
+    <div class="ability-grid" id="abGrid"></div>
+  `;
+  renderFreeGrid(view, body);
+}
+
+function renderFreeGrid(view, body){
+  const grid = body.querySelector("#abGrid");
+  grid.innerHTML = "";
+  ABILITY_ORDER.forEach(ab => {
+    const current = state.abilityAssign[ab] ?? "";
+    const bonus = racialBonusFor(ab);
+    const total = current === "" ? null : Number(current) + bonus;
+    const card = document.createElement("div");
+    card.className = "ability-card";
+    card.innerHTML = `
+      <div class="ab-name">${ABILITY_NAMES[ab]}</div>
+      <input type="number" min="3" max="18" data-ab="${ab}" value="${current}">
+      <div class="ab-total">${total ?? "—"}</div>
+      <div class="ab-mod">модификатор ${total!=null?fmtMod(abilityMod(total)):"—"}</div>
+      ${bonus ? `<div class="ab-bonus">расовый бонус +${bonus}</div>` : ""}
+    `;
+    card.querySelector("input").oninput = e => {
+      let v = e.target.value === "" ? null : Number(e.target.value);
+      if (v != null){ v = Math.max(3, Math.min(18, Math.round(v))); }
+      state.abilityAssign[ab] = v;
+      renderFreeGrid(view, body);
+      updateNextEnabled();
+    };
+    grid.appendChild(card);
+  });
+}
+
 function renderSkillGrid(view){
   const c = getClass();
   const grid = view.querySelector("#skillGrid");
