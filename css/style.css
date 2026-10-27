@@ -205,6 +205,7 @@ input[type=number]{text-align:center;}
 }
 .ability-card .ab-name{color:var(--gold-bright); font-family:'Cinzel'; font-size:.85rem; text-transform:uppercase; margin-bottom:6px;}
 .ability-card select{margin-bottom:8px;}
+.ability-card .ab-roll{font-size:1.3rem; color:var(--gold-bright); font-family:'Cinzel'; margin-bottom:2px;}
 .ability-card .ab-total{font-size:1.6rem; color:var(--parchment); font-family:'Cinzel'; }
 .ability-card .ab-mod{font-size:.85rem; color:var(--text-dim);}
 .ability-card .ab-bonus{font-size:.72rem; color:var(--ember);}

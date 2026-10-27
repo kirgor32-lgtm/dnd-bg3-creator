@@ -377,10 +377,9 @@ function renderDiceMode(view, body){
     autoAssignPool(state.diceRolls);
   }
   body.innerHTML = `
-    <p class="pool-note">Для каждой характеристики брошено 4к6, худший кубик отброшен. Значения сразу расставлены по важным для класса характеристикам — можешь поменять местами вручную.</p>
-    <button class="btn btn-ghost" id="btnReroll" style="margin-bottom:14px;">🎲 Перебросить кубики</button>
+    <p class="pool-note">Для каждой характеристики брошено 4к6, худший кубик отброшен. Лучшие значения автоматически уходят в характеристики, важные для класса.</p>
+    <button class="btn btn-gold" id="btnReroll" style="margin-bottom:14px;">🎲 Перебросить кубики</button>
     <div class="ability-grid" id="abGrid"></div>
-    <p class="pool-note" id="poolNote"></p>
   `;
   body.querySelector("#btnReroll").onclick = () => {
     state.diceRolls = rollAbilityScores();
@@ -388,7 +387,27 @@ function renderDiceMode(view, body){
     renderDiceMode(view, body);
     updateNextEnabled();
   };
-  renderAssignGrid(view, body, state.diceRolls);
+  renderReadonlyGrid(body);
+}
+
+function renderReadonlyGrid(body){
+  const grid = body.querySelector("#abGrid");
+  grid.innerHTML = "";
+  ABILITY_ORDER.forEach(ab => {
+    const base = state.abilityAssign[ab];
+    const bonus = racialBonusFor(ab);
+    const total = base == null ? null : base + bonus;
+    const card = document.createElement("div");
+    card.className = "ability-card";
+    card.innerHTML = `
+      <div class="ab-name">${ABILITY_NAMES[ab]}</div>
+      <div class="ab-roll">${base ?? "—"}</div>
+      <div class="ab-total">${total ?? "—"}</div>
+      <div class="ab-mod">модификатор ${total!=null?fmtMod(abilityMod(total)):"—"}</div>
+      ${bonus ? `<div class="ab-bonus">расовый бонус +${bonus}</div>` : ""}
+    `;
+    grid.appendChild(card);
+  });
 }
 
 function renderRecommendedMode(view, body){
