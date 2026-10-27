@@ -186,7 +186,11 @@ function renderRace(view){
       if (!r.subraces || !r.subraces.some(s => s.id === state.subraceId)) state.subraceId = null;
       state.physiqueMode = null; state.heightCm = null; state.weightKg = null;
       state.flexBonus = null;
-      render();
+      grid.querySelectorAll(".pick-row.selected").forEach(n => n.classList.remove("selected"));
+      row.classList.add("selected");
+      renderRaceDetail(view.querySelector("#raceDetail"));
+      saveState();
+      updateNextEnabled();
     };
     grid.appendChild(row);
   });
@@ -236,7 +240,11 @@ function renderSubrace(view){
       if (state.subraceId === s.id) return;
       state.subraceId = s.id;
       state.physiqueMode = null; state.heightCm = null; state.weightKg = null;
-      render();
+      grid.querySelectorAll(".pick-row.selected").forEach(n => n.classList.remove("selected"));
+      row.classList.add("selected");
+      renderSubraceDetail(view.querySelector("#subDetail"));
+      saveState();
+      updateNextEnabled();
     };
     grid.appendChild(row);
   });
@@ -284,7 +292,11 @@ function renderClassStep(view){
       state.abilityMode = null;
       state.abilityAssign = {};
       state.diceRolls = null;
-      render();
+      grid.querySelectorAll(".pick-row.selected").forEach(n => n.classList.remove("selected"));
+      row.classList.add("selected");
+      renderClassDetail(view.querySelector("#classDetail"));
+      saveState();
+      updateNextEnabled();
     };
     grid.appendChild(row);
   });
@@ -740,6 +752,14 @@ function renderEquipList(view){
   const c = getClass();
   const grid = view.querySelector("#eqGrid");
   grid.innerHTML = "";
+  const selectRow = (row, choice) => {
+    grid.querySelectorAll(".pick-row.selected").forEach(n => n.classList.remove("selected"));
+    row.classList.add("selected");
+    state.equipmentChoice = choice;
+    renderEquipDetail(view);
+    saveState();
+    updateNextEnabled();
+  };
   (c.startingEquipment||[]).forEach(opt => {
     const row = document.createElement("div");
     row.className = "pick-row" + (state.equipmentChoice === opt.choice ? " selected" : "");
@@ -747,21 +767,13 @@ function renderEquipList(view){
       <span class="glyph">${opt.choice}</span>
       <div class="pr-text"><div class="pr-name">Вариант ${opt.choice}</div><div class="pr-sub">${opt.role || ""}</div></div>
     `;
-    row.onclick = () => {
-      state.equipmentChoice = opt.choice;
-      renderEquipList(view);
-      updateNextEnabled();
-    };
+    row.onclick = () => selectRow(row, opt.choice);
     grid.appendChild(row);
   });
   const rowD = document.createElement("div");
   rowD.className = "pick-row" + (state.equipmentChoice === "D" ? " selected" : "");
   rowD.innerHTML = `<span class="glyph">D</span><div class="pr-text"><div class="pr-name">Своя сборка</div><div class="pr-sub">оружие, доспех, набор</div></div>`;
-  rowD.onclick = () => {
-    state.equipmentChoice = "D";
-    renderEquipList(view);
-    updateNextEnabled();
-  };
+  rowD.onclick = () => selectRow(rowD, "D");
   grid.appendChild(rowD);
   renderEquipDetail(view);
 }
