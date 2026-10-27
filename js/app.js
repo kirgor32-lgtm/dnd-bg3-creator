@@ -54,11 +54,13 @@ const STEP_META = {
   race:      { title: "Выбор расы", caption: "Шаг 2 — Раса" },
   subrace:   { title: "Выбор подрасы", caption: "Шаг 3 — Подраса" },
   class:     { title: "Выбор класса", caption: "Шаг 4 — Класс" },
-  abilities: { title: "Характеристики", caption: "Шаг 5 — Характеристики и навыки" },
-  physique:  { title: "Телосложение", caption: "Шаг 6 — Рост и вес" },
-  equipment: { title: "Снаряжение", caption: "Шаг 7 — Снаряжение" },
-  magic:     { title: "Магия", caption: "Шаг 8 — Заклинания" },
-  sheet:     { title: "Лист персонажа", caption: "Шаг 9 — Итог" }
+  flexbonus: { title: "Расовый бонус", caption: "Расовый бонус характеристик" },
+  abilities: { title: "Характеристики", caption: "Распределение характеристик" },
+  skills:    { title: "Навыки", caption: "Навыки класса" },
+  physique:  { title: "Телосложение", caption: "Рост и вес" },
+  equipment: { title: "Снаряжение", caption: "Снаряжение" },
+  magic:     { title: "Магия", caption: "Заклинания" },
+  sheet:     { title: "Лист персонажа", caption: "Итог" }
 };
 
 function getActiveSteps(){
@@ -66,7 +68,9 @@ function getActiveSteps(){
   const r = getRace();
   if (r && r.subraces && r.subraces.length) steps.push("subrace");
   steps.push("class");
+  if (r && r.abilityBonuses && r.abilityBonuses.flexible) steps.push("flexbonus");
   steps.push("abilities");
+  steps.push("skills");
   steps.push("physique");
   steps.push("equipment");
   const c = getClass();
@@ -109,7 +113,8 @@ function render(){
 
   const renderers = {
     intro: renderIntro, race: renderRace, subrace: renderSubrace, class: renderClassStep,
-    abilities: renderAbilities, physique: renderPhysique, equipment: renderEquipment, magic: renderMagic, sheet: renderSheet
+    flexbonus: renderFlexBonusStep, abilities: renderAbilities, skills: renderSkillsStep,
+    physique: renderPhysique, equipment: renderEquipment, magic: renderMagic, sheet: renderSheet
   };
   renderers[state.step](view);
 
@@ -349,8 +354,8 @@ function flexBonusFor(ability){
 function flexBonusRemainingText(){
   const r = getRace();
   if (!r || !r.abilityBonuses || !r.abilityBonuses.flexible) return null;
-  const f = state.flexBonus || { mode: "21", picks: {} };
-  const need = f.mode === "111" ? [1,1,1] : [2,1];
+  const f = state.flexBonus || { split: "21", picks: {} };
+  const need = f.split === "111" ? [1,1,1] : [2,1];
   const used = Object.values(f.picks || {});
   return { need, used, done: used.sort().join(",") === need.slice().sort().join(",") };
 }
@@ -369,88 +374,165 @@ function renderAbilities(view){
   ensureAbilityAssignInit();
   view.innerHTML = `
     <div class="view-header"><h1>Распредели характеристики</h1><p>Выбери способ распределения характеристик. Расовые бонусы прибавятся автоматически сверху.</p></div>
-    <div class="split-pane dual">
-      <div class="split-detail" id="abLeft">
-        <div id="flexBonusBox"></div>
-        <div class="mode-tabs" id="modeTabs"></div>
-        <div id="modeBody"></div>
-      </div>
-      <div class="split-detail" id="abRight">
-        <div class="detail-panel">
-          <h3>Навыки класса</h3>
-          <p style="color:var(--text-dim);margin-top:0;" id="skillHint"></p>
-          <div class="skill-grid" id="skillGrid"></div>
-        </div>
-      </div>
-    </div>
+    <div class="mode-tabs" id="modeTabs"></div>
+    <div id="modeBody"></div>
   `;
   renderModeTabs(view);
   renderModeBody(view);
-  renderSkillGrid(view);
-  renderFlexBonusBox(view);
 }
-/* UI гибкого расового бонуса (MPMM): игрок выбирает две характеристики (+2/+1)
-   или три характеристики (+1 каждая) под новые "подарочные" расы. */
-function renderFlexBonusBox(view){
-  const box = view.querySelector("#flexBonusBox");
+
+/* ---------------- Step: Flex racial bonus (MPMM) ---------------- */
+const FLEX_SPLITS = [
+  { id: "21",  label: "+2 / +1" },
+  { id: "111", label: "+1 / +1 / +1" }
+];
+const FLEX_MODES = [
+  { id: "dice",        label: "🎲 Бросок кубика" },
+  { id: "recommended", label: "⭐ Рекомендация" },
+  { id: "free",        label: "✍ Свой выбор" }
+];
+function ensureFlexBonusInit(){
+  if (!state.flexBonus) state.flexBonus = { split: "21", mode: null, picks: {} };
+}
+function flexAutoAssign(split, abilities){
+  const need = (split === "111" ? [1,1,1] : [2,1]).slice();
+  const picks = {};
+  abilities.forEach((ab, i) => { if (need[i] != null) picks[ab] = need[i]; });
+  return picks;
+}
+function renderFlexBonusStep(view){
+  ensureFlexBonusInit();
   const r = getRace();
-  if (!r || !r.abilityBonuses || !r.abilityBonuses.flexible){ box.innerHTML = ""; return; }
-  if (!state.flexBonus) state.flexBonus = { mode: "21", picks: {} };
   const f = state.flexBonus;
-  const setMode = (mode) => { state.flexBonus = { mode, picks: {} }; renderFlexBonusBox(view); updateNextEnabled(); };
-  const need = f.mode === "111" ? [1,1,1] : [2,1];
-  const assignedVals = Object.values(f.picks);
-  box.innerHTML = `
-    <div class="detail-panel" style="margin-bottom:14px;">
-      <h3>Гибкий расовый бонус — ${r.name}</h3>
-      <p style="color:var(--text-dim);margin-top:0;">Эта раса не даёт фиксированные бонусы: выбери сам, какие характеристики усилить.</p>
-      <div class="mode-tabs" style="margin-bottom:10px;">
-        <button class="mode-tab${f.mode==="21"?" active":""}" id="flexMode21">+2 / +1</button>
-        <button class="mode-tab${f.mode==="111"?" active":""}" id="flexMode111">+1 / +1 / +1</button>
-      </div>
-      <div class="ability-grid">
-        ${ABILITY_ORDER.map(ab => `
-          <div class="ability-card">
-            <div class="ab-name">${ABILITY_NAMES[ab]}</div>
+  view.innerHTML = `
+    <div class="view-header"><h1>Гибкий расовый бонус — ${r.name}</h1><p>Эта раса не даёт фиксированные бонусы характеристик: распредели их сама/сам.</p></div>
+    <div class="mode-tabs" id="splitTabs" style="margin-bottom:10px;"></div>
+    <div class="mode-tabs" id="flexModeTabs"></div>
+    <div id="flexModeBody"></div>
+  `;
+  const splitTabs = view.querySelector("#splitTabs");
+  splitTabs.innerHTML = FLEX_SPLITS.map(s => `<button class="mode-tab${f.split===s.id?" active":""}" data-split="${s.id}">${s.label}</button>`).join("");
+  splitTabs.querySelectorAll(".mode-tab").forEach(btn => {
+    btn.onclick = () => {
+      if (btn.dataset.split === f.split) return;
+      state.flexBonus.split = btn.dataset.split;
+      state.flexBonus.picks = {};
+      if (f.mode === "dice") flexRollDice(view);
+      else if (f.mode === "recommended") flexApplyRecommended(view);
+      renderFlexModeBody(view);
+      updateNextEnabled();
+    };
+  });
+  const modeTabs = view.querySelector("#flexModeTabs");
+  modeTabs.innerHTML = FLEX_MODES.map(m => `<button class="mode-tab${f.mode===m.id?" active":""}" data-mode="${m.id}">${m.label}</button>`).join("");
+  modeTabs.querySelectorAll(".mode-tab").forEach(btn => {
+    btn.onclick = () => {
+      const newMode = btn.dataset.mode;
+      if (newMode === f.mode) return;
+      state.flexBonus.mode = newMode;
+      state.flexBonus.picks = {};
+      if (newMode === "dice") flexRollDice(view);
+      else if (newMode === "recommended") flexApplyRecommended(view);
+      renderFlexBonusStep(view);
+      updateNextEnabled();
+    };
+  });
+  renderFlexModeBody(view);
+}
+function flexRollDice(view){
+  const abilities = ABILITY_ORDER.slice();
+  for (let i = abilities.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [abilities[i], abilities[j]] = [abilities[j], abilities[i]];
+  }
+  state.flexBonus.picks = flexAutoAssign(state.flexBonus.split, abilities);
+}
+function flexApplyRecommended(view){
+  const c = getClass();
+  const order = (c && CLASS_ABILITY_PRIORITY[c.id]) || ABILITY_ORDER.slice();
+  state.flexBonus.picks = flexAutoAssign(state.flexBonus.split, order);
+}
+function flexBonusGridHTML(picksEditable){
+  const f = state.flexBonus;
+  const need = f.split === "111" ? [1,1,1] : [2,1];
+  return `
+    <div class="ability-grid" id="flexGrid">
+      ${ABILITY_ORDER.map(ab => `
+        <div class="ability-card">
+          <div class="ab-name">${ABILITY_NAMES[ab]}</div>
+          ${picksEditable ? `
             <select class="flex-pick" data-ab="${ab}">
               <option value="">—</option>
               ${need.includes(2) ? `<option value="2" ${f.picks[ab]===2?"selected":""}>+2</option>` : ""}
               <option value="1" ${f.picks[ab]===1?"selected":""}>+1</option>
             </select>
-          </div>
-        `).join("")}
-      </div>
-      <p class="pool-note" id="flexHint" style="margin-top:8px;"></p>
+          ` : `<div class="ab-bonus">${f.picks[ab] ? "+"+f.picks[ab] : "—"}</div>`}
+        </div>
+      `).join("")}
     </div>
   `;
-  box.querySelector("#flexMode21").onclick = () => setMode("21");
-  box.querySelector("#flexMode111").onclick = () => setMode("111");
-  const hint = box.querySelector("#flexHint");
-  const updateHint = () => {
-    const used = Object.values(state.flexBonus.picks);
-    const ok = used.sort().join(",") === need.slice().sort().join(",");
-    hint.innerHTML = ok ? `<span style="color:var(--gold-bright);">Бонус распределён ✓</span>` : `Нужно распределить: ${need.map(n=>"+"+n).join(", ")}`;
-    updateNextEnabled();
-  };
-  box.querySelectorAll(".flex-pick").forEach(sel => {
-    sel.onchange = () => {
-      const ab = sel.dataset.ab;
-      const val = Number(sel.value) || null;
-      const want = need.slice().sort((a,b)=>b-a);
-      // не даём выбрать одно и то же значение больше раз, чем оно встречается в need
-      const picks = { ...state.flexBonus.picks };
-      if (val == null) delete picks[ab]; else picks[ab] = val;
-      const counts = {};
-      Object.values(picks).forEach(v => counts[v] = (counts[v]||0)+1);
-      const needCounts = {};
-      need.forEach(v => needCounts[v] = (needCounts[v]||0)+1);
-      const overflow = Object.keys(counts).some(v => counts[v] > (needCounts[v]||0));
-      if (overflow){ sel.value = state.flexBonus.picks[ab] || ""; return; }
-      state.flexBonus.picks = picks;
-      updateHint();
+}
+function renderFlexModeBody(view){
+  const body = view.querySelector("#flexModeBody");
+  const f = state.flexBonus;
+  const need = f.split === "111" ? [1,1,1] : [2,1];
+  if (!f.mode){
+    body.innerHTML = `<p class="pool-note">Выбери способ распределения бонуса выше.</p>`;
+    return;
+  }
+  if (f.mode === "dice"){
+    body.innerHTML = `
+      <p class="pool-note">Бонус случайно разнесён по характеристикам.</p>
+      <button class="btn btn-gold" id="btnFlexReroll" style="margin-bottom:14px;">🎲 Перебросить</button>
+      ${flexBonusGridHTML(false)}
+    `;
+    body.querySelector("#btnFlexReroll").onclick = () => { flexRollDice(view); renderFlexModeBody(view); updateNextEnabled(); };
+  } else if (f.mode === "recommended"){
+    const c = getClass();
+    body.innerHTML = `
+      <p class="pool-note">Бонус направлен на характеристики, важные для класса «${c?c.name:""}».</p>
+      ${flexBonusGridHTML(false)}
+    `;
+  } else {
+    body.innerHTML = `
+      ${flexBonusGridHTML(true)}
+      <p class="pool-note" id="flexHint" style="margin-top:8px;"></p>
+    `;
+    const hint = body.querySelector("#flexHint");
+    const updateHint = () => {
+      const used = Object.values(state.flexBonus.picks);
+      const ok = used.sort().join(",") === need.slice().sort().join(",");
+      hint.innerHTML = ok ? `<span style="color:var(--gold-bright);">Бонус распределён ✓</span>` : `Нужно распределить: ${need.map(n=>"+"+n).join(", ")}`;
+      updateNextEnabled();
     };
-  });
-  updateHint();
+    body.querySelectorAll(".flex-pick").forEach(sel => {
+      sel.onchange = () => {
+        const ab = sel.dataset.ab;
+        const val = Number(sel.value) || null;
+        const picks = { ...state.flexBonus.picks };
+        if (val == null) delete picks[ab]; else picks[ab] = val;
+        const counts = {};
+        Object.values(picks).forEach(v => counts[v] = (counts[v]||0)+1);
+        const needCounts = {};
+        need.forEach(v => needCounts[v] = (needCounts[v]||0)+1);
+        const overflow = Object.keys(counts).some(v => counts[v] > (needCounts[v]||0));
+        if (overflow){ sel.value = state.flexBonus.picks[ab] || ""; return; }
+        state.flexBonus.picks = picks;
+        updateHint();
+      };
+    });
+    updateHint();
+  }
+}
+
+/* ---------------- Step: Skills ---------------- */
+function renderSkillsStep(view){
+  const c = getClass();
+  view.innerHTML = `
+    <div class="view-header"><h1>Навыки класса</h1><p id="skillHint"></p></div>
+    <div class="skill-grid" id="skillGrid"></div>
+  `;
+  renderSkillGrid(view);
 }
 
 function renderModeTabs(view){
@@ -1115,9 +1197,14 @@ function validateStep(stepId){
     case "class": return !!state.classId || "Выбери класс";
     case "abilities": {
       const allAssigned = ABILITY_ORDER.every(ab => state.abilityAssign[ab] != null);
-      if (!allAssigned) return "Распредели все шесть значений характеристик";
+      return allAssigned || "Распредели все шесть значений характеристик";
+    }
+    case "flexbonus": {
       const flex = flexBonusRemainingText();
-      if (flex && !flex.done) return "Распредели гибкий расовый бонус между характеристиками";
+      if (!flex) return true;
+      return flex.done || "Распредели гибкий расовый бонус между характеристиками";
+    }
+    case "skills": {
       const c = getClass();
       if (c && c.skillChoices && state.skillChoices.length < c.skillChoices.count) return `Выбери ${c.skillChoices.count} навыка(ов)`;
       return true;
