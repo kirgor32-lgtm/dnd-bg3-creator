@@ -74,7 +74,13 @@ const CLASS_ABILITY_PRIORITY = {
   wizard:    ["int","con","dex","wis","cha","str"]
 };
 
-/* Бросок 4к6 с отбрасыванием худшего кубика — шесть раз, по правилам SRD. */
+/* Доспехи, встречающиеся в комплектах снаряжения: базовый КД и правило модификатора Ловкости. */
+const ARMOR_AC = {
+  "Кожаный доспех":    { base: 11, dexCap: null },
+  "Чешуйчатый доспех": { base: 14, dexCap: 2 },
+  "Кольчуга":           { base: 16, dexCap: 0 }
+};
+const SHIELD_NAMES = ["Щит", "Деревянный щит"];
 function rollAbilityScores(){
   const rollOne = () => {
     const d = [1,2,3,4].map(() => 1 + Math.floor(Math.random() * 6));

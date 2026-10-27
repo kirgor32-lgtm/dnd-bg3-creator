@@ -89,10 +89,14 @@ function render(){
   saveState();
   renderRail();
   const stage = document.getElementById("stage");
-  stage.innerHTML = "";
-  const view = document.createElement("div");
-  view.className = "step-view";
-  stage.appendChild(view);
+  let view = stage.querySelector(".step-view");
+  if (!view || view.dataset.step !== state.step){
+    stage.innerHTML = "";
+    view = document.createElement("div");
+    view.className = "step-view";
+    view.dataset.step = state.step;
+    stage.appendChild(view);
+  }
 
   document.getElementById("headerCharName").textContent = state.name ? `${state.name}` : "";
   document.getElementById("stepCaption").textContent = STEP_META[state.step].caption;
@@ -528,18 +532,27 @@ function renderSkillGrid(view){
 function renderEquipment(view){
   const c = getClass();
   view.innerHTML = `
-    <div class="view-header"><h1>Выбери снаряжение</h1><p>Начальное снаряжение зависит от класса. Выбери один из готовых комплектов.</p></div>
+    <div class="view-header"><h1>Выбери снаряжение</h1><p>Готовые, реалистично собранные комплекты для класса — продуманы так, чтобы герой мог унести и использовать всё сразу.</p></div>
     <div id="eqList"></div>
   `;
+  renderEquipList(view);
+}
+function renderEquipList(view){
+  const c = getClass();
   const list = view.querySelector("#eqList");
+  list.innerHTML = "";
   (c.startingEquipment||[]).forEach(opt => {
     const div = document.createElement("div");
     div.className = "equip-choice" + (state.equipmentChoice === opt.choice ? " selected" : "");
     div.innerHTML = `
-      <span class="eq-label">Вариант ${opt.choice}</span>
-      <ul>${opt.items.map(i => `<li>${i}</li>`).join("")}</ul>
+      <span class="eq-label">Вариант ${opt.choice}${opt.role ? " — " + opt.role : ""}</span>
+      <ul>${opt.items.map(i => `<li><b>${i.name||i}</b>${i.info ? `<span class="eq-info">${i.info}</span>` : ""}</li>`).join("")}</ul>
     `;
-    div.onclick = () => { state.equipmentChoice = opt.choice; render(); };
+    div.onclick = () => {
+      state.equipmentChoice = opt.choice;
+      renderEquipList(view);
+      updateNextEnabled();
+    };
     list.appendChild(div);
   });
 }
@@ -598,6 +611,21 @@ function getTotalAbility(ab){
 }
 
 /* ---------------- Step: Sheet ---------------- */
+function computeAC(dexMod, equip){
+  if (!equip) return 10 + dexMod;
+  const names = equip.items.map(i => i.name || i);
+  let armorAC = 10 + dexMod; // без доспеха
+  for (const n of names){
+    const a = ARMOR_AC[n];
+    if (a){
+      const dexBonus = a.dexCap === 0 ? 0 : (a.dexCap != null ? Math.min(dexMod, a.dexCap) : dexMod);
+      armorAC = a.base + dexBonus;
+      break;
+    }
+  }
+  const hasShield = names.some(n => SHIELD_NAMES.includes(n));
+  return armorAC + (hasShield ? 2 : 0);
+}
 function computeFinal(){
   const r = getRace(), s = getSubrace(), c = getClass();
   const totals = {};
@@ -614,9 +642,9 @@ function computeFinal(){
     return { name, ab, prof, value: mods[ab] + (prof ? pb : 0) };
   });
   const hp = (c ? c.hitDie : 8) + mods.con;
-  const ac = 10 + mods.dex;
-  const initiative = mods.dex;
   const equip = c ? (c.startingEquipment||[]).find(e => e.choice === state.equipmentChoice) : null;
+  const ac = computeAC(mods.dex, equip);
+  const initiative = mods.dex;
   const spellNames = state.spells.map(id => (DND_DATA.spells.find(sp=>sp.id===id)||{}).name).filter(Boolean);
   return { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellNames };
 }
@@ -681,7 +709,7 @@ function sheetHTML(d){
         </div>
         <div class="equip-box">
           <h4>Снаряжение</h4>
-          <ul>${equip ? equip.items.map(i=>`<li>${i}</li>`).join("") : "<li>—</li>"}</ul>
+          <ul>${equip ? equip.items.map(i=>`<li><b>${i.name||i}</b>${i.info?` <span style="color:var(--text-dim);font-size:.78rem;">(${i.info})</span>`:""}</li>`).join("") : "<li>—</li>"}</ul>
         </div>
         ${spellNames.length ? `<div class="spells-box"><h4>Заклинания</h4><ul>${spellNames.map(n=>`<li>${n}</li>`).join("")}</ul></div>` : ""}
       </div>

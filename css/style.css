@@ -227,6 +227,8 @@ input[type=number]{text-align:center;}
 .equip-choice.selected{border-color:var(--gold); background:rgba(202,162,74,.1);}
 .equip-choice .eq-label{color:var(--gold-bright); font-family:'Cinzel'; margin-bottom:8px; display:block;}
 .equip-choice ul{margin:0; padding-left:18px;}
+.equip-choice li{margin-bottom:4px; color:var(--text-light);}
+.equip-choice .eq-info{display:block; color:var(--text-dim); font-size:.78rem; font-style:italic;}
 
 /* ---------- Spells ---------- */
 .spell-list{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;}
