@@ -206,6 +206,7 @@ function renderRaceDetail(el){
   if (!r){ el.innerHTML = `<p class="pool-note">Выбери расу в списке слева, чтобы увидеть её черты.</p>`; return; }
   el.innerHTML = `
     <div class="detail-panel">
+      <img class="entity-portrait" src="assets/img/races/${r.id}.jpg" alt="${r.name}" loading="lazy" onerror="this.remove()">
       <h3>${r.name}</h3>
       <div class="stat-row">${abilityBonusChips(r.abilityBonuses)}</div>
       <ul>${(r.traits||[]).map(t => `<li>${t}</li>`).join("")}</ul>
@@ -257,9 +258,11 @@ function renderSubrace(view){
 }
 function renderSubraceDetail(el){
   const s = getSubrace();
+  const r = getRace();
   if (!s){ el.innerHTML = `<p class="pool-note">Выбери подрасу слева.</p>`; return; }
   el.innerHTML = `
     <div class="detail-panel">
+      <img class="entity-portrait" src="assets/img/races/${s.id}.jpg" alt="${s.name}" loading="lazy" onerror="this.onerror=function(){this.remove()};this.src='assets/img/races/${r.id}.jpg'">
       <h3>${s.name}</h3>
       <div class="stat-row">${abilityBonusChips(s.abilityBonuses)}</div>
       <ul>${(s.traits||[]).map(t => `<li>${t}</li>`).join("")}</ul>
@@ -317,6 +320,7 @@ function renderClassDetail(el){
   const equipRoles = (c.startingEquipment||[]).map(e => `${e.choice}: ${e.role}`).join(" · ");
   el.innerHTML = `
     <div class="detail-panel">
+      <img class="entity-portrait" src="assets/img/classes/${c.id}.jpg" alt="${c.name}" loading="lazy" onerror="this.remove()">
       <h3>${c.name}</h3>
       ${c.description ? `<p class="class-flavor">${c.description}</p>` : ""}
       <div class="stat-row">
@@ -920,7 +924,7 @@ function renderCustomEquip(view, box){
     const disabled = blockedByHands || overBudget;
     const opt = document.createElement("label");
     opt.className = "skill-opt" + (checked?" checked":"") + (disabled?" disabled":"");
-    opt.innerHTML = `<input type="checkbox" ${checked?"checked":""} ${disabled?"disabled":""}> ${w.name} <span style="color:var(--text-dim);font-size:.72rem;margin-left:auto;">${w.info}</span>`;
+    opt.innerHTML = `<input type="checkbox" ${checked?"checked":""} ${disabled?"disabled":""}> <img class="item-icon" src="assets/img/items/weapons/${w.id}.png" loading="lazy" onerror="this.remove()"> ${w.name} <span style="color:var(--text-dim);font-size:.72rem;margin-left:auto;">${w.info}</span>`;
     opt.querySelector("input").onchange = e => {
       if (e.target.checked) cw.weapons.push(w.id);
       else cw.weapons = cw.weapons.filter(x => x !== w.id);
@@ -938,7 +942,7 @@ function renderCustomEquip(view, box){
     const opt = document.createElement("label");
     opt.className = "skill-opt" + (checked?" checked":"");
     const warn = a.strReq && str < a.strReq ? ` ⚠ нужна Сила ${a.strReq}, у тебя ${str} — скорость будет снижена` : "";
-    opt.innerHTML = `<input type="radio" name="custArmorRadio" ${checked?"checked":""}> ${a.name} <span style="color:var(--text-dim);font-size:.72rem;margin-left:auto;">${a.info}${warn}</span>`;
+    opt.innerHTML = `<input type="radio" name="custArmorRadio" ${checked?"checked":""}> <img class="item-icon" src="assets/img/items/armor/${a.id}.png" loading="lazy" onerror="this.remove()"> ${a.name} <span style="color:var(--text-dim);font-size:.72rem;margin-left:auto;">${a.info}${warn}</span>`;
     opt.querySelector("input").onchange = () => {
       cw.armorId = a.id;
       renderCustomEquip(view, box);
@@ -962,7 +966,7 @@ function renderCustomEquip(view, box){
       const opt = document.createElement("label");
       opt.className = "skill-opt" + (checked?" checked":"") + (disabled?" disabled":"");
       const note = twoHanded ? " (нельзя — обе руки заняты двуручным оружием)" : "";
-      opt.innerHTML = `<input type="checkbox" ${checked?"checked":""} ${disabled?"disabled":""}> ${sh.name} <span style="color:var(--text-dim);font-size:.72rem;margin-left:auto;">${sh.info}${note}</span>`;
+      opt.innerHTML = `<input type="checkbox" ${checked?"checked":""} ${disabled?"disabled":""}> <img class="item-icon" src="assets/img/items/armor/${sh.id}.png" loading="lazy" onerror="this.remove()"> ${sh.name} <span style="color:var(--text-dim);font-size:.72rem;margin-left:auto;">${sh.info}${note}</span>`;
       opt.querySelector("input").onchange = e => {
         cw.shield = e.target.checked; cw.shieldId = e.target.checked ? sh.id : null;
         renderCustomEquip(view, box);
@@ -974,7 +978,7 @@ function renderCustomEquip(view, box){
 
   box.querySelector("#custPack").onchange = e => { cw.packId = e.target.value || null; renderCustomEquip(view, box); updateNextEnabled(); };
   const pack = PACK_CATALOG.find(p => p.id === cw.packId);
-  box.querySelector("#custPackInfo").textContent = pack ? pack.info : "";
+  box.querySelector("#custPackInfo").innerHTML = pack ? `<img class="item-icon" src="assets/img/items/packs/${pack.id}.png" loading="lazy" onerror="this.remove()" style="vertical-align:middle;margin-right:6px;">${pack.info}` : "";
 
   const note = box.querySelector("#custBudgetNote");
   const strNote = getTotalAbility("str") >= 16 ? " Твой герой силён — может нести больше." : "";

@@ -1,0 +1,51 @@
+{
+  "weapons": {
+    "battleaxe": "assets/img/items/weapons/battleaxe.png",
+    "dagger": "assets/img/items/weapons/dagger.png",
+    "glaive": "assets/img/items/weapons/glaive.png",
+    "greataxe": "assets/img/items/weapons/greataxe.png",
+    "greatsword": "assets/img/items/weapons/greatsword.png",
+    "handaxe": "assets/img/items/weapons/handaxe.png",
+    "handcrossbow": "assets/img/items/weapons/handcrossbow.png",
+    "heavy-crossbow": "assets/img/items/weapons/heavy-crossbow.png",
+    "javelins": "assets/img/items/weapons/javelins.png",
+    "light-crossbow": "assets/img/items/weapons/light-crossbow.png",
+    "longbow": "assets/img/items/weapons/longbow.png",
+    "longsword": "assets/img/items/weapons/longsword.png",
+    "mace": "assets/img/items/weapons/mace.png",
+    "quarterstaff": "assets/img/items/weapons/quarterstaff.png",
+    "rapier": "assets/img/items/weapons/rapier.png",
+    "scimitar": "assets/img/items/weapons/scimitar.png",
+    "shortbow": "assets/img/items/weapons/shortbow.png",
+    "shortsword": "assets/img/items/weapons/shortsword.png",
+    "sickle": "assets/img/items/weapons/sickle.png",
+    "sling": "assets/img/items/weapons/sling.png",
+    "spear": "assets/img/items/weapons/spear.png",
+    "warhammer": "assets/img/items/weapons/warhammer.png"
+  },
+  "armor": {
+    "breastplate": "assets/img/items/armor/breastplate.png",
+    "chain-mail": "assets/img/items/armor/chain-mail.png",
+    "chain-shirt": "assets/img/items/armor/chain-shirt.png",
+    "half-plate": "assets/img/items/armor/half-plate.png",
+    "hide": "assets/img/items/armor/hide.png",
+    "leather": "assets/img/items/armor/leather.png",
+    "padded": "assets/img/items/armor/padded.png",
+    "plate": "assets/img/items/armor/plate.png",
+    "ring-mail": "assets/img/items/armor/ring-mail.png",
+    "scale-mail": "assets/img/items/armor/scale-mail.png",
+    "shield": "assets/img/items/armor/shield.png",
+    "splint": "assets/img/items/armor/splint.png",
+    "studded": "assets/img/items/armor/studded.png",
+    "wooden-shield": "assets/img/items/armor/wooden-shield.png"
+  },
+  "packs": {
+    "burglar": "assets/img/items/packs/burglar.png",
+    "diplomat": "assets/img/items/packs/diplomat.png",
+    "dungeoneer": "assets/img/items/packs/dungeoneer.png",
+    "entertainer": "assets/img/items/packs/entertainer.png",
+    "explorer": "assets/img/items/packs/explorer.png",
+    "priest": "assets/img/items/packs/priest.png",
+    "scholar": "assets/img/items/packs/scholar.png"
+  }
+}

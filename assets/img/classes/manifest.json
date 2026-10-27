@@ -1,0 +1,14 @@
+{
+  "barbarian": "assets/img/classes/barbarian.jpg",
+  "bard": "assets/img/classes/bard.jpg",
+  "cleric": "assets/img/classes/cleric.jpg",
+  "druid": "assets/img/classes/druid.jpg",
+  "fighter": "assets/img/classes/fighter.jpg",
+  "monk": "assets/img/classes/monk.jpg",
+  "paladin": "assets/img/classes/paladin.jpg",
+  "ranger": "assets/img/classes/ranger.jpg",
+  "rogue": "assets/img/classes/rogue.jpg",
+  "sorcerer": "assets/img/classes/sorcerer.jpg",
+  "warlock": "assets/img/classes/warlock.jpg",
+  "wizard": "assets/img/classes/wizard.jpg"
+}
