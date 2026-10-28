@@ -326,7 +326,7 @@ function renderClassStep(view){
     const row = document.createElement("div");
     row.className = "class-icon-item" + (state.classId === c.id ? " selected" : "");
     row.innerHTML = `
-      <div class="class-icon-square">${CLASS_GLYPH[c.id] || "❖"}</div>
+      <div class="class-icon-square"><img src="assets/img/classes/${c.id}.png" alt="${c.name}" loading="lazy" onerror="this.outerHTML='${CLASS_GLYPH[c.id] || "❖"}'"></div>
       <div class="class-icon-label">${c.name}</div>
     `;
     row.onclick = () => {
@@ -359,7 +359,7 @@ function renderClassDetail(el){
   const equipRoles = (c.startingEquipment||[]).map(e => `${e.choice}: ${e.role}`).join(" · ");
   el.innerHTML = `
     <div class="detail-panel">
-      <div class="class-icon-badge">${CLASS_GLYPH[c.id] || "❖"}</div>
+      <div class="class-icon-badge"><img src="assets/img/classes/${c.id}.png" alt="${c.name}" loading="lazy" onerror="this.outerHTML='${CLASS_GLYPH[c.id] || "❖"}'"></div>
       <h3>${c.name}</h3>
       ${c.description ? `<p class="class-flavor">${c.description}</p>` : ""}
       <div class="stat-row">
