@@ -912,7 +912,6 @@ function renderSilhouette(view){
   box.innerHTML = `
     <svg viewBox="0 0 160 320" style="width:100%;height:100%;overflow:visible;">
       <g transform="translate(80,250) scale(${scaleX.toFixed(2)},${scaleY.toFixed(2)}) translate(-80,-250)">
-        <ellipse cx="80" cy="150" rx="${shoulderW}" ry="55" fill="var(--gold-dim,#7a5c2e)" opacity="0.9"/>
         <path d="M ${80-shoulderW} 120 Q 80 95 ${80+shoulderW} 120 L ${80+waistW} 210 Q 80 225 ${80-waistW} 210 Z" fill="var(--parchment,#ead9b3)" opacity="0.85"/>
         <path d="M ${80-waistW} 205 Q 80 240 ${80+waistW} 205 L ${80+hipW} 250 Q 80 268 ${80-hipW} 250 Z" fill="var(--parchment,#ead9b3)" opacity="0.8"/>
         <rect x="${80-hipW+6}" y="248" width="${(hipW-10)}" height="95" rx="10" fill="var(--parchment,#ead9b3)" opacity="0.75"/>
@@ -1114,6 +1113,28 @@ const SCHOOL_GLYPH = {
   "Некромантия":"💀", "Ограждение":"🛡", "Прорицание":"👁", "Очарование":"💫",
   "Иллюзия":"🌫"
 };
+/* Цвета школ для фона иконки заклинания (в стиле Dota 2 — цветная рамка способности) */
+const SCHOOL_COLOR = {
+  "Трансмутация": ["#2d6b4a","#173a28"], "Воплощение": ["#c0432a","#5c1a0e"],
+  "Вызов": ["#3a5fae","#15284f"], "Некромантия": ["#3f7a3a","#12260f"],
+  "Ограждение": ["#b8964a","#4a3a18"], "Прорицание": ["#3f9cae","#113840"],
+  "Очарование": ["#a33a7a","#451030"], "Иллюзия": ["#7a4fae","#2a1848"]
+};
+/* Уникальный символ-эффект на каждое заклинание (стиль иконок способностей Dota 2) */
+const SPELL_ICON = {
+  "acid-splash":"🧪","chill-touch":"❄️","dancing-lights":"🕯️","fire-bolt":"🔥","light":"💡",
+  "mage-hand":"🤚","mending":"🧵","message":"✉️","minor-illusion":"🎭","poison-spray":"☣️",
+  "prestidigitation":"🪄","ray-of-frost":"🥶","sacred-flame":"☀️","shocking-grasp":"⚡",
+  "spare-the-dying":"💚","true-strike":"🎯","vicious-mockery":"🗯️","druidcraft":"🌱",
+  "guidance":"🧭","resistance":"🔰","thaumaturgy":"📯","eldritch-blast":"🌑","produce-flame":"🔆",
+  "shillelagh":"🌳","bane":"💀","charm-person":"💘","comprehend-languages":"📜","cure-wounds":"❤️",
+  "detect-magic":"🔮","disguise-self":"🪞","expeditious-retreat":"💨","faerie-fire":"🧚",
+  "feather-fall":"🪶","guiding-bolt":"⭐","healing-word":"💗","heroism":"🦁","hideous-laughter":"😂",
+  "identify":"🔍","illusory-script":"📝","inflict-wounds":"🩸","longstrider":"👢",
+  "protection-from-evil-and-good":"🕊️","purify-food-and-drink":"🍞","sanctuary":"⛪",
+  "shield-of-faith":"🛡️","silent-image":"🖼️","sleep":"💤","speak-with-animals":"🐾",
+  "tasha-hideous-laughter":"🤪","thunderwave":"🌩️","unseen-servant":"👻"
+};
 function renderMagic(view){
   const c = getClass();
   const r = CASTER_RULES[c.id];
@@ -1268,13 +1289,15 @@ function sheetHTML(d){
   const spellRow = sp => {
     const isCantrip = sp.level === 0;
     const brief = (sp.description || "").split(". ").slice(0,1).join(". ").replace(/\.*$/, ".");
+    const col = SCHOOL_COLOR[sp.school] || ["#7a6230","#2a2010"];
+    const icon = SPELL_ICON[sp.id] || SCHOOL_GLYPH[sp.school] || "✨";
     return `
-    <div class="sheet-spell-row" data-spell-id="${sp.id}">
-      <div class="sheet-spell-top">
-        <span class="sheet-spell-name">${SCHOOL_GLYPH[sp.school]||"✨"} ${sp.name}${isCantrip?" <i>(фокус)</i>":""}</span>
+    <div class="sheet-spell-card" data-spell-id="${sp.id}" title="${escapeHtml(brief)}">
+      <div class="sheet-spell-icon" style="background:linear-gradient(160deg,${col[0]},${col[1]});">${icon}</div>
+      <div class="sheet-spell-info">
+        <span class="sheet-spell-name">${sp.name}${isCantrip?" <i>(фокус)</i>":""}</span>
         <span class="sheet-spell-charges">${isCantrip ? `<span class="sheet-spell-charge infinite">∞</span>` : Array.from({length:slots}).map((_,i)=>`<span class="sheet-spell-charge" data-idx="${i}"></span>`).join("")}</span>
       </div>
-      <div class="sheet-spell-brief">${brief}</div>
     </div>`;
   };
   return `
@@ -1305,9 +1328,9 @@ function sheetHTML(d){
           <h4>Снаряжение</h4>
           <ul>${equip ? equip.items.map(i=>`<li><b>${i.name||i}</b>${i.info?` <span style="color:var(--text-dim);font-size:.78rem;">(${i.info})</span>`:""}</li>`).join("") : "<li>—</li>"}</ul>
         </div>
-        ${spellsDetailed.length ? `<div class="spells-box"><h4>Заклинания <span class="pool-note" style="display:inline;">(отмечай использованные ячейки карандашом ✎)</span></h4>${spellsDetailed.map(spellRow).join("")}</div>` : ""}
       </div>
     </div>
+    ${spellsDetailed.length ? `<div class="spells-box spells-box-bottom" style="margin-top:14px;"><h4>Заклинания</h4><div class="spells-row">${spellsDetailed.map(spellRow).join("")}</div></div>` : ""}
     <div class="traits-box" style="margin-top:14px;">
       <h4>Расовые и классовые черты</h4>
       <div>${traits.join(" · ")}</div>
