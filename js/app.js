@@ -813,7 +813,7 @@ function renderPhysique(view){
   const avg = avgHeightWeight(state.raceId, state.subraceId);
   const bounds = heightWeightBounds(state.raceId, state.subraceId);
   view.innerHTML = `
-    <div class="view-header"><h1>Телосложение героя</h1><p>Средние значения для расы «${getRace()?getRace().name:""}»: рост ~${fmtFeetInches(avg.heightCm)} (${avg.heightCm} см), вес ~${avg.weightKg} кг. Двигай ползунки — миниатюра и вес обновятся сразу, нелепых сочетаний вроде «2 метра и 30 кг» выставить не получится.</p></div>
+    <div class="view-header"><h1>Телосложение героя</h1><p>Средние значения для расы «${getRace()?getRace().name:""}»: рост ~${avg.heightCm} см, вес ~${avg.weightKg} кг. Двигай ползунки — миниатюра и вес обновятся сразу, нелепых сочетаний вроде «2 метра и 30 кг» выставить не получится.</p></div>
     <div class="physique-wrap">
       <div class="physique-figure-col">
         <div class="gender-toggle" id="genderToggle">
@@ -857,7 +857,7 @@ function wirePhysiqueControls(view, bounds){
     else state.weightKg = Math.max(wr.min, Math.min(wr.max, state.weightKg));
     const pct = wr.max > wr.min ? Math.round(((state.weightKg - wr.min) / (wr.max - wr.min)) * 100) : 50;
     weightSlider.value = pct;
-    view.querySelector("#heightVal").textContent = `${fmtFeetInches(state.heightCm)} (${state.heightCm} см)`;
+    view.querySelector("#heightVal").textContent = `${state.heightCm} см`;
     view.querySelector("#weightVal").textContent = `${state.weightKg} кг`;
     view.querySelector("#weightRangeNote").textContent = `(допустимо ${wr.min}–${wr.max} кг при этом росте и телосложении)`;
     renderSilhouette(view);
@@ -1305,7 +1305,7 @@ function sheetHTML(d){
       ${state.photoDataUrl ? `<img class="sheet-photo" src="${state.photoDataUrl}" alt="Портрет">` : ""}
       <div class="sheet-head-text">
         <h2>${escapeHtml(state.name) || "Безымянный герой"}</h2>
-        <div class="sub">${r?r.name:""}${s?(" ("+s.name+")"):""} · ${c?c.name:""}${state.alignment?(" · "+state.alignment):""}${(state.heightCm&&state.weightKg)?(" · "+fmtFeetInches(state.heightCm)+", "+state.weightKg+" кг"):""}</div>
+        <div class="sub">${r?r.name:""}${s?(" ("+s.name+")"):""} · ${c?c.name:""}${state.alignment?(" · "+state.alignment):""}${(state.heightCm&&state.weightKg)?(" · "+state.heightCm+" см, "+state.weightKg+" кг"):""}</div>
       </div>
       <div class="lvlbox">Уровень 1<br>Бонус мастерства ${fmtMod(pb)}</div>
     </div>
