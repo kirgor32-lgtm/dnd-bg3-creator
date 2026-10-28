@@ -1,2 +1,9 @@
 .DS_Store
 *.log
+scripts/races/
+scripts/races2/
+scripts/races3/
+scripts/pin/
+scripts/yandex/
+scripts/*.json
+scripts/*_page.html
