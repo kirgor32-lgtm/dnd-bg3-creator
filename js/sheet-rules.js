@@ -41,7 +41,13 @@ function classChoiceNeeds(classId){
   const cc = (typeof state !== "undefined" && state.classChoices) || {};
   if (SUBCLASSES[classId]){
     const sub = SUBCLASSES[classId].find(x => x.id === cc.subclass);
-    return ["subclass", ...((sub && sub.needs) || [])];
+    const needs = ["subclass", ...((sub && sub.needs) || [])];
+    if (classId === "warlock"){
+      needs.push("pactBoon");
+      const extra = { tome:"pactTome", blade:"pactBlade", chain:"pactChain" }[cc.pactBoon];
+      if (extra) needs.push(extra);
+    }
+    return needs;
   }
   if (classId === "fighter") return ["fightingStyle"];
   if (classId === "ranger")  return ["favoredEnemy","favoredTerrain"];
@@ -110,6 +116,7 @@ function classSheetFeatures(classId, d){
       break;
     case "warlock":
       addSubclass();
+      pactBoonFeature(m, pb, cc).forEach(x => add(x.name, x.text, x.extra));
       break;
     case "wizard":
       add("Магическое восстановление", "Раз в день, во время короткого отдыха, вы можете восстановить потраченные ячейки заклинаний с суммарным уровнем не больше половины уровня волшебника (округляя вверх) — на 1-м уровне это одна ячейка 1-го уровня.", { uses:1, rest:"продолжительный отдых" });
@@ -280,3 +287,39 @@ Object.assign(RACE_SPELL_TEXT, {
   "dissonant-whispers":{ name:"Диссонирующий шёпот", level:1, school:"Очарование", text:"Действие, 60 футов. Цель совершает спасбросок Мудрости: при провале 3к6 психического урона и реакцией отходит от вас как можно дальше; при успехе половина урона. Глухие автоматически преуспевают." }
 });
 RACE_SPELL_TEXT["fog-cloud"].school = "Вызов";
+
+
+/* Предмет договора колдуна — по правилам приходит на 3-м уровне, но выбирается при создании,
+   чтобы игрок сразу знал свой дар и он был в листе. */
+function pactBoonFeature(m, pb, cc){
+  if (typeof PACT_BOONS === "undefined") return [];
+  const boon = PACT_BOONS.find(x => x.id === cc.pactBoon);
+  if (!boon) return [{ name:"Предмет договора (с 3-го уровня)", text:"Не выбран: ______________________" }];
+  const flavor = [boon.flavor && boon.flavor._, boon.flavor && boon.flavor[cc.subclass]].filter(Boolean).join(" ");
+  const plain = p => typeof p === "string" ? p : (p.list || []).join("; ");
+  let text = boon.paras.map(plain).join(" ");
+  const dc = 8 + pb + m.cha, atk = pb + m.cha;
+  if (boon.id === "tome"){
+    const picks = (cc.pactTome || []).map(id => DND_DATA.spells.find(x => x.id === id)).filter(Boolean);
+    text += picks.length
+      ? `<br><b>Заговоры Книги теней</b> (Харизма: Сл ${dc}, атака заклинанием ${fmtMod(atk)}):<br>` + picks.map(sp => `• <b>${sp.name}</b> — ${sp.description}`).join("<br>")
+      : "<br>Заговоры книги: ______________________";
+  }
+  if (boon.id === "blade"){
+    const w = (typeof WEAPON_CATALOG !== "undefined") && WEAPON_CATALOG.find(x => x.id === cc.pactBlade);
+    if (w){
+      const finesse = /фехтовальное/.test(w.info);
+      const ab = finesse ? Math.max(m.str, m.dex) : m.str;
+      const dice = (w.info.match(/\d+d\d+/) || [""])[0].replace("d","к");
+      const type = (w.info.match(/колющий|рубящий|дробящий/) || [""])[0];
+      text += `<br><b>Обычный облик оружия: ${w.name}</b> — ${w.info.replace(/(\d+)d(\d+)/g,"$1к$2")}. Атака: ${fmtMod(pb + ab)} к попаданию, урон ${dice}${ab ? fmtMod(ab) : ""} ${type} (магическое). Облик можно менять при каждом призыве.`;
+    } else text += "<br>Облик оружия: ______________________";
+  }
+  if (boon.id === "chain"){
+    const f = (typeof PACT_FAMILIARS !== "undefined") && PACT_FAMILIARS.find(x => x.id === cc.pactChain);
+    text += f
+      ? `<br><b>Фамильяр: ${f.name}</b> (${f.type}). ${f.stats}. ${f.traits} ${f.attack} Имя фамильяра: ______________`
+      : "<br>Облик фамильяра: ______________________";
+  }
+  return [{ name:`Предмет договора: ${boon.name} — с 3-го уровня`, text: (flavor ? `<i>${flavor}</i><br>` : "") + text }];
+}

@@ -359,14 +359,6 @@ function subclassInfoHTML(c, sub, cc){
     ${now.map(f => `<div class="si-feat"><b>${esc(f.name)}.</b> ${parasNoBigTables(f.paras)}</div>`).join("")}
     ${always.length ? `<p class="pool-note">Всегда подготовлены (не тратят выбор): ${always.join(", ")}</p>` : ""}
     ${later.length ? `<h4 class="si-title">Что откроется дальше</h4><p class="si-later">${later.map(f => `<span>${f.level} ур. — ${esc(f.name)}</span>`).join("")}</p>` : ""}`;
-  if (c.id === "warlock" && typeof PACT_BOONS !== "undefined"){
-    html += `<h4 class="si-title">Предмет договора — выбор на 3-м уровне</h4>
-      <p class="lore-note">Покровитель дарует колдуну подарок за верную службу. Персонаж создаётся 1-го уровня, поэтому сейчас его не выбирают — но заранее видно, каким он будет у ${sub.name === "Исчадие" ? "Исчадия" : sub.name === "Архифея" ? "Архифеи" : "Великого Древнего"}:</p>
-      ${PACT_BOONS.map(pb => {
-        const fl = [pb.flavor._, pb.flavor[cc.subclass]].filter(Boolean).join(" ");
-        return `<details class="pact"><summary><b>${pb.name}</b> <span>${pb.sub}</span>${fl ? `<em>${esc(fl)}</em>` : ""}</summary>${loreParas(pb.paras)}</details>`;
-      }).join("")}`;
-  }
   return html + `<p class="lore-src">Источник: dnd.su</p></div>`;
 }
 function raceLoreHTML(r){
@@ -503,11 +495,11 @@ function renderClassDetail(el){
         <span class="stat-chip"><b>Кость хитов</b> к${c.hitDie}</span>
         <span class="stat-chip"><b>Спасброски</b> ${(c.savingThrows||[]).map(s => ABILITY_NAMES[s.toLowerCase()] || s).join(", ")}</span>
       </div>
-      <p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Доспехи:</b> ${(c.armorProficiency||[]).join(", ") || "—"}</p>
-      <p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Оружие:</b> ${(c.weaponProficiency||[]).join(", ") || "—"}</p>
-      ${featuresHtml ? `<p style="margin:10px 0 4px;color:var(--parchment)"><b>Умения 1 уровня:</b></p><ul class="feature-list">${featuresHtml}</ul>` : ""}
-      ${skillOpts.length ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Навыки на выбор (${c.skillChoices.count}):</b> ${skillOpts.join(", ")}</p>` : ""}
-      ${equipRoles ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Снаряжение:</b> ${equipRoles}</p>` : ""}
+      <p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--text-strong, #ead9b3)">Доспехи:</b> ${(c.armorProficiency||[]).join(", ") || "—"}</p>
+      <p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--text-strong, #ead9b3)">Оружие:</b> ${(c.weaponProficiency||[]).join(", ") || "—"}</p>
+      ${featuresHtml ? `<p style="margin:10px 0 4px;color:var(--text-strong, #ead9b3)"><b>Умения 1 уровня:</b></p><ul class="feature-list">${featuresHtml}</ul>` : ""}
+      ${skillOpts.length ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--text-strong, #ead9b3)">Навыки на выбор (${c.skillChoices.count}):</b> ${skillOpts.join(", ")}</p>` : ""}
+      ${equipRoles ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--text-strong, #ead9b3)">Снаряжение:</b> ${equipRoles}</p>` : ""}
       <div id="subclassPick"></div>
     </div>
   `, classLoreHTML(c), c.id, "К умениям");
@@ -811,10 +803,9 @@ function renderReadonlyGrid(body){
     card.className = "ability-card";
     card.innerHTML = `
       <div class="ab-name">${ABILITY_NAMES[ab]}</div>
-      <div class="ab-roll">${base ?? "—"}</div>
       <div class="ab-total">${total ?? "—"}</div>
       <div class="ab-mod">модификатор ${total!=null?fmtMod(abilityMod(total)):"—"}</div>
-      ${bonus ? `<div class="ab-bonus">расовый бонус +${bonus}</div>` : ""}
+      <div class="ab-roll">база ${base ?? "—"}${bonus ? ` + ${bonus} от расы` : ""}</div>
     `;
     grid.appendChild(card);
   });
@@ -1065,7 +1056,7 @@ function raceChoicesDone(){
 
 /* Выборы подкласса (домен / происхождение / покровитель и их под-выборы) делаются прямо на шаге класса,
    остальные (боевой стиль, избранный враг, компетентность) — на отдельном шаге после навыков. */
-const SUB_NEEDS = ["subclass","dragonAncestor","natureSkill","natureCantrip","knowledgeSkills"];
+const SUB_NEEDS = ["subclass","dragonAncestor","natureSkill","natureCantrip","knowledgeSkills","pactBoon","pactTome","pactBlade","pactChain"];
 function subclassNeeds(classId){ return classChoiceNeeds(classId).filter(n => SUB_NEEDS.includes(n)); }
 function laterClassNeeds(classId){ return classChoiceNeeds(classId).filter(n => !SUB_NEEDS.includes(n)); }
 
@@ -1104,6 +1095,38 @@ function classChoicesHTML(c, needs){
       <div class="choice-grid choice-grid--abil">${["История","Магия","Природа","Религия"].map(o => `
         <button type="button" class="choice-tile${picks.includes(o)?" selected":""}" data-k="knowledgeSkills" data-v="${o}" data-multi="2"><b>${o}</b><span>Интеллект</span></button>`).join("")}</div>`;
   }
+  if (needs.includes("pactBoon") && typeof PACT_BOONS !== "undefined"){
+    const patron = getSubclass(c.id, cc);
+    const pname = patron ? ({ archfey:"Архифеи", fiend:"Исчадия", greatold:"Великого Древнего" }[patron.id] || patron.name) : "";
+    html += `<h3 class="spell-group-title">Предмет договора — дар покровителя</h3>
+      <p class="pool-note">По «Книге игрока» покровитель вручает дар на 3-м уровне. Выбери его сейчас — он попадёт в лист персонажа с пометкой «с 3-го уровня»${pname ? `, а описание подстроится под ${pname}` : ""}.</p>
+      <div class="choice-grid choice-grid--pact">${PACT_BOONS.map(pb => {
+        const fl = pb.flavor && (pb.flavor[cc.subclass] || pb.flavor._);
+        return `<button type="button" class="choice-tile${cc.pactBoon===pb.id?" selected":""}" data-k="pactBoon" data-v="${pb.id}">
+          <b>${pb.name}</b><span>${pb.sub}</span>${fl ? `<em class="tile-flavor">${esc(fl)}</em>` : ""}</button>`;
+      }).join("")}</div>`;
+    const boon = PACT_BOONS.find(x => x.id === cc.pactBoon);
+    if (boon) html += `<div class="subclass-info"><h4 class="si-title">${boon.name}: что даёт</h4>${loreParas(boon.paras)}</div>`;
+  }
+  if (needs.includes("pactTome")){
+    const picks = cc.pactTome || [];
+    html += `<h3 class="spell-group-title">Книга теней: выбери 3 заговора любых классов <span class="pick-count">${picks.length}/3</span></h3>
+      <div class="choice-grid">${DND_DATA.spells.filter(x => x.level === 0).map(sp => `
+        <button type="button" class="choice-tile${picks.includes(sp.id)?" selected":""}" data-k="pactTome" data-v="${sp.id}" data-multi="3">
+          <b>${sp.name}</b><span>${esc((sp.description||"").length > 110 ? sp.description.slice(0,107).replace(/\s+\S*$/,"") + "…" : (sp.description||""))}</span></button>`).join("")}</div>`;
+  }
+  if (needs.includes("pactBlade") && typeof WEAPON_CATALOG !== "undefined"){
+    html += `<h3 class="spell-group-title">Оружие договора: обычный облик</h3>
+      <p class="pool-note">Призвать можно любое рукопашное оружие — здесь выбери облик, в котором оно будет записано в листе.</p>
+      ${tiles("pactBlade", WEAPON_CATALOG.filter(w => !w.ranged).map(w => ({ id:w.id, name:w.name, text:w.info.replace(/(\d+)d(\d+)/g,"$1к$2") })))}`;
+  }
+  if (needs.includes("pactChain") && typeof PACT_FAMILIARS !== "undefined"){
+    html += `<h3 class="spell-group-title">Особый фамильяр</h3>
+      <div class="choice-grid choice-grid--pact">${PACT_FAMILIARS.map(f => `
+        <button type="button" class="choice-tile${cc.pactChain===f.id?" selected":""}" data-k="pactChain" data-v="${f.id}">
+          <b>${f.name}${f.patron === cc.subclass || cc.subclass === "greatold" ? ` <i class="tile-star" title="подходит вашему покровителю">★</i>` : ""}</b><span>${f.type}</span><em class="tile-flavor">${f.stats}</em></button>`).join("")}</div>
+      <p class="pool-note">★ — облик, который отражает сущность покровителя (Великому Древнему подходит любой).</p>`;
+  }
   const ruleNote = k => (typeof CLASS_RULE_TEXT !== "undefined" && CLASS_RULE_TEXT[k]) ? `<div class="rule-note">${loreParas(CLASS_RULE_TEXT[k])}</div>` : "";
   if (needs.includes("fightingStyle")) html += `<h3 class="spell-group-title">Боевой стиль</h3>${ruleNote("fightingStyle")}${tiles("fightingStyle", FIGHTING_STYLES)}`;
   if (needs.includes("favoredEnemy")) html += `<h3 class="spell-group-title">Избранный враг</h3>${ruleNote("favoredEnemy")}${tiles("favoredEnemy", FAVORED_ENEMIES.map(x => ({id:x, name:x, text:FAVORED_ENEMY_HINT[x] || ""})))}`;
@@ -1133,12 +1156,19 @@ function bindChoiceTiles(view, redraw){
         if (i >= 0) arr.splice(i, 1); else { if (arr.length >= max) arr.shift(); arr.push(v); }
         cc[k] = arr;
         btn.parentNode.querySelectorAll(".choice-tile").forEach(n => n.classList.toggle("selected", arr.includes(n.dataset.v)));
+        const cnt = btn.parentNode.previousElementSibling && btn.parentNode.previousElementSibling.querySelector(".pick-count");
+        if (cnt) cnt.textContent = `${arr.length}/${max}`;
       } else {
         cc[k] = v;
         btn.parentNode.querySelectorAll(".choice-tile.selected").forEach(n => n.classList.remove("selected"));
         btn.classList.add("selected");
       }
       saveState();
+      if (k === "pactBoon"){
+        ["pactTome","pactBlade","pactChain"].forEach(x => delete cc[x]);
+        saveState();
+        const y = window.scrollY; redraw(); window.scrollTo(0, y);
+      }
       if (k === "subclass"){
         // смена подкласса сбрасывает его под-выборы
         ["dragonAncestor","natureSkill","natureCantrip","knowledgeSkills"].forEach(x => delete cc[x]);
@@ -1159,6 +1189,10 @@ function subclassChoicesDone(){
   if (needs.includes("natureSkill") && !cc.natureSkill) return "Выбери навык послушника природы";
   if (needs.includes("natureCantrip") && !cc.natureCantrip) return "Выбери заговор друида";
   if (needs.includes("knowledgeSkills") && (cc.knowledgeSkills || []).length < 2) return "Выбери 2 навыка благословения знаний";
+  if (needs.includes("pactBoon") && !cc.pactBoon) return "Выбери предмет договора";
+  if (needs.includes("pactTome") && (cc.pactTome || []).length < 3) return "Выбери 3 заговора для Книги теней";
+  if (needs.includes("pactBlade") && !cc.pactBlade) return "Выбери облик оружия договора";
+  if (needs.includes("pactChain") && !cc.pactChain) return "Выбери облик фамильяра";
   return true;
 }
 function classChoicesDone(){
@@ -1353,15 +1387,15 @@ function renderEquipList(view){
     const row = document.createElement("div");
     row.className = "pick-row" + (state.equipmentChoice === opt.choice ? " selected" : "");
     row.innerHTML = `
-      <span class="glyph">${opt.choice}</span>
-      <div class="pr-text"><div class="pr-name">Вариант ${opt.choice}</div><div class="pr-sub">${opt.role || ""}</div></div>
+      <span class="glyph glyph--letter">${CYR_LETTER[opt.choice] || opt.choice}</span>
+      <div class="pr-text"><div class="pr-name">Вариант ${CYR_LETTER[opt.choice] || opt.choice}</div><div class="pr-sub">${opt.role || ""}</div></div>
     `;
     row.onclick = () => selectRow(row, opt.choice);
     grid.appendChild(row);
   });
   const rowD = document.createElement("div");
   rowD.className = "pick-row" + (state.equipmentChoice === "D" ? " selected" : "");
-  rowD.innerHTML = `<span class="glyph">D</span><div class="pr-text"><div class="pr-name">Своя сборка</div><div class="pr-sub">оружие, доспех, набор</div></div>`;
+  rowD.innerHTML = `<span class="glyph glyph--letter">✎</span><div class="pr-text"><div class="pr-name">Своя сборка</div><div class="pr-sub">оружие, доспех, набор</div></div>`;
   rowD.onclick = () => selectRow(rowD, "D");
   grid.appendChild(rowD);
   renderEquipDetail(view);
@@ -1381,7 +1415,7 @@ function renderEquipDetail(view){
   const opt = (c.startingEquipment||[]).find(e => e.choice === state.equipmentChoice);
     detail.innerHTML = `
       <div class="detail-panel">
-        <h3>Вариант ${opt.choice}${opt.role ? " — " + opt.role : ""}</h3>
+        <h3>Вариант ${CYR_LETTER[opt.choice] || opt.choice}${opt.role ? " — " + opt.role : ""}</h3>
         <ul>${opt.items.map(i => `<li>${itemIconHTML(i.name||i)}<b>${i.name||i}</b>${i.info ? `<span class="eq-info">— ${i.info}</span>` : ""}</li>`).join("")}</ul>
       </div>
     `;
@@ -1952,10 +1986,21 @@ function validateStep(stepId){
     default: return true;
   }
 }
+const CYR_LETTER = { A:"А", B:"Б", C:"В", D:"Г" };
 function updateNextEnabled(){
   const btn = document.getElementById("btnNext");
   if (!btn) return;
-  btn.disabled = validateStep(state.step) !== true;
+  const v = validateStep(state.step);
+  const locked = v !== true;
+  // кнопка не «мёртвая»: при нажатии покажет, чего не хватает, а подсказка видна сразу
+  btn.disabled = false;
+  btn.classList.toggle("is-locked", locked);
+  btn.setAttribute("aria-disabled", locked ? "true" : "false");
+  const cap = document.getElementById("stepCaption");
+  if (cap && STEP_META[state.step]){
+    cap.textContent = locked && typeof v === "string" ? "⚠ " + v : STEP_META[state.step].caption;
+    cap.classList.toggle("warn", locked && typeof v === "string");
+  }
 }
 
 function escapeHtml(str){

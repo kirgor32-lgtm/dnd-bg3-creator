@@ -412,7 +412,7 @@ details.pact summary::-webkit-details-marker{ display:none; }
 details.pact summary::before{ content:"▸ "; color:var(--gold-bright); }
 details.pact[open] summary::before{ content:"▾ "; }
 details.pact summary span{ color:var(--text-dim); font-size:.9em; }
-details.pact summary em{ display:block; margin:4px 0 0 14px; color:var(--parchment); }
+details.pact summary em{ display:block; margin:4px 0 0 14px; color:var(--text-strong, #ead9b3); }
 details.pact > p, details.pact > ul{ margin-left:14px; }
 .rule-note{ color:var(--text-dim); margin:0 0 10px; line-height:1.5; }
 .rule-note p{ margin:4px 0; }

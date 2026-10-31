@@ -1,0 +1,229 @@
+/* =====================================================================
+   «Светлая кузня» — светлая тема поверх bg3.css + анимированный горн
+   (сам огонь рисует js/forge.js в <canvas id="forgeScene">)
+   ===================================================================== */
+:root{
+  --void:#efe4cf;
+  --ink:#fffaf0;            /* фон полей ввода */
+  --iron:#2c231c;           /* «железные» подложки иконок */
+  --panel:#fcf7ec;
+  --panel-2:#f7eedc;
+  --panel-3:#efe2c6;
+  --line:#dcc8a2;
+  --line-2:#c6a978;
+  --gold:#b07a26;
+  --gold-bright:#8a5312;
+  --gold-dim:#d4b47c;
+  --blood:#9a2c1c;
+  --blood-bright:#b8361f;
+  --ember:#d9631c;
+  --text-light:#2e2013;
+  --text-dim:#6a5436;
+  --text-strong:#3a2410;
+  --label:#7a5a2c;
+  --shadow:0 10px 28px rgba(110,70,25,.16);
+  --frame: inset 0 0 0 1px rgba(255,255,255,.75), inset 0 0 0 2px rgba(176,122,38,.10);
+  color-scheme: light;
+}
+body{
+  color:var(--text-light);
+  background:
+    radial-gradient(1100px 600px at 18% -10%, rgba(255,255,255,.75), transparent 60%),
+    linear-gradient(180deg, #f4ead8 0%, #ecdcbf 55%, #e2c9a2 100%) fixed;
+}
+/* лёгкая кладка стены */
+body::before{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.35;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 41px, rgba(140,105,65,.22) 41px 42px),
+    repeating-linear-gradient(90deg, transparent 0 89px, rgba(140,105,65,.16) 89px 90px);
+  -webkit-mask-image:linear-gradient(180deg, rgba(0,0,0,.9), rgba(0,0,0,.25));
+          mask-image:linear-gradient(180deg, rgba(0,0,0,.9), rgba(0,0,0,.25));
+}
+/* лучи света из окна мастерской — медленно колышутся */
+body::after{
+  content:""; position:fixed; inset:-20% -10% 30% -10%; z-index:0; pointer-events:none;
+  background:
+    linear-gradient(115deg, transparent 20%, rgba(255,250,230,.55) 24%, transparent 30%),
+    linear-gradient(115deg, transparent 33%, rgba(255,250,230,.40) 36%, transparent 41%),
+    linear-gradient(115deg, transparent 47%, rgba(255,250,230,.30) 49%, transparent 53%);
+  filter:blur(22px); opacity:.6; animation:sunRays 14s ease-in-out infinite alternate;
+}
+@keyframes sunRays{ from{ transform:translateX(-2%) skewX(0deg); opacity:.45; } to{ transform:translateX(3%) skewX(-3deg); opacity:.7; } }
+.bg-glow, .bg3-motes, .forge-embers{ display:none !important; }
+#forgeScene{ position:fixed; inset:0; z-index:0; pointer-events:none; }
+#forgeFx{ position:fixed; inset:0; z-index:9999; pointer-events:none; }
+.top-bar, .step-rail, .stage, .nav-controls{ position:relative; z-index:2; }
+.nav-controls{ position:sticky; }
+
+/* ---------- Шапка и навигация ---------- */
+.top-bar{
+  background:linear-gradient(180deg, rgba(255,251,242,.96), rgba(250,242,226,.88));
+  border-bottom:1px solid var(--line-2);
+  box-shadow:0 1px 0 rgba(255,255,255,.8), 0 6px 18px rgba(110,70,25,.12);
+}
+.brand-text{ color:var(--gold-bright); }
+.brand-icon{ background:var(--iron); color:#ffcf7a; border-color:var(--gold); box-shadow:0 0 12px rgba(255,140,40,.35); }
+.charname-display{ color:var(--gold-bright); }
+.nav-controls{
+  background:linear-gradient(0deg, rgba(252,246,234,.95), rgba(252,246,234,.82));
+  border-top:1px solid var(--line-2); box-shadow:0 -6px 20px rgba(110,70,25,.14);
+  -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+}
+.step-caption{ color:var(--text-dim); }
+.step-caption.warn{ color:var(--blood-bright); font-weight:600; }
+.step-badge{ background:var(--panel); }
+.step-badge-num, .step-badge-of{ color:var(--text-dim); }
+.step-progress{ background:var(--line); height:3px; overflow:hidden; }
+.step-progress-fill{
+  background:linear-gradient(90deg, #b8361f, #e8741e, #ffc35a, #e8741e);
+  background-size:200% 100%; animation:molten 3s linear infinite;
+  box-shadow:0 0 8px rgba(232,116,30,.6);
+}
+@keyframes molten{ to{ background-position:-200% 0; } }
+.step-dot{ background:var(--line); border-color:var(--line-2); }
+.step-dot.done{ background:var(--gold); border-color:var(--gold); }
+.step-dot.active{ background:#e8741e; border-color:#b8361f; box-shadow:0 0 8px 2px rgba(232,116,30,.6); animation:emberPulse 1.6s ease-in-out infinite; }
+@keyframes emberPulse{ 50%{ box-shadow:0 0 14px 4px rgba(255,150,40,.75); } }
+
+/* ---------- Заголовки: бронзовая ковка ---------- */
+.view-header h1, .landing-title{
+  color:var(--gold-bright); text-shadow:none;
+  background:linear-gradient(180deg, #a86a1c 0%, #6e3f0e 55%, #9a5c18 100%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 1px 0 rgba(255,255,255,.7));
+}
+.view-header p{ color:var(--text-dim); }
+
+/* ---------- Панели: светлый пергамент, сквозь край чуть видно огонь ---------- */
+.detail-panel, .moba-panel, .equip-choice, .ability-card, .figure-stage{
+  background:linear-gradient(180deg, rgba(255,252,245,.9), rgba(250,243,229,.86));
+  border-color:var(--line-2);
+  box-shadow:var(--frame), var(--shadow);
+}
+@media (min-width:900px){
+  .split-list, .class-step .class-icon-grid{
+    background:rgba(255,250,240,.72); border-color:var(--line-2); box-shadow:var(--frame), var(--shadow);
+  }
+}
+.pick-row, .class-icon-item, .choice-card, .choice-tile, .mode-tab, .chip-btn, .gender-btn, .skill-opt, .spell-card{
+  background:linear-gradient(180deg, #fffdf8, #f6ecd8); border-color:var(--line); color:var(--text-light);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 2px 6px rgba(110,70,25,.08);
+  transition:transform .18s, box-shadow .2s, border-color .2s, background .2s;
+}
+.pick-row:hover, .class-icon-item:hover, .choice-tile:hover, .choice-card:hover, .mode-tab:hover, .spell-card:hover, .skill-opt:hover{
+  border-color:var(--gold); transform:translateY(-2px);
+  box-shadow:0 6px 16px rgba(176,100,30,.18), 0 0 0 1px rgba(232,140,50,.25);
+}
+/* выбранное — «раскалённая» кромка */
+.pick-row.selected, .class-icon-item.selected, .choice-card.selected, .choice-tile.selected,
+.mode-tab.active, .chip-btn.active, .gender-btn.active, .skill-opt.checked, .spell-card.selected, .equip-choice.selected{
+  background:linear-gradient(180deg, #fff3da, #fbe2b4); border-color:#d9731f;
+  box-shadow:0 0 0 1px #e8862a, 0 0 16px rgba(240,130,40,.40), inset 0 0 12px rgba(255,190,90,.35);
+  animation:hotEdge 2.4s ease-in-out infinite;
+}
+@keyframes hotEdge{ 50%{ box-shadow:0 0 0 1px #f09a3a, 0 0 24px rgba(255,140,40,.55), inset 0 0 14px rgba(255,200,110,.45); } }
+.class-icon-square, .class-icon-badge, .moba-icon{ background:var(--iron); border-color:var(--gold-dim); }
+.pick-row .glyph{ background:linear-gradient(180deg,#fff7e6,#f0dfbd); border-color:var(--line-2); }
+.glyph--letter{ font-family:'Cinzel',serif; font-weight:700; color:var(--gold-bright); }
+.pick-row.selected .pr-name, .pick-row .pr-name, .choice-card .pick-name, .spell-card .sp-name, .stat-chip b{ color:var(--text-strong); }
+.pick-row.selected .pr-name{ color:var(--gold-bright); }
+.pick-row .pr-sub, .class-icon-label{ color:var(--text-dim); }
+.class-icon-item.selected .class-icon-label{ color:var(--gold-bright); font-weight:600; }
+.race-portrait-frame{ background:var(--iron); box-shadow:0 0 0 1px rgba(255,255,255,.7), 0 8px 22px rgba(110,70,25,.25); }
+.stat-chip{ background:#f3e7cd; border-color:var(--line-2); color:var(--text-dim); }
+.detail-note b, .class-flavor{ color:var(--text-light); }
+.form-row label{ color:var(--label); font-weight:600; }
+input[type=text], input[type=number], select, textarea{
+  background:#fffdf8; color:var(--text-light); border:1px solid var(--line-2);
+  box-shadow:inset 0 1px 3px rgba(110,70,25,.12);
+}
+input:focus, select:focus, textarea:focus{ outline:none; border-color:#d9731f; box-shadow:0 0 0 3px rgba(232,134,42,.25); }
+::placeholder{ color:#a48c68; opacity:1; }
+.choice-card .check{ background:#fff; border-color:var(--line-2); }
+.subclass-info, details.pact{ background:rgba(255,248,232,.85); border-color:var(--line-2); }
+details.pact summary em{ color:var(--text-light); }
+.lore-body{ color:var(--text-light); }
+.pool-note, .lore-note, .rule-note, .detail-sub, .detail-note{ color:var(--text-dim); }
+.toast{ background:#fffaf0; color:var(--text-light); box-shadow:0 8px 24px rgba(110,70,25,.25); }
+.tile-flavor{ display:block; margin-top:6px; font-size:.82rem; line-height:1.35; color:var(--text-dim); font-style:italic; }
+.tile-star{ color:#d9631c; font-style:normal; }
+.pick-count{ font-family:'EB Garamond',serif; font-size:.85em; color:var(--ember); margin-left:6px; letter-spacing:0; }
+.choice-grid--pact{ grid-template-columns:repeat(auto-fill, minmax(220px,1fr)) !important; }
+
+/* ---------- Кнопки ---------- */
+.btn{ background:linear-gradient(180deg, #fffaf0, #f1e3c6); color:var(--text-light); border-color:var(--line-2); }
+.btn:hover{ color:var(--gold-bright); border-color:var(--gold); }
+.btn-ghost{ background:rgba(255,250,240,.6); }
+.btn-gold, .lore-btn{
+  position:relative; overflow:hidden; color:#fff8e8; border:1px solid #8e2f12;
+  background:linear-gradient(180deg, #e8782a 0%, #c2441b 55%, #9a2c14 100%);
+  box-shadow:inset 0 1px 0 rgba(255,220,160,.6), 0 4px 14px rgba(190,70,20,.35);
+  text-shadow:0 1px 1px rgba(80,20,0,.6);
+}
+.btn-gold::after, .lore-btn::after{
+  content:""; position:absolute; top:0; bottom:0; width:40%; left:-60%;
+  background:linear-gradient(100deg, transparent, rgba(255,240,200,.55), transparent);
+  transform:skewX(-20deg); animation:shine 3.6s ease-in-out infinite;
+}
+@keyframes shine{ 0%,55%{ left:-60%; } 85%,100%{ left:130%; } }
+.btn-gold:hover, .lore-btn:hover{ filter:brightness(1.08); color:#fff; box-shadow:inset 0 1px 0 rgba(255,220,160,.6), 0 0 22px rgba(255,120,30,.55); }
+.btn-gold.is-locked{ filter:saturate(.35) brightness(1.05); opacity:.75; cursor:help; }
+.btn-gold.is-locked::after{ display:none; }
+.btn:disabled{ opacity:.45; }
+
+/* ---------- Стартовый экран: огонь видно целиком ---------- */
+.landing-screen{ background:radial-gradient(ellipse at 50% 30%, rgba(255,250,235,.85), rgba(240,226,200,.35) 55%, transparent 75%) !important; }
+.landing-crest{ background:var(--iron); box-shadow:0 0 0 5px #f4ead8, 0 0 0 6px var(--gold-dim), 0 0 30px rgba(255,140,40,.5); }
+.landing-crest span{ color:#ffcf7a; animation:anvilGlow 2.2s ease-in-out infinite; }
+@keyframes anvilGlow{ 50%{ text-shadow:0 0 14px rgba(255,170,60,.95); } }
+.landing-sub{ color:var(--text-dim); }
+
+/* ---------- Появление шага ---------- */
+.stage > *{ animation:stepIn .45s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes stepIn{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
+
+/* ---------- Характеристики: подписать, что есть что ---------- */
+.ability-card .ab-roll{ font-size:.8rem; color:var(--text-dim); font-family:'EB Garamond',serif; }
+.ability-card .ab-total{ color:var(--text-strong); font-size:1.9rem; }
+.ability-card .ab-mod{ color:var(--gold-bright); font-weight:600; }
+
+/* ---------- Счётчик заклинаний держится на виду ---------- */
+.spell-counter{
+  position:sticky; top:8px; z-index:3; display:inline-block; padding:6px 14px; border-radius:2px;
+  background:rgba(255,250,240,.95); border:1px solid var(--line-2); box-shadow:var(--shadow);
+}
+
+/* Лист персонажа не трогаем — он и так пергаментный, для печати */
+@media print{
+  #forgeScene, #forgeFx, body::before, body::after{ display:none !important; }
+  body{ background:#fff !important; }
+}
+@media (prefers-reduced-motion: reduce){
+  body::after, .step-progress-fill, .step-dot.active, .btn-gold::after, .lore-btn::after,
+  .landing-crest span, .stage > *{ animation:none !important; }
+  .pick-row.selected, .choice-tile.selected, .class-icon-item.selected, .spell-card.selected{ animation:none; }
+}
+
+/* пока открыт стартовый экран — интерфейс шага прячем, видна только кузня */
+body:has(.landing-screen:not(.hide)) :is(.top-bar, .step-rail, .stage, .nav-controls, .nav-controls *){ visibility:hidden !important; }
+.landing-screen{ transition:opacity .6s ease; }
+.landing-inner{ padding:28px 26px; background:rgba(255,250,240,.78); border:1px solid var(--line-2); box-shadow:var(--frame), var(--shadow); border-radius:3px; margin-bottom:22vh; }
+
+/* внутри шагов кузня — фон, а не главный герой: приглушаем и даём тексту светлый ореол */
+#forgeScene{ transition:opacity .8s ease; }
+body:not(:has(.landing-screen:not(.hide))) #forgeScene{ opacity:.5; }
+.spell-group-title, .view-header p, .pool-note, .lore-note, .step-caption{
+  text-shadow:0 0 6px rgba(252,246,234,.95), 0 0 2px rgba(252,246,234,.95);
+}
+.mode-tab:not(.active){ border-color:var(--line-2); color:var(--text-light); }
+.view-header p, .pool-note{ color:#5c4528; }
+
+/* выбранная плитка — не только цвет, но и галочка */
+.choice-tile{ position:relative; }
+.choice-tile.selected::after{
+  content:"✓"; position:absolute; top:6px; right:8px; width:20px; height:20px; border-radius:50%;
+  display:grid; place-items:center; font-size:.75rem; font-weight:700; color:#fff;
+  background:linear-gradient(180deg,#e8782a,#b8361f); box-shadow:0 0 8px rgba(232,116,30,.6);
+}
+.subclass-info{ border-left:3px solid var(--ember); background:rgba(255,244,222,.9); }
