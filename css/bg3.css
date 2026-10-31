@@ -1,0 +1,357 @@
+/* =====================================================================
+   Кузня Героев — BG3-вёрстка (поверх style.css)
+   Правила: mobile-first; на телефоне нет внутренних прокруток;
+   список и описание — одна колонка; ничего не вылезает за экран;
+   поля ввода ≥16px (без автозума); кнопки ≥44px.
+   ===================================================================== */
+:root{
+  --ink:#0c0a09;
+  --void:#080706;
+  --panel:#15110e;
+  --panel-2:#1d1814;
+  --panel-3:#262019;
+  --gold:#b8945a;
+  --gold-bright:#e6c98a;
+  --gold-dim:#6e5a3a;
+  --line:#3d3226;
+  --line-2:#5a4a33;
+  --blood:#7a231c;
+  --blood-bright:#a8352a;
+  --ember:#d98a4e;
+  --text-light:#e9dfca;
+  --text-dim:#a69a82;
+  --shadow:0 14px 40px rgba(0,0,0,.7);
+  --frame: inset 0 0 0 1px rgba(0,0,0,.65), inset 0 0 0 2px rgba(230,201,138,.07);
+}
+
+body{
+  background:
+    radial-gradient(1200px 700px at 50% -20%, rgba(120,88,48,.20), transparent 60%),
+    radial-gradient(900px 600px at 50% 120%, rgba(90,30,20,.22), transparent 60%),
+    var(--void);
+  background-attachment:fixed;
+  -webkit-text-size-adjust:100%;
+}
+.bg-glow{ background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.65) 100%); animation:none; }
+
+/* Пылинки в свете, как в меню BG3 (вместо искр кузни) */
+.bg3-motes{ position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+.bg3-motes span{
+  position:absolute; bottom:-10px; width:2px; height:2px; border-radius:50%;
+  background:var(--gold-bright); box-shadow:0 0 6px 1px rgba(230,201,138,.55);
+  opacity:0; animation:moteRise 14s linear infinite;
+}
+.bg3-motes span:nth-child(1){left:12%; animation-delay:0s;}
+.bg3-motes span:nth-child(2){left:28%; animation-delay:4s; animation-duration:17s;}
+.bg3-motes span:nth-child(3){left:47%; animation-delay:8s;}
+.bg3-motes span:nth-child(4){left:63%; animation-delay:2s; animation-duration:19s;}
+.bg3-motes span:nth-child(5){left:79%; animation-delay:6s;}
+.bg3-motes span:nth-child(6){left:91%; animation-delay:10s; animation-duration:16s;}
+@keyframes moteRise{
+  0%{transform:translate(0,0); opacity:0;}
+  10%{opacity:.8;} 90%{opacity:.5;}
+  100%{transform:translate(30px,-100vh); opacity:0;}
+}
+@media (prefers-reduced-motion:reduce){ .bg3-motes{display:none;} .step-view{animation:none;} }
+
+h1,h2,h3,h4{ text-wrap:balance; overflow-wrap:anywhere; }
+
+/* ---------- Орнамент-разделитель: линия — ромб — линия ---------- */
+.bg3-divider{ display:flex; align-items:center; gap:10px; margin:14px 0; }
+.bg3-divider::before,.bg3-divider::after{
+  content:""; flex:1; height:1px;
+  background:linear-gradient(90deg, transparent, var(--gold-dim) 30%, var(--gold-dim) 70%, transparent);
+}
+.bg3-divider span{ width:7px; height:7px; transform:rotate(45deg); border:1px solid var(--gold); background:var(--ink); flex-shrink:0; }
+
+/* ---------- Шапка ---------- */
+.top-bar{
+  padding:12px 20px; padding-top:max(12px, env(safe-area-inset-top));
+  background:linear-gradient(180deg, rgba(8,7,6,.98), rgba(12,10,9,.85));
+  border-bottom:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(230,201,138,.06), 0 6px 20px rgba(0,0,0,.6);
+  gap:12px;
+}
+.brand{ font-size:1.05rem; letter-spacing:.14em; gap:10px; min-width:0; }
+.brand-icon{
+  width:30px; height:30px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:1rem; transform:rotate(45deg); border:1px solid var(--gold); background:var(--panel);
+  filter:none; box-shadow:0 0 10px rgba(230,201,138,.15);
+}
+.brand-icon::first-letter{}
+.brand-text{ white-space:nowrap; }
+.charname-display{
+  font-family:'Cinzel',serif; font-size:.95rem; color:var(--gold-bright);
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+/* ---------- Плашка шага ---------- */
+.step-rail{ padding:14px 16px 6px; }
+.step-badge{
+  border-radius:2px; padding:6px 22px; background:var(--panel);
+  border:1px solid var(--line-2); box-shadow:var(--frame);
+  max-width:100%; flex-wrap:wrap; justify-content:center;
+}
+.step-badge-title{ color:var(--gold-bright); letter-spacing:.1em; }
+.step-progress{ border-radius:0; height:2px; background:var(--line); }
+.step-dot{ border-radius:0; transform:rotate(45deg); width:6px; height:6px; }
+
+/* ---------- Сцена ---------- */
+.stage{ max-width:1240px; padding:10px 16px 28px; }
+.view-header{ margin-bottom:18px; }
+.view-header h1{
+  font-size:clamp(1.35rem, 4.6vw, 2.2rem); letter-spacing:.08em; text-transform:uppercase;
+  color:var(--gold-bright); text-shadow:0 2px 16px rgba(0,0,0,.8);
+}
+.view-header p{ font-size:clamp(.92rem, 2.6vw, 1.05rem); color:var(--text-dim); }
+.view-header::after{
+  content:""; display:block; width:min(360px,70%); height:9px; margin:12px auto 0;
+  background:
+    linear-gradient(45deg, transparent 42%, var(--gold) 43% 57%, transparent 58%) center/9px 9px no-repeat,
+    linear-gradient(90deg, transparent, var(--gold-dim) 25%, var(--gold-dim) 75%, transparent) center/100% 1px no-repeat;
+}
+
+/* ---------- Панели в рамке BG3 ---------- */
+.detail-panel, .moba-panel, .equip-choice, .ability-card, .figure-stage{
+  position:relative;
+  background:linear-gradient(180deg, rgba(29,24,20,.97), rgba(17,14,11,.97));
+  border:1px solid var(--line-2);
+  border-radius:3px;
+  box-shadow:var(--frame), 0 10px 26px rgba(0,0,0,.55);
+}
+.detail-panel{ padding:20px; border-left:1px solid var(--line-2); margin-top:0; }
+/* золотые уголки во всех четырёх углах рамки */
+.detail-panel::before{
+  content:""; position:absolute; inset:5px; pointer-events:none;
+  --c:var(--gold);
+  background:
+    linear-gradient(var(--c),var(--c)) top left/14px 1px no-repeat,
+    linear-gradient(var(--c),var(--c)) top left/1px 14px no-repeat,
+    linear-gradient(var(--c),var(--c)) top right/14px 1px no-repeat,
+    linear-gradient(var(--c),var(--c)) top right/1px 14px no-repeat,
+    linear-gradient(var(--c),var(--c)) bottom left/14px 1px no-repeat,
+    linear-gradient(var(--c),var(--c)) bottom left/1px 14px no-repeat,
+    linear-gradient(var(--c),var(--c)) bottom right/14px 1px no-repeat,
+    linear-gradient(var(--c),var(--c)) bottom right/1px 14px no-repeat;
+}
+.detail-panel h3{
+  font-size:clamp(1.15rem, 3.6vw, 1.45rem); letter-spacing:.06em; text-transform:uppercase;
+  color:var(--gold-bright); margin:0 0 4px;
+}
+.detail-sub{ margin:0 0 12px; color:var(--text-dim); font-style:italic; font-size:.95rem; }
+.detail-note{ color:var(--text-dim); margin:12px 0 0; }
+.detail-note b{ color:var(--text-light); font-weight:600; }
+.detail-panel ul, .feature-list{ padding-left:0; list-style:none; }
+.detail-panel li, .feature-list li{ position:relative; padding-left:18px; line-height:1.5; }
+.detail-panel li::before, .feature-list li::before{
+  content:""; position:absolute; left:2px; top:.62em; width:6px; height:6px;
+  transform:rotate(45deg); background:var(--gold-dim); border:1px solid var(--gold);
+}
+.stat-row{ gap:8px; }
+.stat-chip{
+  border-radius:2px; background:var(--panel-3); border:1px solid var(--line-2);
+  font-size:.88rem; padding:5px 10px; color:var(--text-dim);
+}
+.stat-chip b{ color:var(--gold-bright); font-weight:600; }
+.class-flavor{ border-left-color:var(--gold-dim); color:var(--text-light); }
+.tag{ border-radius:2px; }
+
+/* ---------- Раса: портрет + описание ---------- */
+.race-detail{ display:grid; grid-template-columns:1fr; gap:16px; }
+.race-info{ min-width:0; }
+.race-portrait-frame{
+  position:relative; width:100%; max-width:260px; margin:0 auto; aspect-ratio:2/3;
+  border:1px solid var(--gold); padding:4px; background:var(--ink);
+  box-shadow:0 0 0 1px rgba(0,0,0,.8), 0 0 22px rgba(230,201,138,.12);
+}
+.race-portrait-frame img{ display:block; width:100%; height:100%; object-fit:cover; object-position:50% 12%; }
+.portrait-empty{ display:none; }
+.race-portrait-frame.empty .portrait-empty{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+  width:100%; height:100%; text-align:center; padding:12px;
+  background:repeating-linear-gradient(45deg, rgba(230,201,138,.03) 0 8px, transparent 8px 16px), var(--panel);
+  color:var(--text-dim);
+}
+.portrait-empty span{ font-size:2.6rem; opacity:.55; filter:grayscale(.4); }
+.portrait-empty small{ font-size:.85rem; font-style:italic; }
+
+/* ---------- Список выбора: на телефоне сетка плиток, без горизонтальной ленты ---------- */
+.split-pane{ display:flex; flex-direction:column; gap:14px; }
+.split-list{
+  width:100%; max-height:none; overflow:visible; padding:0;
+  display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px;
+}
+.split-detail{ width:100%; max-height:none; overflow:visible; padding:0; scroll-margin-top:12px; }
+.split-list .pick-row{ min-width:0; }
+.pick-row{
+  min-height:52px; padding:9px 10px; gap:9px; border-radius:2px;
+  background:linear-gradient(180deg, var(--panel-2), var(--panel));
+  border:1px solid var(--line);
+  box-shadow:inset 0 1px 0 rgba(230,201,138,.04);
+  -webkit-tap-highlight-color:transparent;
+}
+.pick-row:hover{ border-color:var(--gold-dim); }
+.pick-row.selected{
+  border-color:var(--gold);
+  background:linear-gradient(180deg, rgba(184,148,90,.22), rgba(29,24,20,.95));
+  box-shadow:inset 0 0 14px rgba(230,201,138,.10);
+}
+.pick-row .glyph{
+  width:30px; height:30px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  font-size:1.05rem; border:1px solid var(--line-2); background:var(--ink); border-radius:2px;
+}
+.pick-row.selected .glyph{ border-color:var(--gold); }
+.pick-row .pr-name{ font-size:.86rem; letter-spacing:.02em; overflow-wrap:anywhere; }
+.pick-row.selected .pr-name{ color:var(--gold-bright); }
+.pick-row .pr-sub{ font-size:.78rem; line-height:1.25; }
+.pr-en{ display:none; }
+.pick-row .pr-tag{ white-space:normal; }
+
+/* ---------- Классы: иконки из Кузни, квадратные слоты как в BG3 ---------- */
+.class-icon-grid{ grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; }
+.class-icon-item{
+  border-radius:2px; padding:8px 2px 7px; min-width:0;
+  background:linear-gradient(180deg, var(--panel-2), var(--panel)); border:1px solid var(--line);
+  -webkit-tap-highlight-color:transparent;
+}
+.class-icon-item:hover{ transform:none; border-color:var(--gold-dim); }
+.class-icon-item.selected{ border-color:var(--gold); box-shadow:inset 0 0 14px rgba(230,201,138,.12); background:linear-gradient(180deg, rgba(184,148,90,.2), var(--panel)); }
+.class-icon-square{ width:54px; height:54px; border-radius:2px; background:var(--ink); border:1px solid var(--line-2); }
+.class-icon-item.selected .class-icon-square{ border-color:var(--gold-bright); box-shadow:0 0 12px rgba(230,201,138,.3); }
+.class-icon-label{ font-size:.78rem; overflow-wrap:anywhere; padding:0 2px; }
+.class-icon-badge{ border-radius:2px; border:1px solid var(--gold); background:var(--ink); width:88px; height:88px; transform:none; }
+.class-step{ display:flex; flex-direction:column; gap:14px; }
+
+/* ---------- Карточки, вкладки, чипы, навыки — общий BG3-вид ---------- */
+.choice-card, .mode-tab, .chip-btn, .gender-btn, .skill-opt, .spell-card, .equip-choice{ border-radius:2px; }
+.choice-card{ background:linear-gradient(180deg, var(--panel-2), var(--panel)); }
+.mode-tabs{ display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:8px; }
+.mode-tab, .chip-btn, .gender-btn{ min-height:44px; }
+.mode-tab.active, .chip-btn.active, .gender-btn.active, .skill-opt.checked, .spell-card.selected, .equip-choice.selected{
+  border-color:var(--gold); box-shadow:inset 0 0 14px rgba(230,201,138,.10); background:linear-gradient(180deg, rgba(184,148,90,.2), var(--panel));
+}
+.ability-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
+.ability-card{ padding:12px 8px; min-width:0; }
+.skill-grid{ grid-template-columns:repeat(auto-fill, minmax(min(100%,220px),1fr)); }
+.skill-opt{ min-height:44px; }
+.spell-list{ grid-template-columns:repeat(auto-fill, minmax(min(100%,260px),1fr)); }
+
+/* Поля: 16px, чтобы телефон не увеличивал страницу при нажатии */
+input[type=text], input[type=number], select, textarea{
+  font-size:16px; border-radius:2px; background:var(--ink); border-color:var(--line-2); min-height:44px;
+}
+.form-row{ max-width:none; }
+
+/* ---------- Кнопки ---------- */
+.btn{ border-radius:2px; min-height:46px; letter-spacing:.08em; border-color:var(--line-2); background:linear-gradient(180deg, var(--panel-3), var(--panel)); color:var(--text-light); }
+.btn:hover{ border-color:var(--gold); color:var(--gold-bright); }
+.btn-gold{
+  color:var(--gold-bright); border:1px solid var(--gold);
+  background:linear-gradient(180deg, #5c2018 0%, #3c140f 100%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,210,150,.15), 0 4px 16px rgba(0,0,0,.5);
+  text-shadow:0 1px 2px rgba(0,0,0,.8);
+}
+.btn-gold:hover{ filter:brightness(1.18); transform:none; color:#fff1d0; }
+.btn-ghost{ background:transparent; }
+
+/* ---------- Нижняя навигация ---------- */
+.nav-controls{
+  display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  padding:10px 14px; padding-bottom:max(10px, env(safe-area-inset-bottom));
+  background:linear-gradient(0deg, rgba(8,7,6,.99), rgba(8,7,6,.9));
+  border-top:1px solid var(--line-2); box-shadow:0 -1px 0 rgba(230,201,138,.06), 0 -8px 24px rgba(0,0,0,.6);
+}
+.nav-controls .btn{ width:100%; padding:10px 12px; }
+.step-caption{ display:none; }
+
+/* ---------- Стартовый экран — как главное меню BG3 ---------- */
+.landing-screen{ background:radial-gradient(ellipse at 50% 35%, rgba(120,88,48,.25), transparent 60%), var(--void); padding:20px; }
+.landing-inner{ max-width:520px; }
+.landing-crest{
+  width:64px; height:64px; margin:0 auto 22px; transform:rotate(45deg);
+  border:1px solid var(--gold); background:var(--panel); display:flex; align-items:center; justify-content:center;
+  box-shadow:0 0 0 5px var(--void), 0 0 0 6px var(--gold-dim), 0 0 30px rgba(230,201,138,.2);
+}
+.landing-crest span{ transform:rotate(-45deg); font-size:1.7rem; color:var(--gold-bright); }
+.landing-title{ font-size:clamp(1.9rem, 8vw, 3rem); letter-spacing:.1em; text-transform:uppercase; margin-bottom:4px; }
+.landing-sub{ font-size:1.05rem; }
+.btn-forge{ min-height:54px; padding:14px 34px; font-size:1rem; }
+
+/* ---------- Тост над нижней панелью ---------- */
+.toast{ border-radius:2px; left:16px; right:16px; bottom:calc(84px + env(safe-area-inset-bottom)); max-width:none; border-color:var(--gold); background:var(--panel-2); }
+
+/* ---------- Вступление ---------- */
+.intro-layout{ flex-direction:column; align-items:center; gap:18px; max-width:760px; }
+.intro-photo-col{ width:100%; max-width:220px; }
+.photo-drop{ width:100%; height:auto; aspect-ratio:1/1; border-radius:2px; border:1px dashed var(--gold-dim); }
+.intro-form-col{ width:100%; }
+
+/* ---------- Телосложение ---------- */
+.physique-wrap{ gap:20px; }
+.physique-controls-col{ width:100%; max-width:420px; }
+
+/* ---------- Лист персонажа: не шире экрана ---------- */
+.sheet-wrap{ overflow:hidden; }
+#charSheet{ border-radius:2px; }
+
+/* =========================== ≥ 600px =========================== */
+@media (min-width:600px){
+  .split-list{ grid-template-columns:repeat(3, minmax(0,1fr)); }
+  .class-icon-grid{ grid-template-columns:repeat(6, minmax(0,1fr)); }
+  .ability-grid{ grid-template-columns:repeat(3, minmax(0,1fr)); }
+  .pr-en{ display:inline; }
+  .split-list--tiles .pr-en{ display:none; }
+  .race-detail{ grid-template-columns:200px minmax(0,1fr); align-items:start; }
+  .race-portrait-frame{ max-width:none; }
+  .intro-layout{ flex-direction:row; align-items:flex-start; }
+  .intro-photo-col{ width:200px; flex-shrink:0; }
+  .stage{ padding:14px 24px 32px; }
+  .nav-controls{ grid-template-columns:auto 1fr auto; padding-left:24px; padding-right:24px; }
+  .nav-controls .btn{ width:auto; min-width:170px; }
+  .step-caption{ display:block; align-self:center; }
+  .toast{ left:auto; right:24px; max-width:340px; }
+}
+
+/* ======== ≥ 900px: экран BG3 — список слева, описание справа ======== */
+@media (min-width:900px){
+  .split-pane{ display:grid; grid-template-columns:300px minmax(0,1fr); gap:18px; align-items:start; }
+  .split-list{
+    display:flex; flex-direction:column; gap:6px;
+    padding:10px; background:rgba(12,10,9,.75); border:1px solid var(--line-2); box-shadow:var(--frame); border-radius:3px;
+    max-height:calc(100vh - 250px); overflow-y:auto;
+  }
+  .split-detail{ position:sticky; top:12px; max-height:calc(100vh - 250px); overflow-y:auto; }
+  /* расы: 19 штук — две колонки плиток, чтобы список влез целиком без прокрутки */
+  .split-pane:has(.split-list--tiles){ grid-template-columns:400px minmax(0,1fr); }
+  .split-list--tiles{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); max-height:none; overflow:visible; }
+  .split-list--tiles .pick-row{ min-height:50px; padding:7px 9px; }
+  .pick-row .pr-name{ font-size:.95rem; }
+  .class-step{ display:grid; grid-template-columns:minmax(300px,380px) minmax(0,1fr); gap:18px; align-items:start; }
+  .class-step .class-icon-grid{
+    grid-template-columns:repeat(3, minmax(0,1fr)); margin:0;
+    padding:10px; background:rgba(12,10,9,.75); border:1px solid var(--line-2); box-shadow:var(--frame); border-radius:3px;
+  }
+  .class-step .split-detail{ position:sticky; top:12px; }
+  .class-icon-square{ width:60px; height:60px; }
+  .race-detail{ grid-template-columns:240px minmax(0,1fr); gap:22px; }
+  .ability-grid{ grid-template-columns:repeat(6, minmax(0,1fr)); }
+}
+@media (min-width:1200px){
+  .race-detail{ grid-template-columns:280px minmax(0,1fr); }
+}
+
+/* ======== Узкие телефоны (Samsung A-серии, 360px и меньше) ======== */
+@media (max-width:380px){
+  .top-bar{ padding-left:12px; padding-right:12px; }
+  .brand{ font-size:.9rem; letter-spacing:.08em; }
+  .stage{ padding-left:12px; padding-right:12px; }
+  .class-icon-square{ width:46px; height:46px; }
+  .class-icon-label{ font-size:.72rem; }
+  .pick-row{ padding:8px; gap:7px; }
+  .pick-row .glyph{ width:26px; height:26px; font-size:.95rem; }
+  .pick-row .pr-name{ font-size:.8rem; }
+  .detail-panel{ padding:16px 14px; }
+  .nav-controls .btn{ font-size:.8rem; letter-spacing:.04em; padding:10px 6px; }
+}
+
+@media print{ .bg3-motes, .nav-controls, .top-bar, .step-rail{ display:none !important; } }

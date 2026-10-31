@@ -126,6 +126,14 @@ function render(){
   updateNextEnabled();
 }
 
+/* На телефоне описание стоит под списком: после выбора мягко докручиваем к нему,
+   но только если оно целиком ниже экрана (чтобы не дёргать страницу зря). */
+function revealOnMobile(el){
+  if (!el || window.innerWidth >= 900) return;
+  const top = el.getBoundingClientRect().top;
+  if (top > window.innerHeight - 120) el.scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
 function toast(msg){
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -214,7 +222,7 @@ function renderRace(view){
   view.innerHTML = `
     <div class="view-header"><h1>Выбери расу</h1><p>Раса определяет врождённые способности, бонусы характеристик и часть истории твоего героя.</p></div>
     <div class="split-pane">
-      <div class="split-list" id="raceGrid"></div>
+      <div class="split-list split-list--tiles" id="raceGrid"></div>
       <div class="split-detail" id="raceDetail"></div>
     </div>
   `;
@@ -226,7 +234,7 @@ function renderRace(view){
       <span class="glyph">${RACE_GLYPH[r.id] || "❖"}</span>
       <div class="pr-text">
         <div class="pr-name">${r.name}</div>
-        <div class="pr-sub">${r.nameEn || ""} · ${r.size}, ${r.speed} фт</div>
+        <div class="pr-sub"><span class="pr-en">${r.nameEn || ""} · </span>${r.size}, ${r.speed} фт</div>
       </div>
     `;
     row.onclick = () => {
@@ -238,6 +246,7 @@ function renderRace(view){
       grid.querySelectorAll(".pick-row.selected").forEach(n => n.classList.remove("selected"));
       row.classList.add("selected");
       renderRaceDetail(view.querySelector("#raceDetail"));
+      revealOnMobile(view.querySelector("#raceDetail"));
       saveState();
       updateNextEnabled();
     };
@@ -247,14 +256,21 @@ function renderRace(view){
 }
 function renderRaceDetail(el){
   const r = getRace();
-  if (!r){ el.innerHTML = `<p class="pool-note">Выбери расу в списке слева, чтобы увидеть её черты.</p>`; return; }
+  if (!r){ el.innerHTML = `<p class="pool-note">Выбери расу, чтобы увидеть её черты.</p>`; return; }
   el.innerHTML = `
-    <div class="detail-panel">
-      <img class="entity-portrait" src="assets/img/races/${r.id}.jpg" alt="${r.name}" loading="lazy" onerror="this.remove()">
-      <h3>${r.name}</h3>
-      <div class="stat-row">${abilityBonusChips(r.abilityBonuses)}</div>
-      <ul>${(r.traits||[]).map(t => `<li>${t}</li>`).join("")}</ul>
-      ${r.languages ? `<p style="color:var(--text-dim);margin-top:10px;">Языки: ${r.languages.join(", ")}</p>` : ""}
+    <div class="detail-panel race-detail">
+      <div class="race-portrait-frame">
+        <img src="assets/img/races/${r.id}.jpg?v=16" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
+        <div class="portrait-empty"><span>${RACE_GLYPH[r.id] || "❖"}</span><small>Портрет появится позже</small></div>
+      </div>
+      <div class="race-info">
+        <h3>${r.name}</h3>
+        <p class="detail-sub">${r.nameEn || ""}${r.nameEn ? " · " : ""}${r.size}, скорость ${r.speed} фт</p>
+        <div class="stat-row">${abilityBonusChips(r.abilityBonuses)}</div>
+        <div class="bg3-divider"><span></span></div>
+        <ul>${(r.traits||[]).map(t => `<li>${t}</li>`).join("")}</ul>
+        ${r.languages ? `<p class="detail-note"><b>Языки:</b> ${r.languages.join(", ")}</p>` : ""}
+      </div>
     </div>
   `;
 }
@@ -280,7 +296,7 @@ function renderSubrace(view){
     const row = document.createElement("div");
     row.className = "pick-row" + (state.subraceId === s.id ? " selected" : "");
     row.innerHTML = `
-      <span class="glyph">◈</span>
+      <span class="glyph">${RACE_GLYPH[r.id] || "◈"}</span>
       <div class="pr-text">
         <div class="pr-name">${s.name}</div>
         <div class="pr-sub">${abilityBonusChips(s.abilityBonuses).replace(/<[^>]+>/g,"").trim()}</div>
@@ -293,6 +309,7 @@ function renderSubrace(view){
       grid.querySelectorAll(".pick-row.selected").forEach(n => n.classList.remove("selected"));
       row.classList.add("selected");
       renderSubraceDetail(view.querySelector("#subDetail"));
+      revealOnMobile(view.querySelector("#subDetail"));
       saveState();
       updateNextEnabled();
     };
@@ -303,11 +320,11 @@ function renderSubrace(view){
 function renderSubraceDetail(el){
   const s = getSubrace();
   const r = getRace();
-  if (!s){ el.innerHTML = `<p class="pool-note">Выбери подрасу слева.</p>`; return; }
+  if (!s){ el.innerHTML = `<p class="pool-note">Выбери подрасу, чтобы увидеть её черты.</p>`; return; }
   el.innerHTML = `
     <div class="detail-panel">
-      <img class="entity-portrait" src="assets/img/races/${s.id}.jpg" alt="${s.name}" loading="lazy" onerror="this.onerror=function(){this.remove()};this.src='assets/img/races/${r.id}.jpg'">
       <h3>${s.name}</h3>
+      <p class="detail-sub">Подраса: ${r.name.toLowerCase()}</p>
       <div class="stat-row">${abilityBonusChips(s.abilityBonuses)}</div>
       <ul>${(s.traits||[]).map(t => `<li>${t}</li>`).join("")}</ul>
     </div>
@@ -318,8 +335,10 @@ function renderSubraceDetail(el){
 function renderClassStep(view){
   view.innerHTML = `
     <div class="view-header"><h1>Выбери класс</h1><p>Класс — твой путь к силе: воин меча, хранитель тайных знаний или клинок в тенях.</p></div>
-    <div class="class-icon-grid" id="classGrid"></div>
-    <div class="split-detail" id="classDetail"></div>
+    <div class="class-step">
+      <div class="class-icon-grid" id="classGrid"></div>
+      <div class="split-detail" id="classDetail"></div>
+    </div>
   `;
   const grid = view.querySelector("#classGrid");
   DND_DATA.classes.forEach(c => {
@@ -342,6 +361,7 @@ function renderClassStep(view){
       grid.querySelectorAll(".class-icon-item.selected").forEach(n => n.classList.remove("selected"));
       row.classList.add("selected");
       renderClassDetail(view.querySelector("#classDetail"));
+      revealOnMobile(view.querySelector("#classDetail"));
       saveState();
       updateNextEnabled();
     };
@@ -351,7 +371,7 @@ function renderClassStep(view){
 }
 function renderClassDetail(el){
   const c = getClass();
-  if (!c){ el.innerHTML = `<p class="pool-note">Выбери класс слева.</p>`; return; }
+  if (!c){ el.innerHTML = `<p class="pool-note">Выбери класс, чтобы увидеть его умения.</p>`; return; }
   const featuresHtml = (c.features||[]).map(f =>
     `<li><b style="color:var(--gold-bright)">${f.name}</b> — ${f.info}</li>`
   ).join("");
@@ -963,6 +983,7 @@ function renderEquipList(view){
     row.classList.add("selected");
     state.equipmentChoice = choice;
     renderEquipDetail(view);
+    revealOnMobile(view.querySelector("#eqDetail"));
     saveState();
     updateNextEnabled();
   };
