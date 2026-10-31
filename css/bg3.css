@@ -393,3 +393,28 @@ body{ overflow-y:scroll; scrollbar-gutter:stable; }
 .subclass-info{ margin-top:12px; padding:12px 14px; border:1px solid var(--gold-dim); background:rgba(0,0,0,.25); border-radius:2px; line-height:1.5; }
 .subclass-info b{ color:var(--gold-bright); }
 .subclass-info .feature-list{ margin:8px 0 0; }
+
+/* Подробности подкласса и договоров */
+.subclass-info .si-title{ margin:12px 0 6px; color:var(--gold-bright); font-size:1rem; letter-spacing:.02em; }
+.subclass-info .si-title:first-child{ margin-top:0; }
+.subclass-info p{ margin:6px 0; }
+.si-feat{ margin:6px 0; }
+.si-feat p{ display:inline; }
+.si-feat p + p, .si-feat ul{ display:block; margin-top:4px; }
+.si-later span{ display:block; margin:2px 0; color:var(--text-dim); }
+.si-later span::before{ content:"◆ "; color:var(--gold-dim); font-size:.8em; }
+.lore-list{ margin:4px 0 8px 18px; padding:0; }
+.lore-list li{ margin:2px 0; }
+.lore-note{ color:var(--text-dim); font-style:italic; }
+details.pact{ border:1px solid var(--gold-dim); margin:6px 0; padding:6px 10px; background:rgba(0,0,0,.2); }
+details.pact summary{ cursor:pointer; list-style:none; }
+details.pact summary::-webkit-details-marker{ display:none; }
+details.pact summary::before{ content:"▸ "; color:var(--gold-bright); }
+details.pact[open] summary::before{ content:"▾ "; }
+details.pact summary span{ color:var(--text-dim); font-size:.9em; }
+details.pact summary em{ display:block; margin:4px 0 0 14px; color:var(--parchment); }
+details.pact > p, details.pact > ul{ margin-left:14px; }
+.rule-note{ color:var(--text-dim); margin:0 0 10px; line-height:1.5; }
+.rule-note p{ margin:4px 0; }
+
+.lore-tag{ font-size:.75em; color:var(--text-dim); border:1px solid var(--gold-dim); padding:0 5px; border-radius:2px; }

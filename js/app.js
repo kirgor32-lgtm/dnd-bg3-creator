@@ -268,7 +268,7 @@ function renderRaceDetail(el){
   el.innerHTML = flipCard(`
     <div class="detail-panel race-detail">
       <div class="race-portrait-frame">
-        <img src="assets/img/races/${r.id}.jpg?v=19" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
+        <img src="assets/img/races/${r.id}.jpg?v=20" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
         <div class="portrait-empty"><span>${RACE_GLYPH[r.id] || "❖"}</span><small>Портрет появится позже</small></div>
       </div>
       <div class="race-info">
@@ -289,13 +289,13 @@ function esc(t){ return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").rep
 function loreButton(key){
   return `<button type="button" class="lore-btn" data-flip="1"><span>📜</span> История</button>`;
 }
-function flipCard(front, back, key){
+function flipCard(front, back, key, backLabel){
   if (!back) return front;
   return `<div class="flip-card" data-key="${key}">
     <div class="flip-inner">
       <div class="flip-face flip-front">${front}</div>
       <div class="flip-face flip-back detail-panel" aria-hidden="true">
-        <div class="lore-head"><button type="button" class="lore-btn lore-btn--back" data-flip="1">← К чертам</button></div>
+        <div class="lore-head"><button type="button" class="lore-btn lore-btn--back" data-flip="1">← ${backLabel || "К чертам"}</button></div>
         <div class="lore-body">${back}</div>
       </div>
     </div>
@@ -307,13 +307,14 @@ function bindFlip(el){
   const fit = () => {
     const h = front.offsetHeight;
     if (!card.classList.contains("flipped")) { card.style.height = h + "px"; return; }
-    if (window.innerWidth < 760) {
-      // на телефоне оборот раскрывается на всю длину текста — без прокрутки внутри прокрутки
+    if (window.innerWidth < 760 || h > window.innerHeight * 0.8) {
+      // на телефоне и при высокой лицевой стороне оборот раскрывается на всю длину текста — без прокрутки внутри прокрутки
       const body = back.querySelector(".lore-body");
       card.style.height = (back.offsetHeight - body.clientHeight + body.scrollHeight + 4) + "px";
     } else card.style.height = Math.max(h, 520) + "px";
   };
   fit();
+  card._fit = fit;   // можно вызвать вручную после дорисовки содержимого
   if (window.ResizeObserver) new ResizeObserver(fit).observe(front);
   card.querySelectorAll("img").forEach(i => i.addEventListener("load", fit));
   card.querySelectorAll("[data-flip]").forEach(b => b.addEventListener("click", () => {
@@ -322,10 +323,52 @@ function bindFlip(el){
     back.setAttribute("aria-hidden", String(!on)); front.setAttribute("aria-hidden", String(on));
     fit();
     if (on) back.querySelector(".lore-body").scrollTop = 0;
-    if (window.innerWidth < 760) card.scrollIntoView({ behavior:"smooth", block:"start" });
+    if (window.innerWidth < 760 || card.getBoundingClientRect().top < 0) card.scrollIntoView({ behavior:"smooth", block:"start" });
   }));
 }
-function loreParas(arr){ return (arr || []).map(p => `<p>${esc(p)}</p>`).join(""); }
+function loreParas(arr){
+  return (arr || []).map(p => typeof p === "string" ? `<p>${esc(p)}</p>`
+    : `<ul class="lore-list">${p.list.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`).join("");
+}
+/* Оборот карточки класса: история класса из dnd.su + обзор подклассов */
+function classLoreHTML(c){
+  const L = (typeof CLASS_LORE !== "undefined") && CLASS_LORE[c.id];
+  if (!L) return "";
+  const lvl = L.subLevel || 1;
+  return `<h3>${c.name}: история класса</h3>
+    ${loreParas(L.intro)}
+    ${L.sections.map(s => `<h4>${esc(s.title)}</h4>${loreParas(s.paras)}`).join("")}
+    ${L.subs.length ? `<h4>${esc(L.subTitle)} — ${lvl === 1 ? "выбор на 1-м уровне" : `выбор на ${lvl}-м уровне`}</h4>
+      ${lvl > 1 ? `<p class="lore-note">Персонаж создаётся 1-го уровня, поэтому этот выбор пока не делается — он откроется, когда герой дорастёт до ${lvl}-го уровня. Вот из чего можно будет выбирать:</p>` : ""}
+      ${lvl === 1 && SUBCLASSES[c.id] ? `<p class="lore-note">В генераторе можно выбрать варианты из «Книги игрока»: ${SUBCLASSES[c.id].map(x => x.name).join(", ")}. Остальные — из дополнений, они здесь для знакомства.</p>` : ""}
+      ${L.subs.map(x => `<p><b>${esc(x.name)}.</b>${lvl === 1 && SUBCLASSES[c.id] && !SUBCLASSES[c.id].some(y => y.name === x.name) ? ` <span class="lore-tag">дополнение</span>` : ""} ${esc(x.text)}</p>`).join("")}` : ""}
+    <p class="lore-src">Источник: dnd.su</p>`;
+}
+/* Подробности выбранного подкласса: кто это, что даёт сейчас и потом */
+function subclassInfoHTML(c, sub, cc){
+  const SL = (typeof SUBCLASS_LORE !== "undefined") && SUBCLASS_LORE[c.id] && SUBCLASS_LORE[c.id][cc.subclass];
+  const always = [...(sub.cantrips||[]), ...(sub.spells||[])].map(id => (DND_DATA.spells.find(x => x.id === id) || {name:id}).name);
+  if (!SL) return `<div class="subclass-info"><b>${sub.name}.</b> ${sub.text}</div>`;
+  const now = SL.features.filter(f => f.level === 1);
+  const later = SL.features.filter(f => f.level && f.level > 1);
+  const parasNoBigTables = ps => loreParas(ps.map(p => (typeof p !== "string" && p.list.length > 12) ? `(таблица из ${p.list.length} строк — в «Книге игрока»; Мастер подскажет результат броска)` : p));
+  let html = `<div class="subclass-info">
+    <h4 class="si-title">${sub.name}: кто это</h4>
+    ${loreParas(SL.intro)}
+    <h4 class="si-title">Что даёт на 1-м уровне</h4>
+    ${now.map(f => `<div class="si-feat"><b>${esc(f.name)}.</b> ${parasNoBigTables(f.paras)}</div>`).join("")}
+    ${always.length ? `<p class="pool-note">Всегда подготовлены (не тратят выбор): ${always.join(", ")}</p>` : ""}
+    ${later.length ? `<h4 class="si-title">Что откроется дальше</h4><p class="si-later">${later.map(f => `<span>${f.level} ур. — ${esc(f.name)}</span>`).join("")}</p>` : ""}`;
+  if (c.id === "warlock" && typeof PACT_BOONS !== "undefined"){
+    html += `<h4 class="si-title">Предмет договора — выбор на 3-м уровне</h4>
+      <p class="lore-note">Покровитель дарует колдуну подарок за верную службу. Персонаж создаётся 1-го уровня, поэтому сейчас его не выбирают — но заранее видно, каким он будет у ${sub.name === "Исчадие" ? "Исчадия" : sub.name === "Архифея" ? "Архифеи" : "Великого Древнего"}:</p>
+      ${PACT_BOONS.map(pb => {
+        const fl = [pb.flavor._, pb.flavor[cc.subclass]].filter(Boolean).join(" ");
+        return `<details class="pact"><summary><b>${pb.name}</b> <span>${pb.sub}</span>${fl ? `<em>${esc(fl)}</em>` : ""}</summary>${loreParas(pb.paras)}</details>`;
+      }).join("")}`;
+  }
+  return html + `<p class="lore-src">Источник: dnd.su</p></div>`;
+}
 function raceLoreHTML(r){
   const L = (typeof RACE_LORE !== "undefined") && RACE_LORE[r.id];
   if (!L) return "";
@@ -450,11 +493,12 @@ function renderClassDetail(el){
   ).join("");
   const skillOpts = (c.skillChoices && c.skillChoices.options) || [];
   const equipRoles = (c.startingEquipment||[]).map(e => `${e.choice}: ${e.role}`).join(" · ");
-  el.innerHTML = `
+  el.innerHTML = flipCard(`
     <div class="detail-panel">
       <div class="class-icon-badge"><img src="assets/img/classes/${c.id}.png" alt="${c.name}" loading="lazy" onerror="this.outerHTML='${CLASS_GLYPH[c.id] || "❖"}'"></div>
       <h3>${c.name}</h3>
       ${c.description ? `<p class="class-flavor">${c.description}</p>` : ""}
+      ${classLoreHTML(c) ? loreButton(c.id) : ""}
       <div class="stat-row">
         <span class="stat-chip"><b>Кость хитов</b> к${c.hitDie}</span>
         <span class="stat-chip"><b>Спасброски</b> ${(c.savingThrows||[]).map(s => ABILITY_NAMES[s.toLowerCase()] || s).join(", ")}</span>
@@ -466,12 +510,14 @@ function renderClassDetail(el){
       ${equipRoles ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Снаряжение:</b> ${equipRoles}</p>` : ""}
       <div id="subclassPick"></div>
     </div>
-  `;
+  `, classLoreHTML(c), c.id, "К умениям");
+  bindFlip(el);
   const box = el.querySelector("#subclassPick");
   if (subclassNeeds(c.id).length){
     const draw = () => {
       box.innerHTML = `<div class="bg3-divider"><span></span></div>` + classChoicesHTML(c, subclassNeeds(c.id));
       bindChoiceTiles(box, draw);
+      const fc = el.querySelector(".flip-card"); if (fc && fc._fit) fc._fit();
     };
     draw();
   }
@@ -1046,7 +1092,7 @@ function classChoicesHTML(c, needs){
     html += `<h3 class="spell-group-title">${SUBCLASS_TITLE[c.id]}</h3>
       <p class="pool-note">В D&amp;D ${c.name.toLowerCase()} выбирает это уже на 1-м уровне — выбор сразу даёт умения${c.id === "cleric" ? " и заклинания домена" : ""}.</p>
       ${tiles("subclass", SUBCLASSES[c.id].map(x => ({ id:x.id, name:x.name, text:x.short })))}
-      ${sub ? `<div class="subclass-info"><b>${sub.name}.</b> ${sub.text}${(sub.features||[]).length ? `<ul class="feature-list">${sub.features.map(ft => `<li><b style="color:var(--gold-bright)">${ft.name}</b> — ${typeof ft.text === "function" ? "подробно, с вашими числами — в листе персонажа" : ft.text}</li>`).join("")}</ul>` : ""}${(sub.spells||[]).length || (sub.cantrips||[]).length ? `<p class="pool-note">Всегда подготовлены: ${[...(sub.cantrips||[]), ...(sub.spells||[])].map(id => (DND_DATA.spells.find(x => x.id === id) || {name:id}).name).join(", ")}</p>` : ""}</div>` : ""}`;
+      ${sub ? subclassInfoHTML(c, sub, cc) : ""}`;
   }
   if (needs.includes("dragonAncestor")) html += `<h3 class="spell-group-title">Драконий предок</h3>${tiles("dragonAncestor", DRAGON_ANCESTORS.map(x => ({ id:x.id, name:x.name, text:x.damage })))}`;
   if (needs.includes("natureSkill")) html += `<h3 class="spell-group-title">Навык послушника природы</h3>${tiles("natureSkill", ["Выживание","Природа","Уход за животными"].map(x => ({ id:x, name:x })))}`;
@@ -1058,9 +1104,10 @@ function classChoicesHTML(c, needs){
       <div class="choice-grid choice-grid--abil">${["История","Магия","Природа","Религия"].map(o => `
         <button type="button" class="choice-tile${picks.includes(o)?" selected":""}" data-k="knowledgeSkills" data-v="${o}" data-multi="2"><b>${o}</b><span>Интеллект</span></button>`).join("")}</div>`;
   }
-  if (needs.includes("fightingStyle")) html += `<h3 class="spell-group-title">Боевой стиль</h3>${tiles("fightingStyle", FIGHTING_STYLES)}`;
-  if (needs.includes("favoredEnemy")) html += `<h3 class="spell-group-title">Избранный враг</h3>${tiles("favoredEnemy", FAVORED_ENEMIES.map(x => ({id:x, name:x})))}`;
-  if (needs.includes("favoredTerrain")) html += `<h3 class="spell-group-title">Излюбленная местность</h3>${tiles("favoredTerrain", FAVORED_TERRAINS.map(x => ({id:x, name:x})))}`;
+  const ruleNote = k => (typeof CLASS_RULE_TEXT !== "undefined" && CLASS_RULE_TEXT[k]) ? `<div class="rule-note">${loreParas(CLASS_RULE_TEXT[k])}</div>` : "";
+  if (needs.includes("fightingStyle")) html += `<h3 class="spell-group-title">Боевой стиль</h3>${ruleNote("fightingStyle")}${tiles("fightingStyle", FIGHTING_STYLES)}`;
+  if (needs.includes("favoredEnemy")) html += `<h3 class="spell-group-title">Избранный враг</h3>${ruleNote("favoredEnemy")}${tiles("favoredEnemy", FAVORED_ENEMIES.map(x => ({id:x, name:x, text:FAVORED_ENEMY_HINT[x] || ""})))}`;
+  if (needs.includes("favoredTerrain")) html += `<h3 class="spell-group-title">Излюбленная местность (умение «Исследователь природы»)</h3>${ruleNote("favoredTerrain")}${tiles("favoredTerrain", FAVORED_TERRAINS.map(x => ({id:x, name:x})))}`;
   if (needs.includes("expertise")){
     const prof = [...new Set([...state.skillChoices, ...racialSkills()])];
     const opts = [...prof, "Воровские инструменты"];
