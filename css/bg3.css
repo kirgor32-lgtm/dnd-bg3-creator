@@ -386,3 +386,10 @@ body{ overflow-y:scroll; scrollbar-gutter:stable; }
 .lore-btn:hover{ filter:brightness(1.2); box-shadow:0 0 10px rgba(230,201,138,.35); }
 .lore-btn--back{ margin-top:0; padding:5px 12px; font-size:.75rem; }
 @media (prefers-reduced-motion: reduce){ .flip-inner, .flip-card{ transition:none; } }
+
+/* Выбор подкласса на шаге класса */
+#subclassPick .spell-group-title{ margin-top:14px; }
+#subclassPick .choice-grid{ grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); }
+.subclass-info{ margin-top:12px; padding:12px 14px; border:1px solid var(--gold-dim); background:rgba(0,0,0,.25); border-radius:2px; line-height:1.5; }
+.subclass-info b{ color:var(--gold-bright); }
+.subclass-info .feature-list{ margin:8px 0 0; }

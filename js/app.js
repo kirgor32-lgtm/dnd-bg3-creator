@@ -76,7 +76,7 @@ function getActiveSteps(){
   steps.push("abilities");
   steps.push("skills");
   const cl = getClass();
-  if (cl && classChoiceNeeds(cl.id).length) steps.push("classchoice");
+  if (cl && laterClassNeeds(cl.id).length) steps.push("classchoice");
   steps.push("physique");
   steps.push("equipment");
   const c = getClass();
@@ -268,7 +268,7 @@ function renderRaceDetail(el){
   el.innerHTML = flipCard(`
     <div class="detail-panel race-detail">
       <div class="race-portrait-frame">
-        <img src="assets/img/races/${r.id}.jpg?v=18" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
+        <img src="assets/img/races/${r.id}.jpg?v=19" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
         <div class="portrait-empty"><span>${RACE_GLYPH[r.id] || "❖"}</span><small>Портрет появится позже</small></div>
       </div>
       <div class="race-info">
@@ -464,8 +464,17 @@ function renderClassDetail(el){
       ${featuresHtml ? `<p style="margin:10px 0 4px;color:var(--parchment)"><b>Умения 1 уровня:</b></p><ul class="feature-list">${featuresHtml}</ul>` : ""}
       ${skillOpts.length ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Навыки на выбор (${c.skillChoices.count}):</b> ${skillOpts.join(", ")}</p>` : ""}
       ${equipRoles ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Снаряжение:</b> ${equipRoles}</p>` : ""}
+      <div id="subclassPick"></div>
     </div>
   `;
+  const box = el.querySelector("#subclassPick");
+  if (subclassNeeds(c.id).length){
+    const draw = () => {
+      box.innerHTML = `<div class="bg3-divider"><span></span></div>` + classChoicesHTML(c, subclassNeeds(c.id));
+      bindChoiceTiles(box, draw);
+    };
+    draw();
+  }
 }
 
 /* ---------------- Step: Abilities ---------------- */
@@ -1008,21 +1017,36 @@ function raceChoicesDone(){
   return true;
 }
 
+/* Выборы подкласса (домен / происхождение / покровитель и их под-выборы) делаются прямо на шаге класса,
+   остальные (боевой стиль, избранный враг, компетентность) — на отдельном шаге после навыков. */
+const SUB_NEEDS = ["subclass","dragonAncestor","natureSkill","natureCantrip","knowledgeSkills"];
+function subclassNeeds(classId){ return classChoiceNeeds(classId).filter(n => SUB_NEEDS.includes(n)); }
+function laterClassNeeds(classId){ return classChoiceNeeds(classId).filter(n => !SUB_NEEDS.includes(n)); }
+
 /* ---------------- Step: Class choices (боевой стиль, избранный враг, компетентность) ---------------- */
 function renderClassChoiceStep(view){
+  const c = getClass();
+  view.innerHTML = `
+    <div class="view-header"><h1>Умения класса: ${c.name}</h1><p>На 1-м уровне ${c.name.toLowerCase()} делает выбор, который сразу работает в бою и попадёт в лист.</p></div>
+    <div id="ccBody"></div>`;
+  const body = view.querySelector("#ccBody");
+  const draw = () => { body.innerHTML = classChoicesHTML(c, laterClassNeeds(c.id)); bindChoiceTiles(body, draw); };
+  draw();
+}
+function classChoicesHTML(c, needs){
   if (!state.classChoices) state.classChoices = {};
   const cc = state.classChoices;
-  const c = getClass();
-  const needs = classChoiceNeeds(c.id);
   const tiles = (key, items) => `<div class="choice-grid">${items.map(it => `
     <button type="button" class="choice-tile${cc[key]===it.id?" selected":""}" data-k="${key}" data-v="${escapeHtml(it.id)}">
       <b>${it.name}</b>${it.text?`<span>${it.text}</span>`:""}
     </button>`).join("")}</div>`;
   let html = "";
   if (needs.includes("subclass")){
+    const sub = getSubclass(c.id, cc);
     html += `<h3 class="spell-group-title">${SUBCLASS_TITLE[c.id]}</h3>
-      <p class="pool-note">В D&amp;D ${c.name.toLowerCase()} выбирает подкласс уже на 1-м уровне — он сразу даёт умения.</p>
-      ${tiles("subclass", SUBCLASSES[c.id].map(x => ({ id:x.id, name:x.name, text:x.short })))}`;
+      <p class="pool-note">В D&amp;D ${c.name.toLowerCase()} выбирает это уже на 1-м уровне — выбор сразу даёт умения${c.id === "cleric" ? " и заклинания домена" : ""}.</p>
+      ${tiles("subclass", SUBCLASSES[c.id].map(x => ({ id:x.id, name:x.name, text:x.short })))}
+      ${sub ? `<div class="subclass-info"><b>${sub.name}.</b> ${sub.text}${(sub.features||[]).length ? `<ul class="feature-list">${sub.features.map(ft => `<li><b style="color:var(--gold-bright)">${ft.name}</b> — ${typeof ft.text === "function" ? "подробно, с вашими числами — в листе персонажа" : ft.text}</li>`).join("")}</ul>` : ""}${(sub.spells||[]).length || (sub.cantrips||[]).length ? `<p class="pool-note">Всегда подготовлены: ${[...(sub.cantrips||[]), ...(sub.spells||[])].map(id => (DND_DATA.spells.find(x => x.id === id) || {name:id}).name).join(", ")}</p>` : ""}</div>` : ""}`;
   }
   if (needs.includes("dragonAncestor")) html += `<h3 class="spell-group-title">Драконий предок</h3>${tiles("dragonAncestor", DRAGON_ANCESTORS.map(x => ({ id:x.id, name:x.name, text:x.damage })))}`;
   if (needs.includes("natureSkill")) html += `<h3 class="spell-group-title">Навык послушника природы</h3>${tiles("natureSkill", ["Выживание","Природа","Уход за животными"].map(x => ({ id:x, name:x })))}`;
@@ -1048,10 +1072,10 @@ function renderClassChoiceStep(view){
           <b>${o}</b><span>${SKILL_ABILITY[o] ? ABILITY_NAMES[SKILL_ABILITY[o]] : "инструменты"}</span>
         </button>`).join("")}</div>`;
   }
-  view.innerHTML = `
-    <div class="view-header"><h1>Умения класса: ${c.name}</h1><p>На 1-м уровне ${c.name.toLowerCase()} делает выбор, который сразу работает в бою и попадёт в лист.</p></div>
-    ${html}
-  `;
+  return html;
+}
+function bindChoiceTiles(view, redraw){
+  const cc = state.classChoices;
   view.querySelectorAll(".choice-tile").forEach(btn => {
     btn.onclick = () => {
       const k = btn.dataset.k, v = btn.dataset.v;
@@ -1068,10 +1092,27 @@ function renderClassChoiceStep(view){
         btn.classList.add("selected");
       }
       saveState();
-      if (k === "subclass"){ const y = window.scrollY; renderClassChoiceStep(view); window.scrollTo(0, y); }
+      if (k === "subclass"){
+        // смена подкласса сбрасывает его под-выборы
+        ["dragonAncestor","natureSkill","natureCantrip","knowledgeSkills"].forEach(x => delete cc[x]);
+        state.spells = [];
+        saveState();
+        const y = window.scrollY; redraw(); window.scrollTo(0, y);
+      }
       updateNextEnabled();
     };
   });
+}
+function subclassChoicesDone(){
+  const c = getClass(); if (!c) return true;
+  const cc = state.classChoices || {};
+  const needs = subclassNeeds(c.id);
+  if (needs.includes("subclass") && !cc.subclass) return "Выбери: " + SUBCLASS_TITLE[c.id].toLowerCase();
+  if (needs.includes("dragonAncestor") && !cc.dragonAncestor) return "Выбери драконьего предка";
+  if (needs.includes("natureSkill") && !cc.natureSkill) return "Выбери навык послушника природы";
+  if (needs.includes("natureCantrip") && !cc.natureCantrip) return "Выбери заговор друида";
+  if (needs.includes("knowledgeSkills") && (cc.knowledgeSkills || []).length < 2) return "Выбери 2 навыка благословения знаний";
+  return true;
 }
 function classChoicesDone(){
   const c = getClass(); if (!c) return true;
@@ -1826,7 +1867,7 @@ function validateStep(stepId){
     case "intro": return state.name.trim().length > 0 || "Введи имя персонажа";
     case "race": return !!state.raceId || "Выбери расу";
     case "subrace": return !!state.subraceId || "Выбери подрасу";
-    case "class": return !!state.classId || "Выбери класс";
+    case "class": return !state.classId ? "Выбери класс" : subclassChoicesDone();
     case "abilities": {
       const allAssigned = ABILITY_ORDER.every(ab => state.abilityAssign[ab] != null);
       return allAssigned || "Распредели все шесть значений характеристик";
