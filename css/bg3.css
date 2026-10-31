@@ -355,3 +355,7 @@ input[type=text], input[type=number], select, textarea{
 }
 
 @media print{ .bg3-motes, .nav-controls, .top-bar, .step-rail{ display:none !important; } }
+
+/* Сетка не должна «прыгать» при переключении рас/классов: место под полосу прокрутки
+   зарезервировано всегда, поэтому ширина страницы не меняется, когда описание длиннее экрана. */
+body{ overflow-y:scroll; scrollbar-gutter:stable; }

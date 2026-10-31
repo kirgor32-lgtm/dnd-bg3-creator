@@ -1,0 +1,92 @@
+{
+  "task": "Find and download Grung character portraits matching D&D race portrait set style",
+  "requirements": {
+    "style": "Semi-realistic digital fantasy painting",
+    "full_body": "Head to feet visible",
+    "background": "Pure white/off-white",
+    "character_count": "Single character",
+    "no_text_watermarks": true
+  },
+  "search_results": {
+    "deviantart_sources_found": [
+      {
+        "artist": "l0rdblu",
+        "title": "Grung Mage",
+        "url": "https://www.deviantart.com/l0rdblu/art/Grung-Mage-962641404",
+        "description": "Grung Mage with vibrant coloring, long cloak, full-body portrait",
+        "status": "CDN blocked (Unauthorized)"
+      },
+      {
+        "artist": "Lavalek-art",
+        "title": "Character design - monk grung",
+        "url": "https://www.deviantart.com/lavalek-art/art/Character-design-monk-grung-989002237",
+        "description": "Green monk grung in martial arts pose, full body",
+        "size": "800x1200px",
+        "status": "CDN blocked (Unauthorized)"
+      },
+      {
+        "artist": "casual-pancakes",
+        "title": "A Grung Alchemist",
+        "url": "https://www.deviantart.com/casual-pancakes/art/A-Grung-Alchemist-883388395",
+        "description": "Poison dart frog themed alchemist character",
+        "status": "CDN blocked (Unauthorized)"
+      },
+      {
+        "artist": "MisterGnome",
+        "title": "Grung- Frog like humanoid 5e",
+        "url": "https://www.deviantart.com/mistergnome/art/Grung-Frog-like-humanoid-5e-1058386936",
+        "description": "Detailed frog-like humanoid grung character",
+        "status": "CDN blocked (Unauthorized)"
+      }
+    ],
+    "reddit_sources_found": [
+      {
+        "subreddit": "r/DnD",
+        "title": "[OC] [Art] I want to draw a Grung for every class in 5e",
+        "url": "https://www.reddit.com/r/DnD/comments/s6x9y6/",
+        "description": "Community grung artwork series, multiple styles shown",
+        "status": "Images embedded in Reddit (difficult to extract)"
+      },
+      {
+        "subreddit": "r/DungeonsAndDragons",
+        "title": "[Art] Commission for a Grung character",
+        "url": "https://www.reddit.com/r/DungeonsAndDragons/comments/1vzu28z/",
+        "description": "Single grung character commission artwork",
+        "status": "Images embedded in Reddit"
+      }
+    ],
+    "commercial_sources": [
+      {
+        "platform": "Etsy",
+        "title": "D&D Fantasy Grung and Frogfolk Character Portrait Image Pack 1",
+        "url": "https://www.etsy.com/listing/...",
+        "description": "Grung character portrait image pack (paid content)",
+        "price": "$10.00",
+        "status": "Commercial content"
+      },
+      {
+        "platform": "Roll20 Marketplace",
+        "title": "Tomb of Annihilation Art Pack",
+        "url": "https://marketplace.roll20.net/browse/set/15780/",
+        "description": "Official D&D ToA art pack with grung portraits",
+        "features": [
+          "Chief Yorb 1 Portrait (yellow frog, regal)",
+          "Grungs 1-3 Portrait (wizard, fighter, frogs)"
+        ],
+        "status": "Official content (may require purchase)"
+      }
+    ],
+    "technical_blockers": {
+      "deviantart_cdn": "WixMP CDN returns 'Unauthorized' (403) for direct image downloads - requires referer spoofing or alternative access",
+      "pinterest": "Pinterest implements aggressive bot detection, image URLs redirect to placeholder",
+      "reddit": "Images embedded as Reddit native uploads, not directly downloadable URLs",
+      "licensing": "Most artwork is copyright protected (not CC0 or open license)"
+    }
+  },
+  "attempted_downloads": {
+    "deviantart_wixmp_cdn": "Failed - Unauthorized (403)",
+    "pinterest_images": "Failed - Redirects to placeholder (263 bytes)",
+    "reddit_native_images": "Failed - Requires authentication/API"
+  },
+  "successful_candidates": []
+}

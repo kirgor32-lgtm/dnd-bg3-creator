@@ -238,7 +238,8 @@ const HEIGHT_WEIGHT_TABLE = {
   triton:         { baseHeightIn:63, heightDice:[2,8],  baseWeightLb:130, weightMult:[2,6] },
   goblin:         { baseHeightIn:35, heightDice:[2,4],  baseWeightLb:30,  weightMult:[1,1] },
   centaur:        { baseHeightIn:70, heightDice:[2,10], baseWeightLb:400, weightMult:[2,10] },
-  changeling:     { baseHeightIn:56, heightDice:[2,10], baseWeightLb:110, weightMult:[2,4] }
+  changeling:     { baseHeightIn:56, heightDice:[2,10], baseWeightLb:110, weightMult:[2,4] },
+  grung:          { baseHeightIn:30, heightDice:[2,6],  baseWeightLb:28,  weightMult:[1,1] }
 };
 function diceSum(n, sides){
   let t = 0; for (let i=0;i<n;i++) t += 1 + Math.floor(Math.random()*sides); return t;

@@ -6,7 +6,7 @@ const RACE_GLYPH = {
   human:"🙂", elf:"🧝", dwarf:"⛏", halfling:"🍀", dragonborn:"🐉",
   gnome:"🔧", "half-elf":"🌙", "half-orc":"🪓", tiefling:"🔥",
   genasi:"🌪", kenku:"🐦", shifter:"🐺", aasimar:"👼", tabaxi:"🐱",
-  goliath:"⛰", triton:"🔱", goblin:"🗿", centaur:"🐎", changeling:"🎭"
+  goliath:"⛰", triton:"🔱", goblin:"🗿", centaur:"🐎", changeling:"🎭", grung:"🐸"
 };
 const CLASS_GLYPH = {
   barbarian:"🪓", bard:"🎵", cleric:"✝", druid:"🌿", fighter:"⚔",
@@ -24,6 +24,7 @@ let state = {
   equipmentChoice: null,
   customEquip: { weapons: [], armorId: null, shield: false, shieldId: null, packId: null },
   spells: [], spellSlotsUsed: 0,
+  raceChoices: {}, classChoices: {},
 };
 
 function loadState(){
@@ -54,9 +55,11 @@ const STEP_META = {
   race:      { title: "Выбор расы", caption: "Шаг 2 — Раса" },
   subrace:   { title: "Выбор подрасы", caption: "Шаг 3 — Подраса" },
   class:     { title: "Выбор класса", caption: "Шаг 4 — Класс" },
+  racechoice:{ title: "Особенности расы", caption: "Выбор расовых особенностей" },
   flexbonus: { title: "Расовый бонус", caption: "Расовый бонус характеристик" },
   abilities: { title: "Характеристики", caption: "Распределение характеристик" },
   skills:    { title: "Навыки", caption: "Навыки класса" },
+  classchoice:{ title: "Умения класса", caption: "Выбор умений класса" },
   physique:  { title: "Телосложение", caption: "Рост и вес" },
   equipment: { title: "Снаряжение", caption: "Снаряжение" },
   magic:     { title: "Магия", caption: "Заклинания" },
@@ -68,9 +71,12 @@ function getActiveSteps(){
   const r = getRace();
   if (r && r.subraces && r.subraces.length) steps.push("subrace");
   steps.push("class");
+  if (raceChoiceNeeds().length) steps.push("racechoice");
   if (r && r.abilityBonuses && r.abilityBonuses.flexible) steps.push("flexbonus");
   steps.push("abilities");
   steps.push("skills");
+  const cl = getClass();
+  if (cl && classChoiceNeeds(cl.id).length) steps.push("classchoice");
   steps.push("physique");
   steps.push("equipment");
   const c = getClass();
@@ -113,6 +119,7 @@ function render(){
   const renderers = {
     intro: renderIntro, race: renderRace, subrace: renderSubrace, class: renderClassStep,
     flexbonus: renderFlexBonusStep, abilities: renderAbilities, skills: renderSkillsStep,
+    racechoice: renderRaceChoiceStep, classchoice: renderClassChoiceStep,
     physique: renderPhysique, equipment: renderEquipment, magic: renderMagic, sheet: renderSheet
   };
   renderers[state.step](view);
@@ -243,6 +250,7 @@ function renderRace(view){
       if (!r.subraces || !r.subraces.some(s => s.id === state.subraceId)) state.subraceId = null;
       state.physiqueMode = null; state.heightCm = null; state.weightKg = null;
       state.flexBonus = null;
+      state.raceChoices = {};
       grid.querySelectorAll(".pick-row.selected").forEach(n => n.classList.remove("selected"));
       row.classList.add("selected");
       renderRaceDetail(view.querySelector("#raceDetail"));
@@ -260,7 +268,7 @@ function renderRaceDetail(el){
   el.innerHTML = `
     <div class="detail-panel race-detail">
       <div class="race-portrait-frame">
-        <img src="assets/img/races/${r.id}.jpg?v=16" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
+        <img src="assets/img/races/${r.id}.jpg?v=17" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
         <div class="portrait-empty"><span>${RACE_GLYPH[r.id] || "❖"}</span><small>Портрет появится позже</small></div>
       </div>
       <div class="race-info">
@@ -305,6 +313,7 @@ function renderSubrace(view){
     row.onclick = () => {
       if (state.subraceId === s.id) return;
       state.subraceId = s.id;
+      state.raceChoices = {};
       state.physiqueMode = null; state.heightCm = null; state.weightKg = null;
       grid.querySelectorAll(".pick-row.selected").forEach(n => n.classList.remove("selected"));
       row.classList.add("selected");
@@ -355,6 +364,7 @@ function renderClassStep(view){
       state.equipmentChoice = null;
       state.customEquip = { weapons: [], armorId: null, shield: false, shieldId: null, packId: null };
       state.spells = [];
+      state.classChoices = {};
       state.abilityMode = null;
       state.abilityAssign = {};
       state.diceRolls = null;
@@ -414,6 +424,8 @@ function racialBonusFor(ability){
     if (s.abilityBonuses.all) bonus += s.abilityBonuses.all;
     else if (s.abilityBonuses[ability]) bonus += s.abilityBonuses[ability];
   }
+  const rc = state.raceChoices || {};
+  if (raceChoiceNeeds().some(n => n.type === "abilityPlus") && (rc.abilityPlus || []).includes(ability)) bonus += 1;
   return bonus;
 }
 /* Гибкий расовый бонус (MPMM/Monsters of the Multiverse): игрок сам распределяет
@@ -801,22 +813,221 @@ function renderSkillGrid(view){
   const grid = view.querySelector("#skillGrid");
   const hint = view.querySelector("#skillHint");
   if (!c || !c.skillChoices){ grid.innerHTML=""; hint.textContent=""; return; }
-  hint.textContent = `Выбери ${c.skillChoices.count} навыков из списка класса.`;
+  const raceSk = racialSkills();
+  state.skillChoices = state.skillChoices.filter(sk => !raceSk.includes(sk));
+  hint.textContent = `Выбери ${c.skillChoices.count} навыков из списка класса.` + (raceSk.length ? ` От расы уже есть: ${raceSk.join(", ")}.` : "");
   grid.innerHTML = "";
   (c.skillChoices.options||[]).forEach(skill => {
-    const checked = state.skillChoices.includes(skill);
-    const atLimit = state.skillChoices.length >= c.skillChoices.count && !checked;
+    const fromRace = raceSk.includes(skill);
+    const checked = fromRace || state.skillChoices.includes(skill);
+    const atLimit = !fromRace && state.skillChoices.length >= c.skillChoices.count && !checked;
     const opt = document.createElement("label");
-    opt.className = "skill-opt" + (checked?" checked":"") + (atLimit?" disabled":"");
-    opt.innerHTML = `<input type="checkbox" ${checked?"checked":""} ${atLimit?"disabled":""}> ${skill} <span style="color:var(--text-dim);font-size:.75rem;margin-left:auto;">${SKILL_ABILITY[skill]?SKILL_ABILITY[skill].toUpperCase():""}</span>`;
-    opt.querySelector("input").onchange = e => {
+    opt.className = "skill-opt" + (checked?" checked":"") + ((atLimit||fromRace)?" disabled":"");
+    opt.innerHTML = `<input type="checkbox" ${checked?"checked":""} ${(atLimit||fromRace)?"disabled":""}> ${skill} <span style="color:var(--text-dim);font-size:.75rem;margin-left:auto;">${fromRace?"от расы":(SKILL_ABILITY[skill]?SKILL_ABILITY[skill].toUpperCase():"")}</span>`;
+    if (!fromRace) opt.querySelector("input").onchange = e => {
       if (e.target.checked) state.skillChoices.push(skill);
       else state.skillChoices = state.skillChoices.filter(s => s !== skill);
+      if (state.classChoices && state.classChoices.expertise) state.classChoices.expertise = state.classChoices.expertise.filter(x => x === "Воровские инструменты" || state.skillChoices.includes(x) || raceSk.includes(x));
       renderSkillGrid(view);
       updateNextEnabled();
     };
     grid.appendChild(opt);
   });
+}
+
+/* ---------------- Расовые данные для листа (js/race-sheet.js) ---------------- */
+function raceSheetEntries(){
+  const r = getRace(), s = getSubrace();
+  const map = (typeof RACE_SHEET !== "undefined") ? RACE_SHEET : {};
+  return [r && map[r.id], s && map[s.id]].filter(Boolean);
+}
+function raceChoiceNeeds(){
+  const needs = [];
+  raceSheetEntries().forEach(e => {
+    (e.choices || []).forEach(ch => needs.push(ch));
+    if (e.skillChoice && e.skillChoice.count) needs.push({ type:"skills", count:e.skillChoice.count, options:e.skillChoice.options });
+  });
+  return needs;
+}
+function racialFixedSkills(){
+  const out = [];
+  raceSheetEntries().forEach(e => (e.skills || []).forEach(sk => { if (!out.includes(sk)) out.push(sk); }));
+  return out;
+}
+function racialSkills(){
+  const out = racialFixedSkills();
+  ((state.raceChoices || {}).skills || []).forEach(sk => { if (!out.includes(sk)) out.push(sk); });
+  return out;
+}
+function allSkillNames(){ return Object.keys(SKILL_ABILITY); }
+
+/* ---------------- Step: Race choices (дракон-предок, кантрип, навыки, +1/+1) ---------------- */
+function renderRaceChoiceStep(view){
+  if (!state.raceChoices) state.raceChoices = {};
+  const rc = state.raceChoices;
+  const r = getRace(), s = getSubrace();
+  const needs = raceChoiceNeeds();
+  const blocks = needs.map((n, i) => {
+    if (n.type === "ancestry"){
+      return `<h3 class="spell-group-title">Драконий предок</h3>
+        <p class="pool-note">Определяет вид урона оружия дыхания и сопротивление.</p>
+        <div class="choice-grid">${n.options.map(o => `
+          <button type="button" class="choice-tile${rc.ancestry===o.id?" selected":""}" data-k="ancestry" data-v="${o.id}">
+            <b>${o.name}</b><span>${o.damage} · ${o.shape} · спасбросок ${ABILITY_NAMES[o.save]||o.save}</span>
+          </button>`).join("")}</div>`;
+    }
+    if (n.type === "cantrip"){
+      const list = DND_DATA.spells.filter(sp => sp.level === 0 && sp.classes.includes(n.from || "wizard"));
+      return `<h3 class="spell-group-title">Заговор волшебника</h3>
+        <p class="pool-note">Один заговор из списка волшебника; базовая характеристика — Интеллект.</p>
+        <div class="choice-grid">${list.map(sp => `
+          <button type="button" class="choice-tile${rc.cantrip===sp.id?" selected":""}" data-k="cantrip" data-v="${sp.id}">
+            <b>${sp.name}</b><span>${escapeHtml((sp.description||"").split(". ")[0])}.</span>
+          </button>`).join("")}</div>`;
+    }
+    if (n.type === "abilityPlus"){
+      const picks = rc.abilityPlus || [];
+      return `<h3 class="spell-group-title">+${n.value||1} к ${n.count} характеристикам</h3>
+        <p class="pool-note">Выбери ${n.count} разные характеристики${(n.exclude||[]).length?` (кроме: ${(n.exclude||[]).map(a=>ABILITY_NAMES[a]).join(", ")})`:""}.</p>
+        <div class="choice-grid choice-grid--abil">${ABILITY_ORDER.filter(a => !(n.exclude||[]).includes(a)).map(a => `
+          <button type="button" class="choice-tile${picks.includes(a)?" selected":""}" data-k="abilityPlus" data-v="${a}" data-max="${n.count}">
+            <b>${ABILITY_NAMES[a]}</b><span>${picks.includes(a)?"+1":"—"}</span>
+          </button>`).join("")}</div>`;
+    }
+    if (n.type === "skills"){
+      const opts = (n.options === "any" || !n.options) ? allSkillNames() : n.options;
+      const fixed = racialFixedSkills();
+      const picks = rc.skills || [];
+      return `<h3 class="spell-group-title">Навыки расы: выбери ${n.count}</h3>
+        <div class="choice-grid choice-grid--abil">${opts.filter(o => !fixed.includes(o)).map(o => `
+          <button type="button" class="choice-tile${picks.includes(o)?" selected":""}" data-k="skills" data-v="${o}" data-max="${n.count}">
+            <b>${o}</b><span>${ABILITY_NAMES[SKILL_ABILITY[o]]||""}</span>
+          </button>`).join("")}</div>`;
+    }
+    return "";
+  }).join("");
+  view.innerHTML = `
+    <div class="view-header"><h1>Особенности: ${s ? s.name : r.name}</h1><p>Раса даёт выбор — он попадёт в лист персонажа.</p></div>
+    ${blocks}
+  `;
+  view.querySelectorAll(".choice-tile").forEach(btn => {
+    btn.onclick = () => {
+      const k = btn.dataset.k, v = btn.dataset.v, max = Number(btn.dataset.max || 1);
+      if (k === "ancestry" || k === "cantrip"){
+        rc[k] = v;
+        btn.parentNode.querySelectorAll(".choice-tile.selected").forEach(n => n.classList.remove("selected"));
+        btn.classList.add("selected");
+      } else {
+        const arr = (rc[k] || []).slice();
+        const i = arr.indexOf(v);
+        if (i >= 0) arr.splice(i, 1);
+        else { if (arr.length >= max) arr.shift(); arr.push(v); }
+        rc[k] = arr;
+        btn.parentNode.querySelectorAll(".choice-tile").forEach(n => {
+          const on = arr.includes(n.dataset.v);
+          n.classList.toggle("selected", on);
+          if (k === "abilityPlus") n.querySelector("span").textContent = on ? "+1" : "—";
+        });
+      }
+      saveState();
+      updateNextEnabled();
+    };
+  });
+}
+function raceChoicesDone(){
+  const rc = state.raceChoices || {};
+  for (const n of raceChoiceNeeds()){
+    if (n.type === "ancestry" && !rc.ancestry) return "Выбери драконьего предка";
+    if (n.type === "cantrip" && !rc.cantrip) return "Выбери заговор";
+    if (n.type === "abilityPlus" && (rc.abilityPlus||[]).length < n.count) return `Выбери ${n.count} характеристики для +1`;
+    if (n.type === "skills" && (rc.skills||[]).length < n.count) return `Выбери ${n.count} навык(а) расы`;
+  }
+  return true;
+}
+
+/* ---------------- Step: Class choices (боевой стиль, избранный враг, компетентность) ---------------- */
+function renderClassChoiceStep(view){
+  if (!state.classChoices) state.classChoices = {};
+  const cc = state.classChoices;
+  const c = getClass();
+  const needs = classChoiceNeeds(c.id);
+  const tiles = (key, items) => `<div class="choice-grid">${items.map(it => `
+    <button type="button" class="choice-tile${cc[key]===it.id?" selected":""}" data-k="${key}" data-v="${escapeHtml(it.id)}">
+      <b>${it.name}</b>${it.text?`<span>${it.text}</span>`:""}
+    </button>`).join("")}</div>`;
+  let html = "";
+  if (needs.includes("subclass")){
+    html += `<h3 class="spell-group-title">${SUBCLASS_TITLE[c.id]}</h3>
+      <p class="pool-note">В D&amp;D ${c.name.toLowerCase()} выбирает подкласс уже на 1-м уровне — он сразу даёт умения.</p>
+      ${tiles("subclass", SUBCLASSES[c.id].map(x => ({ id:x.id, name:x.name, text:x.short })))}`;
+  }
+  if (needs.includes("dragonAncestor")) html += `<h3 class="spell-group-title">Драконий предок</h3>${tiles("dragonAncestor", DRAGON_ANCESTORS.map(x => ({ id:x.id, name:x.name, text:x.damage })))}`;
+  if (needs.includes("natureSkill")) html += `<h3 class="spell-group-title">Навык послушника природы</h3>${tiles("natureSkill", ["Выживание","Природа","Уход за животными"].map(x => ({ id:x, name:x })))}`;
+  if (needs.includes("natureCantrip")) html += `<h3 class="spell-group-title">Заговор друида</h3>${tiles("natureCantrip", DND_DATA.spells.filter(x => x.level === 0 && x.classes.includes("druid")).map(x => ({ id:x.id, name:x.name, text:x.description })))}`;
+  if (needs.includes("knowledgeSkills")){
+    const picks = cc.knowledgeSkills || [];
+    html += `<h3 class="spell-group-title">Благословение знаний: выбери 2 навыка</h3>
+      <p class="pool-note">Ты владеешь ими с удвоенным бонусом мастерства.</p>
+      <div class="choice-grid choice-grid--abil">${["История","Магия","Природа","Религия"].map(o => `
+        <button type="button" class="choice-tile${picks.includes(o)?" selected":""}" data-k="knowledgeSkills" data-v="${o}" data-multi="2"><b>${o}</b><span>Интеллект</span></button>`).join("")}</div>`;
+  }
+  if (needs.includes("fightingStyle")) html += `<h3 class="spell-group-title">Боевой стиль</h3>${tiles("fightingStyle", FIGHTING_STYLES)}`;
+  if (needs.includes("favoredEnemy")) html += `<h3 class="spell-group-title">Избранный враг</h3>${tiles("favoredEnemy", FAVORED_ENEMIES.map(x => ({id:x, name:x})))}`;
+  if (needs.includes("favoredTerrain")) html += `<h3 class="spell-group-title">Излюбленная местность</h3>${tiles("favoredTerrain", FAVORED_TERRAINS.map(x => ({id:x, name:x})))}`;
+  if (needs.includes("expertise")){
+    const prof = [...new Set([...state.skillChoices, ...racialSkills()])];
+    const opts = [...prof, "Воровские инструменты"];
+    const picks = cc.expertise || [];
+    html += `<h3 class="spell-group-title">Компетентность: выбери 2</h3>
+      <p class="pool-note">Бонус мастерства удваивается для выбранных навыков (из тех, которыми ты уже владеешь) или воровских инструментов.</p>
+      <div class="choice-grid choice-grid--abil">${opts.map(o => `
+        <button type="button" class="choice-tile${picks.includes(o)?" selected":""}" data-k="expertise" data-v="${escapeHtml(o)}" data-multi="2">
+          <b>${o}</b><span>${SKILL_ABILITY[o] ? ABILITY_NAMES[SKILL_ABILITY[o]] : "инструменты"}</span>
+        </button>`).join("")}</div>`;
+  }
+  view.innerHTML = `
+    <div class="view-header"><h1>Умения класса: ${c.name}</h1><p>На 1-м уровне ${c.name.toLowerCase()} делает выбор, который сразу работает в бою и попадёт в лист.</p></div>
+    ${html}
+  `;
+  view.querySelectorAll(".choice-tile").forEach(btn => {
+    btn.onclick = () => {
+      const k = btn.dataset.k, v = btn.dataset.v;
+      if (btn.dataset.multi){
+        const max = Number(btn.dataset.multi);
+        const arr = (cc[k] || []).slice();
+        const i = arr.indexOf(v);
+        if (i >= 0) arr.splice(i, 1); else { if (arr.length >= max) arr.shift(); arr.push(v); }
+        cc[k] = arr;
+        btn.parentNode.querySelectorAll(".choice-tile").forEach(n => n.classList.toggle("selected", arr.includes(n.dataset.v)));
+      } else {
+        cc[k] = v;
+        btn.parentNode.querySelectorAll(".choice-tile.selected").forEach(n => n.classList.remove("selected"));
+        btn.classList.add("selected");
+      }
+      saveState();
+      if (k === "subclass"){ const y = window.scrollY; renderClassChoiceStep(view); window.scrollTo(0, y); }
+      updateNextEnabled();
+    };
+  });
+}
+function classChoicesDone(){
+  const c = getClass(); if (!c) return true;
+  const cc = state.classChoices || {};
+  const needs = classChoiceNeeds(c.id);
+  if (needs.includes("subclass") && !cc.subclass) return "Выбери: " + SUBCLASS_TITLE[c.id].toLowerCase();
+  if (needs.includes("dragonAncestor") && !cc.dragonAncestor) return "Выбери драконьего предка";
+  if (needs.includes("natureSkill") && !cc.natureSkill) return "Выбери навык послушника природы";
+  if (needs.includes("natureCantrip") && !cc.natureCantrip) return "Выбери заговор друида";
+  if (needs.includes("knowledgeSkills") && (cc.knowledgeSkills || []).length < 2) return "Выбери 2 навыка благословения знаний";
+  if (needs.includes("fightingStyle") && !cc.fightingStyle) return "Выбери боевой стиль";
+  if (needs.includes("favoredEnemy") && !cc.favoredEnemy) return "Выбери избранного врага";
+  if (needs.includes("favoredTerrain") && !cc.favoredTerrain) return "Выбери излюбленную местность";
+  if (needs.includes("expertise")){
+    const prof = new Set([...state.skillChoices, ...racialSkills(), "Воровские инструменты"]);
+    const ex = (cc.expertise || []).filter(x => prof.has(x));
+    if (ex.length < 2) return "Выбери 2 навыка для компетентности";
+  }
+  return true;
 }
 
 /* ---------------- Step: Physique (рост/вес/телосложение, интерактивная миниатюра) ---------------- */
@@ -1154,7 +1365,9 @@ const SPELL_ICON = {
   "identify":"🔍","illusory-script":"📝","inflict-wounds":"🩸","longstrider":"👢",
   "protection-from-evil-and-good":"🕊️","purify-food-and-drink":"🍞","sanctuary":"⛪",
   "shield-of-faith":"🛡️","silent-image":"🖼️","sleep":"💤","speak-with-animals":"🐾",
-  "tasha-hideous-laughter":"🤪","thunderwave":"🌩️","unseen-servant":"👻"
+  "tasha-hideous-laughter":"🤪","thunderwave":"🌩️","unseen-servant":"👻",
+  "bless":"🙏","command":"🗣️","burning-hands":"🔥","divine-favor":"⚔️","animal-friendship":"🦌",
+  "dissonant-whispers":"👂","fog-cloud":"🌫️"
 };
 function renderMagic(view){
   const c = getClass();
@@ -1164,7 +1377,11 @@ function renderMagic(view){
   const spellLimit = casterKnownCount(c.id, abMod);
   const slots = LEVEL1_SPELL_SLOTS[c.id] || 2;
   const cantrips = DND_DATA.spells.filter(s => s.level === 0 && s.classes.includes(c.id));
-  const lvl1 = DND_DATA.spells.filter(s => s.level === 1 && s.classes.includes(c.id));
+  const sub = getSubclass(c.id, state.classChoices);
+  const extra = (sub && sub.extraList) || [];
+  const fixed = (sub && sub.spells) || []; // заклинания домена всегда подготовлены — их не выбирают
+  const lvl1 = DND_DATA.spells.filter(s => s.level === 1 && (s.classes.includes(c.id) || extra.includes(s.id)) && !fixed.includes(s.id));
+  state.spells = state.spells.filter(id => !fixed.includes(id));
 
   view.innerHTML = `
     <div class="view-header"><h1>Выбери заклинания</h1><p>${c.name} черпает силу из ${ABILITY_NAMES[r.ability]}. Выбери фокусы и заклинания 1-го уровня — они появятся в листе персонажа со слотами применения.</p></div>
@@ -1237,13 +1454,36 @@ function getEquip(c){
   const hasShield = opt.items.some(i => SHIELD_NAMES.includes(i.name || i));
   return { choice: opt.choice, role: opt.role, items: opt.items, armorMeta, hasShield };
 }
-function computeAC(dexMod, equip){
+function computeAC(dexMod, equip, mods, classId){
   const hasShield = equip && equip.hasShield;
-  if (!equip || !equip.armorMeta) return 10 + dexMod + (hasShield ? 2 : 0);
+  if (!equip || !equip.armorMeta){
+    // Защита без доспехов: варвар (щит можно), монах (без щита).
+    if (classId === "barbarian") return 10 + dexMod + mods.con + (hasShield ? 2 : 0);
+    if (classId === "monk" && !hasShield) return 10 + dexMod + mods.wis;
+    return 10 + dexMod + (hasShield ? 2 : 0);
+  }
   const a = equip.armorMeta;
   const dexBonus = a.dexCap === 0 ? 0 : (a.dexCap != null ? Math.min(dexMod, a.dexCap) : dexMod);
   return a.base + dexBonus + (hasShield ? 2 : 0);
 }
+
+/* Подстановка чисел персонажа в тексты особенностей. */
+function fillRuleText(t, mods, pb){
+  return String(t || "")
+    .replace(/\{pb2\}/g, String(pb * 2))
+    .replace(/\{pb\}/g, String(pb))
+    .replace(/\{mod:(\w+)\}/g, (_, ab) => fmtMod(mods[ab]))
+    .replace(/\{dc:(\w+)\}/g, (_, ab) => String(8 + pb + mods[ab]));
+}
+/* Классовые владения инструментами (PHB), которых нет в DND_DATA. */
+const CLASS_TOOLS = {
+  bard:  ["Три музыкальных инструмента на выбор"],
+  druid: ["Набор травника"],
+  monk:  ["Один вид ремесленных инструментов или музыкальный инструмент"],
+  rogue: ["Воровские инструменты"]
+};
+const CLASS_LANGS = { druid:["Друидический"], rogue:["Воровской жаргон"] };
+
 function computeFinal(){
   const r = getRace(), s = getSubrace(), c = getClass();
   const totals = {};
@@ -1251,27 +1491,121 @@ function computeFinal(){
   const mods = {};
   ABILITY_ORDER.forEach(ab => mods[ab] = abilityMod(totals[ab]));
   const pb = PROFICIENCY_BONUS_LVL1;
+  const rs = raceSheetEntries();
+  const rc = state.raceChoices || {};
+  const cc = state.classChoices || {};
+  const ancestry = (() => {
+    const need = raceChoiceNeeds().find(n => n.type === "ancestry");
+    return need ? need.options.find(o => o.id === rc.ancestry) || null : null;
+  })();
+
   const saves = ABILITY_ORDER.map(ab => {
     const prof = c && c.savingThrows && c.savingThrows.map(x=>x.toLowerCase()).includes(ab);
     return { ab, prof, value: mods[ab] + (prof ? pb : 0) };
   });
+  const sub = c ? getSubclass(c.id, cc) : null;
+  const subSkills = sub ? [...(sub.id === "knowledge" ? cc.knowledgeSkills || [] : []), ...(sub.id === "nature" && cc.natureSkill ? [cc.natureSkill] : [])] : [];
+  const raceSk = [...racialSkills(), ...subSkills];
+  const expertise = [...(cc.expertise || []), ...(sub && sub.id === "knowledge" ? cc.knowledgeSkills || [] : [])];
   const skills = Object.entries(SKILL_ABILITY).map(([name, ab]) => {
-    const prof = state.skillChoices.includes(name);
-    return { name, ab, prof, value: mods[ab] + (prof ? pb : 0) };
+    const prof = state.skillChoices.includes(name) || raceSk.includes(name);
+    const exp = prof && expertise.includes(name);
+    return { name, ab, prof, exp, value: mods[ab] + (prof ? pb : 0) + (exp ? pb : 0) };
   });
-  const hp = (c ? c.hitDie : 8) + mods.con;
+  const perception = skills.find(x => x.name === "Восприятие");
+  const passivePerception = 10 + (perception ? perception.value : mods.wis);
+
+  const hpBonus = rs.reduce((acc, e) => acc + (e.hpPerLevel || 0), 0) + ((sub && sub.hpPerLevel) || 0);
+  const hp = (c ? c.hitDie : 8) + mods.con + hpBonus;
   const equip = getEquip(c);
-  const ac = computeAC(mods.dex, equip);
+  let ac = computeAC(mods.dex, equip, mods, c && c.id);
+  if (sub && sub.unarmoredAC && !(equip && equip.armorMeta)) ac = Math.max(ac, sub.unarmoredAC + mods.dex + (equip && equip.hasShield ? 2 : 0));
   const initiative = mods.dex;
-  const spellsDetailed = state.spells.map(id => DND_DATA.spells.find(sp=>sp.id===id)).filter(Boolean);
+
+  // Скорости
+  const pick = k => rs.reduce((v, e) => e[k] != null ? e[k] : v, null);
+  const walk = (s && s.speed) || pick("speed") || (r ? r.speed : 30);
+  const speeds = { walk, climb: pick("climb"), swim: pick("swim"), fly: pick("fly") };
+  const darkvision = pick("darkvision");
+
+  // Сопротивления / иммунитеты
+  const resist = [], immune = [];
+  rs.forEach(e => { (e.resistances||[]).forEach(x => resist.includes(x) || resist.push(x)); (e.immunities||[]).forEach(x => immune.includes(x) || immune.push(x)); });
+  if (ancestry && !resist.includes(ancestry.damage)) resist.push(ancestry.damage);
+
+  // Владения
+  const uniq = arr => arr.filter((x, i) => x && arr.indexOf(x) === i);
+  const armorProf = uniq([...(c ? c.armorProficiency || [] : []), ...rs.flatMap(e => e.armor || []), ...((sub && sub.armor) || [])]);
+  const weaponProf = uniq([...(c ? c.weaponProficiency || [] : []), ...rs.flatMap(e => e.weapons || []), ...((sub && sub.weapons) || [])]);
+  const toolProf = uniq([...(c ? CLASS_TOOLS[c.id] || [] : []), ...rs.flatMap(e => e.tools || []), rc.dwarfTool]);
+  const languages = uniq([...rs.flatMap(e => e.languages || []), ...(r && !rs.some(e => e.languages) ? r.languages || [] : []), ...(c ? CLASS_LANGS[c.id] || [] : []), ...((sub && sub.languages) || [])]);
+
+  // Классовые умения
+  const classFeatures = c ? classSheetFeatures(c.id, { mods, pb, classChoices: cc }) : [];
+
+  // Расовые черты (без «гибкого бонуса» и т.п. — это не игровое умение)
+  const raceTraits = [];
+  if (darkvision) raceTraits.push({ name: darkvision >= 120 ? "Превосходное тёмное зрение" : "Тёмное зрение", text: DARKVISION_TEXT(darkvision), kind:"passive" });
+  rs.forEach(e => (e.traits || []).forEach(t => raceTraits.push(Object.assign({ kind:"passive" }, t, { text: fillRuleText(t.text, mods, pb) }))));
+  if (ancestry){
+    raceTraits.unshift(
+      { name:`Наследие драконов: ${ancestry.name}`, text:`Сопротивление урону: ${ancestry.damage}.`, kind:"passive" },
+      { name:"Оружие дыхания", text:`Действием: ${ancestry.shape}, урон ${ancestry.damage} 2к6; спасбросок ${ABILITY_NAMES[ancestry.save]} Сл ${8 + pb + mods.con}, при успехе половина урона.`, kind:"action", uses:1, rest:"короткий или продолжительный отдых" }
+    );
+  }
+  const laterFeatures = [];
+  rs.forEach(e => (e.later || []).forEach(t => laterFeatures.push(t)));
+
+  // Расовые заклинания
+  const bestMental = ["int","wis","cha"].reduce((b, ab) => mods[ab] > mods[b] ? ab : b, "int");
+  const raceSpells = [];
+  rs.forEach(e => (e.spells || []).forEach(sp => {
+    const ab = sp.ability === "best" ? bestMental : sp.ability;
+    const lvl = sp.minLevel || 1;
+    if (lvl > 1){ laterFeatures.push({ minLevel: lvl, name: sp.name || sp.id, text: `${sp.note}: ${sp.uses}. Базовая характеристика — ${ABILITY_NAMES[ab]}.` }); return; }
+    const base = DND_DATA.spells.find(x => x.id === sp.id);
+    const extra = RACE_SPELL_TEXT[sp.id] || {};
+    raceSpells.push({
+      id: sp.id, name: extra.name || (base && base.name) || sp.name, level: base ? base.level : (extra.level || 0),
+      school: base ? base.school : null,
+      description: extra.text || (base && base.description) || "",
+      ability: ab, uses: fillRuleText(sp.uses, mods, pb), note: sp.note,
+      circles: sp.circles === "pb" ? pb : (sp.circles || 0),
+      dc: 8 + pb + mods[ab], atk: pb + mods[ab]
+    });
+  }));
+  if (rc.cantrip){
+    const base = DND_DATA.spells.find(x => x.id === rc.cantrip);
+    if (base) raceSpells.push({ id: base.id, name: base.name, level: 0, school: base.school, description: base.description, ability:"int", uses:"неограниченно", note:"Заговор высшего эльфа", circles:0, dc: 8 + pb + mods.int, atk: pb + mods.int });
+  }
+
+  // Атаки
+  const raceAttacks = [];
+  rs.forEach(e => (e.attacks || []).forEach(a => raceAttacks.push({ name: a.name, hit: fmtMod(mods[a.ability] + pb), dmg: `${a.dice}${fmtMod(mods[a.ability])} ${a.type}`, notes: a.notes || "" })));
+  const attacks = buildAttacks({ mods, pb, c, equip, classChoices: cc, raceAttacks });
+  if (r && r.id === "grung") attacks.forEach(a => { if (/колющ/.test(a.dmg)) a.notes = (a.notes ? a.notes + ", " : "") + "яд кожи: +2к4 ядом (спас ТЕЛ Сл 12)"; });
+
+  // Классовые заклинания
+  const subSpellIds = sub ? [...(sub.cantrips || []), ...(sub.id === "nature" && cc.natureCantrip ? [cc.natureCantrip] : []), ...(sub.spells || [])] : [];
+  const spellsDetailed = [
+    ...state.spells.filter(id => !subSpellIds.includes(id)).map(id => DND_DATA.spells.find(sp=>sp.id===id)),
+    ...subSpellIds.map(id => { const b = DND_DATA.spells.find(sp=>sp.id===id); return b ? Object.assign({}, b, { fromSub: sub.name }) : null; })
+  ].filter(Boolean).sort((a, b) => a.level - b.level);
   const spellNames = spellsDetailed.map(sp => sp.name);
   const slots = c ? (LEVEL1_SPELL_SLOTS[c.id] || 0) : 0;
+  const casting = (c && CASTER_RULES[c.id]) ? (() => {
+    const ab = CASTER_RULES[c.id].ability;
+    return { ab, dc: 8 + pb + mods[ab], atk: pb + mods[ab], text: CASTING_TEXT[c.id] || "" };
+  })() : null;
+
   const avg = avgHeightWeight(state.raceId, state.subraceId);
   const roleplayLines = [
     ...abilityFlavorLines(totals),
     ...physiqueFlavorLines(state.heightCm, state.weightKg, avg.weightKg)
   ];
-  return { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellNames, spellsDetailed, slots, roleplayLines };
+  return { r, s, c, totals, mods, pb, saves, skills, passivePerception, hp, ac, initiative, equip, speeds, darkvision,
+    resist, immune, armorProf, weaponProf, toolProf, languages, classFeatures, raceTraits, laterFeatures,
+    raceSpells, attacks, spellNames, spellsDetailed, slots, casting, roleplayLines };
 }
 
 function renderSheet(view){
@@ -1280,11 +1614,13 @@ function renderSheet(view){
     <div class="view-header"><h1>Твой герой готов</h1><p>Проверь лист персонажа и экспортируй его в PDF — или вернись назад, чтобы что-то изменить.</p></div>
     <div class="sheet-actions">
       <button class="btn btn-gold" id="btnPdf">⇩ Скачать PDF</button>
+      <button class="btn btn-ghost" id="btnPrint">🖶 Печать</button>
       <button class="btn btn-ghost" id="btnRestart">↻ Начать заново</button>
     </div>
     <div class="sheet-wrap"><div id="charSheet">${sheetHTML(d)}</div></div>
   `;
   view.querySelector("#btnPdf").onclick = () => exportPDF();
+  view.querySelector("#btnPrint").onclick = () => window.print();
   view.querySelector("#btnRestart").onclick = () => {
     if (confirm("Начать создание персонажа заново? Все данные будут сброшены.")){
       localStorage.removeItem(STORAGE_KEY);
@@ -1293,8 +1629,13 @@ function renderSheet(view){
   };
 }
 
+const KIND_LABEL = { action:"действие", bonus:"бонусное действие", reaction:"реакция" };
+function sheetCircles(n){ return n > 0 ? `<span class="sf-circles">${"☐".repeat(n)}</span>` : ""; }
+
 function sheetHTML(d){
-  const { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellsDetailed, slots, roleplayLines } = d;
+  const { r, s, c, totals, mods, pb, saves, skills, passivePerception, hp, ac, initiative, equip, speeds,
+    resist, immune, armorProf, weaponProf, toolProf, languages, classFeatures, raceTraits, laterFeatures,
+    raceSpells, attacks, spellsDetailed, slots, casting, roleplayLines } = d;
   const abBox = ab => `
     <div class="ab-box">
       <div class="n">${ABILITY_NAMES[ab]}</div>
@@ -1302,25 +1643,31 @@ function sheetHTML(d){
       <div class="s">${fmtMod(mods[ab])}</div>
     </div>`;
   const saveRow = row => `<div class="save-row ${row.prof?'prof':''}"><span>${row.prof?'●':'○'} ${ABILITY_NAMES[row.ab]}</span><b>${fmtMod(row.value)}</b></div>`;
-  const skillRow = row => `<div class="skill-row ${row.prof?'prof':''}"><span>${row.prof?'●':'○'} ${row.name}</span><b>${fmtMod(row.value)}</b></div>`;
-  const traits = [
-    ...(r ? (r.traits||[]) : []),
-    ...(s ? (s.traits||[]) : [])
-  ];
-  const spellRow = sp => {
+  const skillRow = row => `<div class="skill-row ${row.prof?'prof':''}"><span>${row.exp?'◆':(row.prof?'●':'○')} ${row.name}</span><b>${fmtMod(row.value)}</b></div>`;
+  const featRow = f => {
+    const uses = f.uses === "pb" ? pb : (f.uses || 0);
+    const tags = [KIND_LABEL[f.kind], uses ? `${uses} раз(а)${f.rest ? ", восстанавл.: " + f.rest : ""}` : (f.rest ? "восстанавл.: " + f.rest : "")].filter(Boolean).join(" · ");
+    return `<div class="sf-row"><div class="sf-head"><b>${f.name}</b>${tags ? `<span class="sf-tag">${tags}</span>` : ""}${sheetCircles(uses)}</div><div class="sf-text">${f.text}</div></div>`;
+  };
+  const spellCard = (sp, opts) => {
     const isCantrip = sp.level === 0;
-    const brief = (sp.description || "").split(". ").slice(0,1).join(". ").replace(/\.*$/, ".");
     const col = SCHOOL_COLOR[sp.school] || ["#7a6230","#2a2010"];
     const icon = SPELL_ICON[sp.id] || SCHOOL_GLYPH[sp.school] || "✨";
+    const circles = opts.circles != null ? opts.circles : (isCantrip ? 0 : slots);
+    const meta = opts.meta || ((isCantrip ? "заговор · неограниченно" : `${sp.level}-й круг · тратит ячейку`) + (sp.fromSub ? ` · ${sp.fromSub}: всегда подготовлено` : ""));
     return `
-    <div class="sheet-spell-card" data-spell-id="${sp.id}" title="${escapeHtml(brief)}">
+    <div class="sheet-spell-card" data-spell-id="${sp.id || ""}">
       <div class="sheet-spell-icon" style="background:linear-gradient(160deg,${col[0]},${col[1]});">${icon}</div>
       <div class="sheet-spell-info">
-        <span class="sheet-spell-name">${sp.name}${isCantrip?" <i>(фокус)</i>":""}</span>
-        <span class="sheet-spell-charges">${isCantrip ? `<span class="sheet-spell-charge infinite">∞</span>` : Array.from({length:slots}).map((_,i)=>`<span class="sheet-spell-charge" data-idx="${i}"></span>`).join("")}</span>
+        <div class="sheet-spell-top"><span class="sheet-spell-name">${sp.name}</span>${circles ? sheetCircles(circles) : (isCantrip ? `<span class="sheet-spell-charge infinite">∞</span>` : "")}</div>
+        <span class="sheet-spell-meta">${meta}</span>
+        <span class="sheet-spell-desc">${escapeHtml(sp.description || "")}</span>
       </div>
     </div>`;
   };
+  const speedTxt = [`${speeds.walk} фт`, speeds.climb ? `лазание ${speeds.climb}` : "", speeds.swim ? `плавание ${speeds.swim}` : "", speeds.fly ? `полёт ${speeds.fly}` : ""].filter(Boolean).join(", ");
+  const list = arr => arr.length ? arr.join(", ") : "—";
+  const hasSpells = spellsDetailed.length || raceSpells.length;
   return `
     <div class="sheet-head">
       ${state.photoDataUrl ? `<img class="sheet-photo" src="${state.photoDataUrl}" alt="Портрет">` : ""}
@@ -1333,29 +1680,54 @@ function sheetHTML(d){
     <div class="sheet-grid">
       <div class="abilities-col">
         ${ABILITY_ORDER.map(abBox).join("")}
+        <div class="ab-box"><div class="n">Пассивная внимательность</div><div class="m">${passivePerception}</div></div>
       </div>
       <div class="mid-col">
         <div class="saves-box"><h4>Спасброски</h4>${saves.map(saveRow).join("")}</div>
-        <div class="skills-box"><h4>Навыки</h4>${skills.map(skillRow).join("")}</div>
+        <div class="skills-box"><h4>Навыки</h4>${skills.map(skillRow).join("")}<div class="sheet-legend">● владение · ◆ компетентность (×2)</div></div>
       </div>
       <div class="right-col">
         <div class="combat-stats">
           <div class="cbox"><div class="n">Класс доспеха</div><div class="m">${ac}</div></div>
           <div class="cbox"><div class="n">Хиты</div><div class="m">${hp}</div></div>
           <div class="cbox"><div class="n">Инициатива</div><div class="m">${fmtMod(initiative)}</div></div>
-          <div class="cbox"><div class="n">Скорость</div><div class="m">${r?r.speed:30}</div></div>
+          <div class="cbox"><div class="n">Скорость</div><div class="m">${speeds.walk}</div></div>
+          <div class="cbox"><div class="n">Кость хитов</div><div class="m">1к${c ? c.hitDie : 8}</div></div>
+          <div class="cbox"><div class="n">Спасброски от смерти</div><div class="m sf-death">✓☐☐☐<br>✗☐☐☐</div></div>
         </div>
         <div class="equip-box">
           <h4>Снаряжение</h4>
-          <ul>${equip ? equip.items.map(i=>`<li><b>${i.name||i}</b>${i.info?` <span style="color:var(--text-dim);font-size:.78rem;">(${i.info})</span>`:""}</li>`).join("") : "<li>—</li>"}</ul>
+          <ul>${equip ? equip.items.map(i=>`<li><b>${i.name||i}</b>${i.info?` <span class="eq-info">(${i.info})</span>`:""}</li>`).join("") : "<li>—</li>"}</ul>
+        </div>
+        <div class="equip-box">
+          <h4>Владения и языки</h4>
+          <div class="prof-line"><b>Доспехи:</b> ${list(armorProf)}</div>
+          <div class="prof-line"><b>Оружие:</b> ${list(weaponProf)}</div>
+          <div class="prof-line"><b>Инструменты:</b> ${list(toolProf)}</div>
+          <div class="prof-line"><b>Языки:</b> ${list(languages)}</div>
+          <div class="prof-line"><b>Скорость:</b> ${speedTxt}</div>
+          ${resist.length ? `<div class="prof-line"><b>Сопротивление:</b> ${resist.join(", ")}</div>` : ""}
+          ${immune.length ? `<div class="prof-line"><b>Иммунитет:</b> ${immune.join(", ")}</div>` : ""}
         </div>
       </div>
     </div>
-    ${spellsDetailed.length ? `<div class="spells-box spells-box-bottom" style="margin-top:14px;"><h4>Заклинания</h4><div class="spells-row">${spellsDetailed.map(spellRow).join("")}</div></div>` : ""}
-    <div class="traits-box" style="margin-top:14px;">
-      <h4>Расовые и классовые черты</h4>
-      <div>${traits.join(" · ")}</div>
+    <div class="traits-box sheet-attacks" style="margin-top:14px;">
+      <h4>Атаки</h4>
+      <table class="atk-table"><thead><tr><th>Оружие</th><th>Попадание</th><th>Урон</th><th>Примечания</th></tr></thead>
+      <tbody>${attacks.map(a => `<tr><td>${a.name}</td><td>${a.hit}</td><td>${a.dmg}</td><td>${a.notes || ""}</td></tr>`).join("")}</tbody></table>
     </div>
+    ${hasSpells ? `<div class="spells-box spells-box-bottom" style="margin-top:14px;">
+      <h4>Заклинания</h4>
+      ${casting ? `<div class="spell-casting-line">${casting.text} <b>Сл спасброска ${casting.dc}</b> · <b>атака заклинанием ${fmtMod(casting.atk)}</b>${slots ? ` · ячейки 1-го круга: ${sheetCircles(slots)}` : ""}</div>` : ""}
+      <div class="spells-row">${spellsDetailed.map(sp => spellCard(sp, {})).join("")}</div>
+      ${raceSpells.length ? `<div class="spell-casting-line">Врождённая магия расы — без ячеек:</div>
+        <div class="spells-row">${raceSpells.map(sp => spellCard(sp, { circles: sp.circles, meta: `${sp.note} · ${sp.uses} · ${ABILITY_NAMES[sp.ability]}: Сл ${sp.dc}, атака ${fmtMod(sp.atk)}` })).join("")}</div>` : ""}
+    </div>` : ""}
+    <div class="sheet-features">
+      <div class="traits-box"><h4>Умения класса${c ? ": " + c.name : ""}</h4>${classFeatures.map(featRow).join("") || "—"}</div>
+      <div class="traits-box"><h4>Особенности расы${r ? ": " + (s ? s.name : r.name) : ""}</h4>${raceTraits.map(featRow).join("") || "—"}</div>
+    </div>
+    ${laterFeatures.length ? `<div class="notes-box" style="margin-top:12px;"><h4>Откроется на следующих уровнях</h4><ul>${laterFeatures.sort((a,b)=>a.minLevel-b.minLevel).map(t=>`<li><b>${t.minLevel}-й уровень — ${t.name}.</b> ${t.text}</li>`).join("")}</ul></div>` : ""}
     ${roleplayLines && roleplayLines.length ? `<div class="notes-box" style="margin-top:12px;"><h4>Отыгрыш</h4><ul>${roleplayLines.map(l=>`<li>${l}</li>`).join("")}</ul></div>` : ""}
     ${state.background ? `<div class="notes-box" style="margin-top:12px;"><h4>Предыстория</h4><div>${escapeHtml(state.background)}</div></div>` : ""}
     <div class="sheet-footer"><span>Кузня Героев — редактор персонажей D&amp;D 5e</span><span>SRD (Open Game License)</span></div>
@@ -1401,6 +1773,8 @@ function validateStep(stepId){
       if (!flex) return true;
       return flex.done || "Распредели гибкий расовый бонус между характеристиками";
     }
+    case "racechoice": return raceChoicesDone();
+    case "classchoice": return classChoicesDone();
     case "skills": {
       const c = getClass();
       if (c && c.skillChoices && state.skillChoices.length < c.skillChoices.count) return `Выбери ${c.skillChoices.count} навыка(ов)`;
