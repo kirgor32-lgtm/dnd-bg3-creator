@@ -359,3 +359,30 @@ input[type=text], input[type=number], select, textarea{
 /* Сетка не должна «прыгать» при переключении рас/классов: место под полосу прокрутки
    зарезервировано всегда, поэтому ширина страницы не меняется, когда описание длиннее экрана. */
 body{ overflow-y:scroll; scrollbar-gutter:stable; }
+
+/* ---------- Карточка расы: переворот «История» ---------- */
+.flip-card{ position:relative; perspective:1600px; transition:height .45s ease; }
+.flip-inner{ position:relative; width:100%; height:100%; transform-style:preserve-3d; transition:transform .7s cubic-bezier(.3,.7,.2,1); }
+.flip-card.flipped .flip-inner{ transform:rotateY(180deg); }
+.flip-face{ backface-visibility:hidden; -webkit-backface-visibility:hidden; }
+.flip-front{ position:relative; }
+.flip-front > .detail-panel{ height:100%; }
+.flip-card.flipped .flip-front{ pointer-events:none; }
+.flip-back{ position:absolute; inset:0; transform:rotateY(180deg); display:flex; flex-direction:column; padding:16px 20px 10px; }
+.flip-card:not(.flipped) .flip-back{ pointer-events:none; }
+.lore-head{ display:flex; justify-content:flex-end; margin-bottom:6px; }
+.lore-body{ flex:1; min-height:0; overflow-y:auto; padding-right:8px; line-height:1.6; color:var(--text-light, #d8cbb3); scrollbar-width:thin; scrollbar-color:var(--gold-dim) transparent; }
+.lore-body h4{ font-family:'Cinzel',serif; color:var(--gold-bright); letter-spacing:.05em; font-size:.95rem; margin:16px 0 6px; }
+.lore-body p{ margin:0 0 10px; text-indent:1.2em; }
+.lore-body p b{ color:var(--gold-bright); }
+.lore-quote{ margin:8px 0 14px; padding:8px 14px; border-left:2px solid var(--gold-dim); font-style:italic; opacity:.85; }
+.lore-src{ font-size:.75rem; opacity:.55; text-indent:0 !important; margin-top:14px !important; }
+.lore-btn{
+  display:inline-flex; align-items:center; gap:8px; margin-top:14px; padding:7px 16px;
+  font-family:'Cinzel',serif; font-size:.85rem; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--gold-bright); background:linear-gradient(180deg, rgba(60,46,30,.9), rgba(28,22,16,.95));
+  border:1px solid var(--gold); border-radius:2px; cursor:pointer; transition:filter .2s, box-shadow .2s;
+}
+.lore-btn:hover{ filter:brightness(1.2); box-shadow:0 0 10px rgba(230,201,138,.35); }
+.lore-btn--back{ margin-top:0; padding:5px 12px; font-size:.75rem; }
+@media (prefers-reduced-motion: reduce){ .flip-inner, .flip-card{ transition:none; } }

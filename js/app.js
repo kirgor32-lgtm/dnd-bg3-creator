@@ -265,10 +265,10 @@ function renderRace(view){
 function renderRaceDetail(el){
   const r = getRace();
   if (!r){ el.innerHTML = `<p class="pool-note">Выбери расу, чтобы увидеть её черты.</p>`; return; }
-  el.innerHTML = `
+  el.innerHTML = flipCard(`
     <div class="detail-panel race-detail">
       <div class="race-portrait-frame">
-        <img src="assets/img/races/${r.id}.jpg?v=17" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
+        <img src="assets/img/races/${r.id}.jpg?v=18" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
         <div class="portrait-empty"><span>${RACE_GLYPH[r.id] || "❖"}</span><small>Портрет появится позже</small></div>
       </div>
       <div class="race-info">
@@ -278,9 +278,69 @@ function renderRaceDetail(el){
         <div class="bg3-divider"><span></span></div>
         <ul>${(r.traits||[]).map(t => `<li>${t}</li>`).join("")}</ul>
         ${r.languages ? `<p class="detail-note"><b>Языки:</b> ${r.languages.join(", ")}</p>` : ""}
+        ${loreButton(r.id)}
       </div>
     </div>
-  `;
+  `, raceLoreHTML(r), r.id);
+  bindFlip(el);
+}
+/* ---- Оборот карточки: «История» ---- */
+function esc(t){ return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function loreButton(key){
+  return `<button type="button" class="lore-btn" data-flip="1"><span>📜</span> История</button>`;
+}
+function flipCard(front, back, key){
+  if (!back) return front;
+  return `<div class="flip-card" data-key="${key}">
+    <div class="flip-inner">
+      <div class="flip-face flip-front">${front}</div>
+      <div class="flip-face flip-back detail-panel" aria-hidden="true">
+        <div class="lore-head"><button type="button" class="lore-btn lore-btn--back" data-flip="1">← К чертам</button></div>
+        <div class="lore-body">${back}</div>
+      </div>
+    </div>
+  </div>`;
+}
+function bindFlip(el){
+  const card = el.querySelector(".flip-card"); if (!card) return;
+  const front = card.querySelector(".flip-front"), back = card.querySelector(".flip-back");
+  const fit = () => {
+    const h = front.offsetHeight;
+    if (!card.classList.contains("flipped")) { card.style.height = h + "px"; return; }
+    if (window.innerWidth < 760) {
+      // на телефоне оборот раскрывается на всю длину текста — без прокрутки внутри прокрутки
+      const body = back.querySelector(".lore-body");
+      card.style.height = (back.offsetHeight - body.clientHeight + body.scrollHeight + 4) + "px";
+    } else card.style.height = Math.max(h, 520) + "px";
+  };
+  fit();
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(front);
+  card.querySelectorAll("img").forEach(i => i.addEventListener("load", fit));
+  card.querySelectorAll("[data-flip]").forEach(b => b.addEventListener("click", () => {
+    const on = !card.classList.contains("flipped");
+    card.classList.toggle("flipped", on);
+    back.setAttribute("aria-hidden", String(!on)); front.setAttribute("aria-hidden", String(on));
+    fit();
+    if (on) back.querySelector(".lore-body").scrollTop = 0;
+    if (window.innerWidth < 760) card.scrollIntoView({ behavior:"smooth", block:"start" });
+  }));
+}
+function loreParas(arr){ return (arr || []).map(p => `<p>${esc(p)}</p>`).join(""); }
+function raceLoreHTML(r){
+  const L = (typeof RACE_LORE !== "undefined") && RACE_LORE[r.id];
+  if (!L) return "";
+  const subs = (r.subraces || []).filter(s => L.subs && L.subs[s.id] && L.subs[s.id].length);
+  return `<h3>${r.name}: история народа</h3>
+    ${L.quote ? `<blockquote class="lore-quote">${esc(L.quote)}</blockquote>` : ""}
+    ${loreParas(L.intro)}
+    ${L.sections.map(s => `<h4>${esc(s.title)}</h4>${loreParas(s.paras)}`).join("")}
+    ${subs.length ? `<h4>Подрасы</h4>${subs.map(s => `<p><b>${s.name}.</b> ${esc(L.subs[s.id][0])}</p>`).join("")}` : ""}
+    <p class="lore-src">Источник: dnd.su</p>`;
+}
+function subraceLoreHTML(r, s){
+  const L = (typeof RACE_LORE !== "undefined") && RACE_LORE[r.id];
+  if (!L || !L.subs || !L.subs[s.id] || !L.subs[s.id].length) return "";
+  return `<h3>${s.name}</h3>${loreParas(L.subs[s.id])}<p class="lore-src">Источник: dnd.su</p>`;
 }
 function abilityBonusChips(bonuses){
   if (!bonuses) return "";
@@ -330,14 +390,17 @@ function renderSubraceDetail(el){
   const s = getSubrace();
   const r = getRace();
   if (!s){ el.innerHTML = `<p class="pool-note">Выбери подрасу, чтобы увидеть её черты.</p>`; return; }
-  el.innerHTML = `
+  const back = subraceLoreHTML(r, s);
+  el.innerHTML = flipCard(`
     <div class="detail-panel">
       <h3>${s.name}</h3>
       <p class="detail-sub">Подраса: ${r.name.toLowerCase()}</p>
       <div class="stat-row">${abilityBonusChips(s.abilityBonuses)}</div>
       <ul>${(s.traits||[]).map(t => `<li>${t}</li>`).join("")}</ul>
+      ${back ? loreButton(s.id) : ""}
     </div>
-  `;
+  `, back, s.id);
+  bindFlip(el);
 }
 
 /* ---------------- Step: Class ---------------- */
