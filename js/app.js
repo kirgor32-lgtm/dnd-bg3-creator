@@ -55,6 +55,7 @@ const STEP_META = {
   race:      { title: "Выбор расы", caption: "Шаг 2 — Раса" },
   subrace:   { title: "Выбор подрасы", caption: "Шаг 3 — Подраса" },
   class:     { title: "Выбор класса", caption: "Шаг 4 — Класс" },
+  subclass:  { title: "Путь класса", caption: "Путь класса" },
   racechoice:{ title: "Особенности расы", caption: "Выбор расовых особенностей" },
   flexbonus: { title: "Расовый бонус", caption: "Расовый бонус характеристик" },
   abilities: { title: "Характеристики", caption: "Распределение характеристик" },
@@ -71,6 +72,8 @@ function getActiveSteps(){
   const r = getRace();
   if (r && r.subraces && r.subraces.length) steps.push("subrace");
   steps.push("class");
+  const cls = getClass();
+  if (cls && subclassNeeds(cls.id).length) steps.push("subclass");
   if (raceChoiceNeeds().length) steps.push("racechoice");
   if (r && r.abilityBonuses && r.abilityBonuses.flexible) steps.push("flexbonus");
   steps.push("abilities");
@@ -117,7 +120,7 @@ function render(){
   document.getElementById("stepCaption").textContent = STEP_META[state.step].caption;
 
   const renderers = {
-    intro: renderIntro, race: renderRace, subrace: renderSubrace, class: renderClassStep,
+    intro: renderIntro, race: renderRace, subrace: renderSubrace, class: renderClassStep, subclass: renderSubclassStep,
     flexbonus: renderFlexBonusStep, abilities: renderAbilities, skills: renderSkillsStep,
     racechoice: renderRaceChoiceStep, classchoice: renderClassChoiceStep,
     physique: renderPhysique, equipment: renderEquipment, magic: renderMagic, sheet: renderSheet
@@ -472,6 +475,7 @@ function renderClassStep(view){
       revealOnMobile(view.querySelector("#classDetail"));
       saveState();
       updateNextEnabled();
+      renderRail();
     };
     grid.appendChild(row);
   });
@@ -500,19 +504,31 @@ function renderClassDetail(el){
       ${featuresHtml ? `<p style="margin:10px 0 4px;color:var(--text-strong, #ead9b3)"><b>Умения 1 уровня:</b></p><ul class="feature-list">${featuresHtml}</ul>` : ""}
       ${skillOpts.length ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--text-strong, #ead9b3)">Навыки на выбор (${c.skillChoices.count}):</b> ${skillOpts.join(", ")}</p>` : ""}
       ${equipRoles ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--text-strong, #ead9b3)">Снаряжение:</b> ${equipRoles}</p>` : ""}
-      <div id="subclassPick"></div>
+      ${subclassNeeds(c.id).length ? `<p class="next-hint">➜ На следующей странице: ${SUBCLASS_STEP_TITLE[c.id] ? SUBCLASS_STEP_TITLE[c.id].toLowerCase() : "путь класса"}.</p>` : ""}
     </div>
   `, classLoreHTML(c), c.id, "К умениям");
   bindFlip(el);
-  const box = el.querySelector("#subclassPick");
-  if (subclassNeeds(c.id).length){
-    const draw = () => {
-      box.innerHTML = `<div class="bg3-divider"><span></span></div>` + classChoicesHTML(c, subclassNeeds(c.id));
-      bindChoiceTiles(box, draw);
-      const fc = el.querySelector(".flip-card"); if (fc && fc._fit) fc._fit();
-    };
-    draw();
-  }
+}
+
+/* ---------------- Step: Путь класса (домен, происхождение, покровитель + договор) ---------------- */
+const SUBCLASS_STEP_TITLE = { cleric:"Божественный домен", sorcerer:"Происхождение чародея", warlock:"Покровитель и договор" };
+const SUBCLASS_STEP_TEXT = {
+  cleric:"Жрец служит конкретному божеству: домен определяет, какие дары оно даёт уже на 1-м уровне — доспехи, заклинания, особые умения.",
+  sorcerer:"Магия чародея — врождённая. Происхождение объясняет, откуда она взялась, и даёт особые умения уже на 1-м уровне.",
+  warlock:"Колдун заключил сделку с могущественным существом. Выбери покровителя, а затем — предмет договора, который он тебе вручит."
+};
+function renderSubclassStep(view){
+  const c = getClass();
+  view.innerHTML = `
+    <div class="view-header"><h1>${SUBCLASS_STEP_TITLE[c.id] || "Путь класса"}</h1><p>${SUBCLASS_STEP_TEXT[c.id] || ""}</p></div>
+    <div class="detail-panel subclass-step" id="subclassPick"></div>`;
+  const box = view.querySelector("#subclassPick");
+  const draw = () => {
+    box.innerHTML = classChoicesHTML(c, subclassNeeds(c.id));
+    bindChoiceTiles(box, draw);
+    updateNextEnabled();
+  };
+  draw();
 }
 
 /* ---------------- Step: Abilities ---------------- */
@@ -1948,7 +1964,8 @@ function validateStep(stepId){
     case "intro": return state.name.trim().length > 0 || "Введи имя персонажа";
     case "race": return !!state.raceId || "Выбери расу";
     case "subrace": return !!state.subraceId || "Выбери подрасу";
-    case "class": return !state.classId ? "Выбери класс" : subclassChoicesDone();
+    case "class": return !!state.classId || "Выбери класс";
+    case "subclass": return subclassChoicesDone();
     case "abilities": {
       const allAssigned = ABILITY_ORDER.every(ab => state.abilityAssign[ab] != null);
       return allAssigned || "Распредели все шесть значений характеристик";
