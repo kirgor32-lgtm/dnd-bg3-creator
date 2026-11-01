@@ -271,7 +271,7 @@ function renderRaceDetail(el){
   el.innerHTML = flipCard(`
     <div class="detail-panel race-detail">
       <div class="race-portrait-frame">
-        <img class="${WHITE_BG_PORTRAITS.includes(r.id) ? "on-parchment" : ""}" src="assets/img/races/${r.id}.jpg?v=26" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
+        <img class="${WHITE_BG_PORTRAITS.includes(r.id) ? "on-parchment" : ""}" src="assets/img/races/${r.id}.jpg?v=28" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
         <div class="portrait-empty"><span>${RACE_GLYPH[r.id] || "❖"}</span><small>Портрет появится позже</small></div>
       </div>
       <div class="race-info">
@@ -293,7 +293,7 @@ function loreButton(key){
   return `<button type="button" class="lore-btn" data-flip="1"><span>📜</span> История</button>`;
 }
 /* Портреты на белом фоне — на сайте фон «впитывается» в пергамент. */
-const WHITE_BG_PORTRAITS = ["shifter","grung","dragonborn","tabaxi","goliath","half-orc","kenku","aasimar","triton","changeling","dwarf","centaur"];
+const WHITE_BG_PORTRAITS = ["gnome","tiefling","genasi","elf","human","shifter","grung","dragonborn","tabaxi","goliath","half-orc","kenku","aasimar","triton","changeling","dwarf","centaur"];
 function flipCard(front, back, key, backLabel){
   if (!back) return front;
   return `<div class="flip-card" data-key="${key}">
