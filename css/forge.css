@@ -239,3 +239,7 @@ body:not(:has(.landing-screen:not(.hide))) #forgeScene{ opacity:.5; }
 .choice-grid--deity{ grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); }
 .deity-custom{ display:flex; align-items:center; gap:10px; margin:12px 0 4px; font-size:.9rem; flex-wrap:wrap; }
 .deity-custom input{ flex:1; min-width:200px; max-width:360px; padding:7px 10px; border:1px solid var(--gold-dim, #a08050); border-radius:3px; background:rgba(255,250,238,.85); font:inherit; color:inherit; }
+
+/* Портреты на белом фоне: белое становится цветом пергамента */
+.race-portrait-frame:has(img.on-parchment){ background:radial-gradient(ellipse at 50% 40%, #f7ecd2 0%, #ead8b2 100%); }
+.race-portrait-frame img.on-parchment{ mix-blend-mode:multiply; object-position:50% 50%; }
