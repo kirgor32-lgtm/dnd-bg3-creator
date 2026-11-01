@@ -233,3 +233,9 @@ body:not(:has(.landing-screen:not(.hide))) #forgeScene{ opacity:.5; }
 
 .choice-tile b{ color:var(--text-strong); }
 .choice-tile span{ color:var(--text-dim); }
+
+/* Выбор божества / покровителя (для отыгрыша) */
+.opt-tag{ display:inline-block; margin-left:8px; padding:1px 8px; font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; border:1px solid currentColor; border-radius:10px; opacity:.6; vertical-align:middle; font-family:inherit; }
+.choice-grid--deity{ grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); }
+.deity-custom{ display:flex; align-items:center; gap:10px; margin:12px 0 4px; font-size:.9rem; flex-wrap:wrap; }
+.deity-custom input{ flex:1; min-width:200px; max-width:360px; padding:7px 10px; border:1px solid var(--gold-dim, #a08050); border-radius:3px; background:rgba(255,250,238,.85); font:inherit; color:inherit; }

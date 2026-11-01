@@ -42,13 +42,16 @@ function classChoiceNeeds(classId){
   if (SUBCLASSES[classId]){
     const sub = SUBCLASSES[classId].find(x => x.id === cc.subclass);
     const needs = ["subclass", ...((sub && sub.needs) || [])];
+    if (classId === "cleric" && sub) needs.push("deity");
     if (classId === "warlock"){
+      if (sub) needs.push("deity");
       needs.push("pactBoon");
       const extra = { tome:"pactTome", blade:"pactBlade", chain:"pactChain" }[cc.pactBoon];
       if (extra) needs.push(extra);
     }
     return needs;
   }
+  if (classId === "paladin") return ["deity"];
   if (classId === "fighter") return ["fightingStyle"];
   if (classId === "ranger")  return ["favoredEnemy","favoredTerrain"];
   if (classId === "rogue")   return ["expertise"];
@@ -123,6 +126,8 @@ function classSheetFeatures(classId, d){
       add("Книга заклинаний", "Заклинания волшебника записаны в книге. Подготовленных заклинаний в день: мод. Интеллекта + уровень (минимум 1). Ритуалы из книги можно накладывать без подготовки.");
       break;
   }
+  const dz = deitySheetFeature(classId, cc);
+  if (dz) add(dz.name, dz.text);
   return f;
 }
 
@@ -328,4 +333,36 @@ function pactBoonFeature(m, pb, cc){
       : "<br>Облик фамильяра: ______________________";
   }
   return [{ name:`Предмет договора: ${boon.name} — с 3-го уровня`, text: (flavor ? `<i>${flavor}</i><br>` : "") + text }];
+}
+
+
+/* ===== Божество / конкретный покровитель — чисто для отыгрыша, пишется в лист =====
+   Боги: «Книга игрока», приложение Б «Боги мира Забытых Королевств» (рекомендуемые домены).
+   Покровители колдуна: примеры из описаний покровителей в «Книге игрока». */
+const FR_DEITIES = [{"id": "келемвор", "name": "Келемвор", "title": "бог смерти", "al": "законно-нейтральный", "domains": ["death"], "symbol": "Рука скелета, держащая уравновешенные весы", "lore": "В культе Келемвору приносят жертвоприношения: сначала это были мелкие зверьки, но вскоре ими стали представители всех возможных рас. Культ верит, что так выражает ему своё почтение, а он взамен благословляет верующих."}, {"id": "азут", "name": "Азут", "title": "бог волшебников", "al": "законно-нейтральный", "domains": ["knowledge"], "symbol": "Очерченная огнём левая рука"}, {"id": "амберли", "name": "Амберли", "title": "богиня морей", "al": "хаотично-злой", "domains": ["tempest"], "symbol": "Волны, расходящиеся влево и вправо"}, {"id": "баал", "name": "Баал", "title": "бог убийства", "al": "нейтрально-злой", "domains": ["death"], "symbol": "Череп, окружённый кольцом капель крови"}, {"id": "бешаба", "name": "Бешаба", "title": "богиня несчастья", "al": "хаотично-злой", "domains": ["trickery"], "symbol": "Чёрные оленьи рога"}, {"id": "бэйн", "name": "Бэйн", "title": "бог тирании", "al": "законно-злой", "domains": ["war"], "symbol": "Чёрная кисть правой руки, собранная в кулак"}, {"id": "вокин", "name": "Вокин", "title": "богиня торговли", "al": "нейтральный", "domains": ["knowledge", "trickery"], "symbol": "Монета с изображением Вокин в профиль, смотрящей влево"}, {"id": "гонд", "name": "Гонд", "title": "бог ремёсел", "al": "нейтральный", "domains": ["knowledge"], "symbol": "Зубчатая шестерёнка с четырьмя спицами"}, {"id": "денеир", "name": "Денеир", "title": "бог письменности", "al": "нейтрально-добрый", "domains": ["knowledge"], "symbol": "Горящая свеча с открытым глазом"}, {"id": "ильматер", "name": "Ильматер", "title": "бог стойкости", "al": "законно-добрый", "domains": ["life"], "symbol": "Руки, на запястьях связанные красным шнуром"}, {"id": "латандер", "name": "Латандер", "title": "бог рождения и обновления", "al": "нейтрально-добрый", "domains": ["life", "light"], "symbol": "Дорога, ведущая к восходу"}, {"id": "лейра", "name": "Лейра", "title": "богиня иллюзий", "al": "хаотично-нейтральный", "domains": ["trickery"], "symbol": "Направленный вниз треугольник с вихрем тумана"}, {"id": "ллиира", "name": "Ллиира", "title": "богиня веселья", "al": "хаотично-добрый", "domains": ["life"], "symbol": "Треугольник из трёх шестиконечных звёзд"}, {"id": "ловиатар", "name": "Ловиатар", "title": "богиня боли", "al": "законно-злой", "domains": ["death"], "symbol": "Девятихвостая плеть с шипами"}, {"id": "майликки", "name": "Майликки", "title": "богиня лесов", "al": "нейтрально-добрый", "domains": ["nature"], "symbol": "Голова единорога"}, {"id": "малар", "name": "Малар", "title": "бог охоты", "al": "хаотично-злой", "domains": ["nature"], "symbol": "Когтистая лапа"}, {"id": "маск", "name": "Маск", "title": "бог воров", "al": "хаотично-нейтральный", "domains": ["trickery"], "symbol": "Чёрная маска"}, {"id": "милил", "name": "Милил", "title": "бог поэзии и песен", "al": "нейтрально-добрый", "domains": ["light"], "symbol": "Пятиструнная арфа из листьев"}, {"id": "миркул", "name": "Миркул", "title": "бог смерти", "al": "нейтрально-злой", "domains": ["death"], "symbol": "Белый человеческий череп"}, {"id": "мистра", "name": "Мистра", "title": "богиня магии", "al": "нейтрально-добрый", "domains": ["knowledge"], "symbol": "Круг из семи звёзд или девять звёзд, окружающих текущий красный туман, или одна звезда"}, {"id": "огма", "name": "Огма", "title": "богиня знаний", "al": "нейтральный", "domains": ["knowledge"], "symbol": "Чистый свиток"}, {"id": "ориль", "name": "Ориль", "title": "богиня зимы", "al": "нейтрально-злой", "domains": ["tempest", "nature"], "symbol": "Шестиконечная снежинка"}, {"id": "саврас", "name": "Саврас", "title": "бог предсказаний и судьбы", "al": "законно-нейтральный", "domains": ["knowledge"], "symbol": "Хрустальный шар с множеством глаз"}, {"id": "селунэ", "name": "Селунэ", "title": "богиня луны", "al": "хаотично-добрый", "domains": ["life", "knowledge"], "symbol": "Глаза, окружённые семью звёздами"}, {"id": "сильванус", "name": "Сильванус", "title": "бог дикой природы", "al": "нейтральный", "domains": ["nature"], "symbol": "Дубовый лист"}, {"id": "сьюни", "name": "Сьюни", "title": "богиня любви и красоты", "al": "хаотично-добрый", "domains": ["life", "light"], "symbol": "Лицо прекрасной рыжеволосой женщины"}, {"id": "талона", "name": "Талона", "title": "богиня болезней и ядов", "al": "хаотично-злой", "domains": ["death"], "symbol": "Три капли в треугольнике"}, {"id": "талос", "name": "Талос", "title": "бог бурь", "al": "хаотично-злой", "domains": ["tempest"], "symbol": "Три молнии, бьющие из одной точки"}, {"id": "темпус", "name": "Темпус", "title": "бог войны", "al": "нейтральный", "domains": ["war"], "symbol": "Вертикальный пламенеющий меч"}, {"id": "тимора", "name": "Тимора", "title": "богиня удачи", "al": "хаотично-добрый", "domains": ["trickery"], "symbol": "Монета, решкой вверх"}, {"id": "тир", "name": "Тир", "title": "бог правосудия", "al": "законно-добрый", "domains": ["war"], "symbol": "Сбалансированные весы на боевом молоте"}, {"id": "торм", "name": "Торм", "title": "бог отваги и самопожертвования", "al": "законно-добрый", "domains": ["war"], "symbol": "Правая латная рукавица белого цвета"}, {"id": "хельм", "name": "Хельм", "title": "бог защиты", "al": "законно-нейтральный", "domains": ["life", "light"], "symbol": "Глаз на левой латной рукавице"}, {"id": "цирик", "name": "Цирик", "title": "бог лжи", "al": "хаотично-злой", "domains": ["trickery"], "symbol": "Белый череп без нижней челюсти в ореоле чёрных или фиолетовых лучей"}, {"id": "чонтиа", "name": "Чонтиа", "title": "богиня земледелия", "al": "нейтрально-добрый", "domains": ["life"], "symbol": "Пучок колосьев или цветущая роза перед колосьями"}, {"id": "шар", "name": "Шар", "title": "богиня тьмы и утрат", "al": "нейтрально-злой", "domains": ["trickery", "death"], "symbol": "Чёрный диск с фиолетовым контуром"}, {"id": "эльдат", "name": "Эльдат", "title": "богиня мира", "al": "нейтрально-добрый", "domains": ["life", "nature"], "symbol": "Водопад, низвергающийся в спокойный пруд"}];
+const WARLOCK_PATRONS = {"archfey": [{"id": "morozny", "name": "Морозный Принц", "title": "Владыка зимних фей"}, {"id": "queen-air-darkness", "name": "Королева Воздуха и Тьмы", "title": "Правительница Сумеречного Двора"}, {"id": "titania", "name": "Титания", "title": "Королева Летнего Двора"}, {"id": "oberon", "name": "Оберон", "title": "Зелёный Лорд, супруг Титании"}, {"id": "hyrsam", "name": "Хирсам", "title": "Принц Дураков"}, {"id": "hag", "name": "Древняя карга", "title": "Одна из древних карг Страны Фей"}], "fiend": [{"id": "demogorgon", "name": "Демогоргон", "title": "Демонический повелитель"}, {"id": "orcus", "name": "Оркус", "title": "Демонический повелитель"}, {"id": "frazurb", "name": "Фраз’Урб-луу", "title": "Демонический повелитель"}, {"id": "baphomet", "name": "Бафомет", "title": "Демонический повелитель"}, {"id": "asmodeus", "name": "Асмодей", "title": "Архидьявол"}, {"id": "dispater", "name": "Диспатер", "title": "Архидьявол"}, {"id": "mephistopheles", "name": "Мефистофель", "title": "Архидьявол"}, {"id": "belial", "name": "Белиал", "title": "Архидьявол"}], "greatold": [{"id": "ghaunadaur", "name": "Гонадар", "title": "«Тот, кто таится»"}, {"id": "tharizdun", "name": "Тариздун", "title": "«Скованный Бог»"}, {"id": "dendar", "name": "Дендар", "title": "«Ночной Змей»"}, {"id": "zargon", "name": "Заргон", "title": "«Возвращающийся»"}, {"id": "cthulhu", "name": "Великий Ктулху", "title": "Непостижимое древнее создание"}]};
+function deityOptions(classId, cc){
+  if (classId === "warlock") return WARLOCK_PATRONS[cc.subclass] || [];
+  if (classId === "cleric"){
+    const dom = cc.subclass;
+    // домен Жизни могут выбрать жрецы любого незлого бога — но рекомендованные показываем первыми
+    return FR_DEITIES.filter(g => !dom || g.domains.includes(dom) || (dom === "life" && !/злой/.test(g.al)))
+      .sort((a, b) => (b.domains.includes(dom) ? 1 : 0) - (a.domains.includes(dom) ? 1 : 0));
+  }
+  return FR_DEITIES;
+}
+function deityPicked(classId, cc){
+  if (cc.deityCustom) return { name: cc.deityCustom, title: "", custom:true };
+  return deityOptions(classId, cc).find(x => x.id === cc.deity) || null;
+}
+function deitySheetFeature(classId, cc){
+  if (!["cleric","paladin","warlock"].includes(classId)) return null;
+  const label = classId === "warlock" ? "Покровитель" : "Божество";
+  const g = deityPicked(classId, cc);
+  if (!g) return { name: label, text: "Не выбрано: ______________________ (для отыгрыша)" };
+  const bits = [];
+  if (g.title) bits.push(g.title.charAt(0).toUpperCase() + g.title.slice(1));
+  if (g.al) bits.push("мировоззрение: " + g.al);
+  if (g.symbol) bits.push("символ: " + g.symbol.charAt(0).toLowerCase() + g.symbol.slice(1));
+  return { name: `${label}: ${g.name}`, text: (bits.length ? bits.join("; ") + "." : "") + (g.lore ? (bits.length ? "<br>" : "") + g.lore : "") };
 }

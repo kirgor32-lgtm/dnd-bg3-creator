@@ -310,7 +310,9 @@ function bindFlip(el){
   const fit = () => {
     const h = front.offsetHeight;
     if (!card.classList.contains("flipped")) { card.style.height = h + "px"; return; }
-    if (window.innerWidth < 760 || h > window.innerHeight * 0.8) {
+    const full = window.innerWidth < 760 || h > window.innerHeight * 0.8;
+    card.classList.toggle("lore-full", full);   // текст раскрывается целиком — внутренняя прокрутка не нужна (и не мигает во время анимации высоты)
+    if (full) {
       // на телефоне и при высокой лицевой стороне оборот раскрывается на всю длину текста — без прокрутки внутри прокрутки
       const body = back.querySelector(".lore-body");
       card.style.height = (back.offsetHeight - body.clientHeight + body.scrollHeight + 4) + "px";
@@ -511,8 +513,9 @@ function renderClassDetail(el){
 }
 
 /* ---------------- Step: Путь класса (домен, происхождение, покровитель + договор) ---------------- */
-const SUBCLASS_STEP_TITLE = { cleric:"Божественный домен", sorcerer:"Происхождение чародея", warlock:"Покровитель и договор" };
+const SUBCLASS_STEP_TITLE = { paladin:"Божество-покровитель", cleric:"Божественный домен", sorcerer:"Происхождение чародея", warlock:"Покровитель и договор" };
 const SUBCLASS_STEP_TEXT = {
+  paladin:"Паладин черпает силу из клятвы, но многие служат и конкретному богу. Выбор не обязателен и нужен только для отыгрыша — он попадёт в лист персонажа.",
   cleric:"Жрец служит конкретному божеству: домен определяет, какие дары оно даёт уже на 1-м уровне — доспехи, заклинания, особые умения.",
   sorcerer:"Магия чародея — врождённая. Происхождение объясняет, откуда она взялась, и даёт особые умения уже на 1-м уровне.",
   warlock:"Колдун заключил сделку с могущественным существом. Выбери покровителя, а затем — предмет договора, который он тебе вручит."
@@ -1072,7 +1075,7 @@ function raceChoicesDone(){
 
 /* Выборы подкласса (домен / происхождение / покровитель и их под-выборы) делаются прямо на шаге класса,
    остальные (боевой стиль, избранный враг, компетентность) — на отдельном шаге после навыков. */
-const SUB_NEEDS = ["subclass","dragonAncestor","natureSkill","natureCantrip","deathCantrip","knowledgeSkills","pactBoon","pactTome","pactBlade","pactChain"];
+const SUB_NEEDS = ["subclass","dragonAncestor","natureSkill","natureCantrip","deathCantrip","knowledgeSkills","deity","pactBoon","pactTome","pactBlade","pactChain"];
 function subclassNeeds(classId){ return classChoiceNeeds(classId).filter(n => SUB_NEEDS.includes(n)); }
 function laterClassNeeds(classId){ return classChoiceNeeds(classId).filter(n => !SUB_NEEDS.includes(n)); }
 
@@ -1113,6 +1116,16 @@ function classChoicesHTML(c, needs){
       <p class="pool-note">Ты владеешь ими с удвоенным бонусом мастерства.</p>
       <div class="choice-grid choice-grid--abil">${["История","Магия","Природа","Религия"].map(o => `
         <button type="button" class="choice-tile${picks.includes(o)?" selected":""}" data-k="knowledgeSkills" data-v="${o}" data-multi="2"><b>${o}</b><span>Интеллект</span></button>`).join("")}</div>`;
+  }
+  if (needs.includes("deity")){
+    const opts = deityOptions(c.id, cc);
+    const isW = c.id === "warlock";
+    html += `<h3 class="spell-group-title">${isW ? "Кто именно твой покровитель" : "Божество, которому ты служишь"} <span class="opt-tag">для отыгрыша</span></h3>
+      <p class="pool-note">${isW ? "Примеры могущественных существ этого типа из «Книги игрока»." : c.id === "cleric" ? "Боги Забытых Королевств, которым подходит выбранный домен («Книга игрока», приложение Б)." : "Боги Забытых Королевств («Книга игрока», приложение Б)."} На правила не влияет — имя попадёт в лист. Можно вписать своего.</p>
+      <div class="choice-grid choice-grid--deity">${opts.map(g => `
+        <button type="button" class="choice-tile${!cc.deityCustom && cc.deity===g.id?" selected":""}" data-k="deity" data-v="${escapeHtml(g.id)}">
+          <b>${g.name}</b><span>${g.title}${g.al ? " · " + g.al : ""}</span>${g.lore ? `<em class="tile-flavor">${esc(g.lore)}</em>` : g.symbol ? `<em class="tile-flavor">Символ: ${esc(g.symbol.charAt(0).toLowerCase() + g.symbol.slice(1))}</em>` : ""}</button>`).join("")}</div>
+      <label class="deity-custom">Свой вариант: <input type="text" id="deityCustom" maxlength="60" placeholder="${isW ? "имя покровителя" : "имя божества"}" value="${escapeHtml(cc.deityCustom || "")}"></label>`;
   }
   if (needs.includes("pactBoon") && typeof PACT_BOONS !== "undefined"){
     const patron = getSubclass(c.id, cc);
@@ -1182,6 +1195,7 @@ function bindChoiceTiles(view, redraw){
         btn.parentNode.querySelectorAll(".choice-tile.selected").forEach(n => n.classList.remove("selected"));
         btn.classList.add("selected");
       }
+      if (k === "deity"){ delete cc.deityCustom; const inp = view.querySelector("#deityCustom"); if (inp) inp.value = ""; }
       saveState();
       if (k === "pactBoon"){
         ["pactTome","pactBlade","pactChain"].forEach(x => delete cc[x]);
@@ -1190,7 +1204,7 @@ function bindChoiceTiles(view, redraw){
       }
       if (k === "subclass"){
         // смена подкласса сбрасывает его под-выборы
-        ["dragonAncestor","natureSkill","natureCantrip","deathCantrip","knowledgeSkills"].forEach(x => delete cc[x]);
+        ["dragonAncestor","natureSkill","natureCantrip","deathCantrip","knowledgeSkills","deity"].forEach(x => delete cc[x]);
         state.spells = [];
         saveState();
         const y = window.scrollY; redraw(); window.scrollTo(0, y);
@@ -1198,6 +1212,13 @@ function bindChoiceTiles(view, redraw){
       updateNextEnabled();
     };
   });
+  const dc = view.querySelector("#deityCustom");
+  if (dc) dc.oninput = () => {
+    const v = dc.value.trim();
+    if (v){ cc.deityCustom = v; view.querySelectorAll('.choice-tile[data-k="deity"]').forEach(n => n.classList.remove("selected")); }
+    else delete cc.deityCustom;
+    saveState();
+  };
 }
 function subclassChoicesDone(){
   const c = getClass(); if (!c) return true;
@@ -1433,7 +1454,8 @@ function renderEquipDetail(view){
     renderCustomEquip(view, detail.querySelector("#customBox"));
     return;
   }
-  const opt = (c.startingEquipment||[]).find(e => e.choice === state.equipmentChoice);
+  let opt = (c.startingEquipment||[]).find(e => e.choice === state.equipmentChoice);
+  if (!opt){ opt = (c.startingEquipment||[])[0]; if (!opt) return; state.equipmentChoice = opt.choice; }
     detail.innerHTML = `
       <div class="detail-panel">
         <h3>Вариант ${CYR_LETTER[opt.choice] || opt.choice}${opt.role ? " — " + opt.role : ""}</h3>
@@ -1442,7 +1464,10 @@ function renderEquipDetail(view){
     `;
   }
   function itemIconHTML(name){
-    const w = WEAPON_CATALOG.find(x => x.name === name);
+    const ICON_ALIAS = { "Два коротких меча":"shortsword", "Два кинжала":"dagger", "Два ручных топора":"handaxe", "Праща":"sling", "Лёгкий арбалет":"light-crossbow",
+      "Длинный лук":"longbow", "Короткий лук":"shortbow", "Ручной арбалет":"handcrossbow", "метательн":"javelins", "дротиков":"darts" };
+    const alias = Object.keys(ICON_ALIAS).find(k => name.includes(k));
+    const w = WEAPON_CATALOG.find(x => x.name === name) || (alias && WEAPON_CATALOG.find(x => x.id === ICON_ALIAS[alias]));
     if (w) return `<img class="item-icon" src="assets/img/items/weapons/${w.id}.png" loading="lazy" onerror="this.remove()">`;
     const a = ARMOR_CATALOG.find(x => x.name === name);
     if (a) return `<img class="item-icon" src="assets/img/items/armor/${a.id}.png" loading="lazy" onerror="this.remove()">`;

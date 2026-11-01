@@ -92,8 +92,10 @@ const WEAPON_CATALOG = [
   { id:"spear",          name:"Копьё",           category:"simple",  ranged:false, hands:1, info:"1d6 колющий · бросковое 20/60, универсальное (1d8)" },
   { id:"sickle",         name:"Серп",            category:"simple",  ranged:false, hands:1, info:"1d4 рубящий · лёгкое" },
   { id:"handaxe",        name:"Ручной топор",    category:"simple",  ranged:false, hands:1, info:"1d6 рубящий · лёгкое, бросковое 20/60" },
-  { id:"javelins",       name:"Дротики (неск. шт.)", category:"simple", ranged:true, hands:1, info:"1d6 колющий · бросковое 30/120" },
-  { id:"sling",          name:"Праща",           category:"simple",  ranged:true,  hands:1, info:"1d4 дробящий · бросковое 30/120" },
+  { id:"javelins",       name:"Метательные копья (неск. шт.)", category:"simple", ranged:true, hands:1, info:"1d6 колющий · бросковое 30/120" },
+  { id:"darts",          name:"Дротики (неск. шт.)", category:"simple", ranged:true, hands:1, info:"1d4 колющий · фехтовальное, бросковое 20/60" },
+  { id:"club",           name:"Дубинка",         category:"simple",  ranged:false, hands:1, info:"1d4 дробящий · лёгкое" },
+  { id:"sling",          name:"Праща",           category:"simple",  ranged:true,  hands:1, info:"1d4 дробящий · боеприпасы 30/120" },
   { id:"light-crossbow", name:"Лёгкий арбалет",  category:"simple",  ranged:true,  hands:2, info:"1d8 колющий · боеприпасы, перезарядка, двуручное" },
   { id:"shortbow",       name:"Короткий лук",    category:"simple",  ranged:true,  hands:2, info:"1d6 колющий · боеприпасы, двуручное" },
   { id:"longsword",      name:"Длинный меч",     category:"martial", ranged:false, hands:1, info:"1d8 рубящий · универсальное (1d10 двумя руками)" },
@@ -144,15 +146,15 @@ const CLASS_WEAPON_PROF = {
   barbarian: { simple:true, martial:true },
   bard:      { simple:true, martial:false, extra:["handcrossbow","longsword","rapier","shortsword"] },
   cleric:    { simple:true, martial:false },
-  druid:     { simple:true, martial:false, extra:["scimitar"] },
+  druid:     { simple:false, martial:false, extra:["club","dagger","darts","javelins","mace","quarterstaff","scimitar","sickle","sling","spear"] },
   fighter:   { simple:true, martial:true },
   monk:      { simple:true, martial:false, extra:["shortsword"] },
   paladin:   { simple:true, martial:true },
   ranger:    { simple:true, martial:true },
   rogue:     { simple:true, martial:false, extra:["handcrossbow","longsword","rapier","shortsword"] },
-  sorcerer:  { simple:true, martial:false },
+  sorcerer:  { simple:false, martial:false, extra:["dagger","darts","sling","quarterstaff","light-crossbow"] },
   warlock:   { simple:true, martial:false },
-  wizard:    { simple:true, martial:false, extra:["dagger","sling","quarterstaff","light-crossbow"] }
+  wizard:    { simple:false, martial:false, extra:["dagger","darts","sling","quarterstaff","light-crossbow"] }
 };
 /* Владение доспехами/щитами по классам. monk/sorcerer/wizard — без доспехов и щита (как в SRD). */
 const CLASS_ARMOR_PROF = {
