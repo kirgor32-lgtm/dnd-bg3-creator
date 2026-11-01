@@ -160,14 +160,6 @@ function renderIntro(view){
       <p>Прежде чем ступить на путь приключений, дай себе имя. Остальное — раса, класс и судьба — определится дальше.</p>
     </div>
     <div class="intro-layout">
-      <div class="intro-photo-col">
-        <div class="photo-drop" id="photoDrop">
-          ${state.photoDataUrl ? `<img id="photoPreview" src="${state.photoDataUrl}">` : `<div class="photo-placeholder"><span>🖼</span><span>Загрузить портрет</span></div>`}
-          <input type="file" id="inPhoto" accept="image/*" hidden>
-        </div>
-        ${state.photoDataUrl ? `<button class="btn btn-ghost" id="btnPhotoClear" style="margin-top:8px;">✕ Убрать фото</button>` : ""}
-        <p class="pool-note" style="margin-top:8px;">Любое фото или арт — подгонится под рамку автоматически. Появится в левом верхнем углу итогового листа.</p>
-      </div>
       <div class="intro-form-col">
         <div class="form-row">
           <label>Имя персонажа</label>
@@ -190,24 +182,11 @@ function renderIntro(view){
   view.querySelector("#inName").oninput = e => { state.name = e.target.value; updateNextEnabled(); };
   view.querySelector("#inAlign").onchange = e => state.alignment = e.target.value;
   view.querySelector("#inBg").oninput = e => state.background = e.target.value;
-  const drop = view.querySelector("#photoDrop");
-  const fileInput = view.querySelector("#inPhoto");
-  drop.onclick = () => fileInput.click();
-  fileInput.onchange = e => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    cropImageToSquare(file, 640).then(dataUrl => {
-      state.photoDataUrl = dataUrl;
-      saveState();
-      renderIntro(view);
-    });
-  };
-  const clearBtn = view.querySelector("#btnPhotoClear");
-  if (clearBtn) clearBtn.onclick = (e) => { e.stopPropagation(); state.photoDataUrl = null; saveState(); renderIntro(view); };
 }
 /* Авто-кадрирование: любое фото любого формата приводится к квадрату (cover-кроп по центру),
    чтобы хорошо смотреться и в рамке загрузки, и на итоговом листе персонажа. */
-function cropImageToSquare(file, size){
+function cropImageToSquare(file, size, ratio = 1){
+  // ratio = высота/ширина; для листа персонажа — 4:3 (вертикальный прямоугольник)
   return new Promise((resolve, reject) => {
     const img = new Image();
     const reader = new FileReader();
@@ -215,11 +194,12 @@ function cropImageToSquare(file, size){
     reader.onerror = reject;
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = size; canvas.height = size;
+      canvas.width = size; canvas.height = Math.round(size * ratio);
       const ctx = canvas.getContext("2d");
-      const side = Math.min(img.width, img.height);
-      const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+      let sw = img.width, sh = sw * ratio;
+      if (sh > img.height){ sh = img.height; sw = sh / ratio; }
+      const sx = (img.width - sw) / 2, sy = Math.max(0, (img.height - sh) * 0.3);   // чуть выше центра — чтобы не срезать голову
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL("image/jpeg", 0.9));
     };
     img.onerror = reject;
@@ -271,7 +251,7 @@ function renderRaceDetail(el){
   el.innerHTML = flipCard(`
     <div class="detail-panel race-detail">
       <div class="race-portrait-frame">
-        <img class="${WHITE_BG_PORTRAITS.includes(r.id) ? "on-parchment" : ""}" src="assets/img/races/${r.id}.jpg?v=29" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
+        <img class="${WHITE_BG_PORTRAITS.includes(r.id) ? "on-parchment" : ""}" src="assets/img/races/${r.id}.jpg?v=30" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
         <div class="portrait-empty"><span>${RACE_GLYPH[r.id] || "❖"}</span><small>Портрет появится позже</small></div>
       </div>
       <div class="race-info">
@@ -327,6 +307,8 @@ function bindFlip(el){
   card.querySelectorAll("[data-flip]").forEach(b => b.addEventListener("click", () => {
     const on = !card.classList.contains("flipped");
     card.classList.toggle("flipped", on);
+    card.classList.remove("flipping"); void card.offsetWidth; card.classList.add("flipping");   // «поднять» карточку на время переворота
+    clearTimeout(card._ft); card._ft = setTimeout(() => card.classList.remove("flipping"), 1300);
     back.setAttribute("aria-hidden", String(!on)); front.setAttribute("aria-hidden", String(on));
     fit();
     if (on) back.querySelector(".lore-body").scrollTop = 0;
@@ -1170,7 +1152,7 @@ function classChoicesHTML(c, needs){
     const opts = [...prof, "Воровские инструменты"];
     const picks = cc.expertise || [];
     html += `<h3 class="spell-group-title">Компетентность: выбери 2</h3>
-      <p class="pool-note">Бонус мастерства удваивается для выбранных навыков (из тех, которыми ты уже владеешь) или воровских инструментов.</p>
+      <p class="pool-note">Так по «Книге игрока»: плут с 1 уровня владеет воровскими инструментами, и «Компетентность» позволяет удвоить бонус мастерства либо для двух навыков, либо для одного навыка и воровских инструментов (взлом замков, обезвреживание ловушек).</p>
       <div class="choice-grid choice-grid--abil">${opts.map(o => `
         <button type="button" class="choice-tile${picks.includes(o)?" selected":""}" data-k="expertise" data-v="${escapeHtml(o)}" data-multi="2">
           <b>${o}</b><span>${SKILL_ABILITY[o] ? ABILITY_NAMES[SKILL_ABILITY[o]] : "инструменты"}</span>
@@ -1846,7 +1828,7 @@ function computeFinal(){
 function renderSheet(view){
   const d = computeFinal();
   view.innerHTML = `
-    <div class="view-header"><h1>Твой герой готов</h1><p>Проверь лист персонажа и экспортируй его в PDF — или вернись назад, чтобы что-то изменить.</p></div>
+    <div class="view-header"><h1>Твой герой готов</h1><p>Нажми на рамку слева вверху, чтобы добавить портрет героя. Потом скачай лист в PDF или сразу отправь на печать.</p></div>
     <div class="sheet-actions">
       <button class="btn btn-gold" id="btnPdf">⇩ Скачать PDF</button>
       <button class="btn btn-ghost" id="btnPrint">🖶 Печать</button>
@@ -1856,12 +1838,29 @@ function renderSheet(view){
   `;
   view.querySelector("#btnPdf").onclick = () => exportPDF();
   view.querySelector("#btnPrint").onclick = () => window.print();
+  bindSheetPhoto(view);
   view.querySelector("#btnRestart").onclick = () => {
     if (confirm("Начать создание персонажа заново? Все данные будут сброшены.")){
       localStorage.removeItem(STORAGE_KEY);
       location.reload();
     }
   };
+}
+
+/* Портрет на листе: клик по рамке — загрузка, ✕ — убрать. Картинка кадрируется в вертикальный прямоугольник 3:4. */
+function bindSheetPhoto(view){
+  const box = view.querySelector("#sheetPhoto"); if (!box) return;
+  const input = box.querySelector("#sheetPhotoInput");
+  box.onclick = e => { if (e.target.closest("#sheetPhotoClear")) return; input.click(); };
+  input.onclick = e => e.stopPropagation();
+  input.onchange = e => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    cropImageToSquare(file, 600, 4/3).then(url => { state.photoDataUrl = url; saveState(); renderSheet(view); })
+      .catch(() => toast("Не удалось прочитать картинку"));
+  };
+  const clr = box.querySelector("#sheetPhotoClear");
+  if (clr) clr.onclick = e => { e.stopPropagation(); state.photoDataUrl = null; saveState(); renderSheet(view); };
 }
 
 const KIND_LABEL = { action:"действие", bonus:"бонусное действие", reaction:"реакция" };
@@ -1905,7 +1904,11 @@ function sheetHTML(d){
   const hasSpells = spellsDetailed.length || raceSpells.length;
   return `
     <div class="sheet-head">
-      ${state.photoDataUrl ? `<img class="sheet-photo" src="${state.photoDataUrl}" alt="Портрет">` : ""}
+      <div class="sheet-photo-box${state.photoDataUrl ? " has-photo" : ""}" id="sheetPhoto" title="Нажми, чтобы ${state.photoDataUrl ? "заменить" : "добавить"} портрет">
+        ${state.photoDataUrl ? `<img src="${state.photoDataUrl}" alt="Портрет">` : `<span class="sheet-photo-hint" data-html2canvas-ignore="true">🖼<br>Нажми, чтобы добавить портрет</span>`}
+        ${state.photoDataUrl ? `<button type="button" class="sheet-photo-clear" id="sheetPhotoClear" title="Убрать портрет" data-html2canvas-ignore="true">✕</button>` : ""}
+        <input type="file" id="sheetPhotoInput" accept="image/*" hidden>
+      </div>
       <div class="sheet-head-text">
         <h2>${escapeHtml(state.name) || "Безымянный герой"}</h2>
         <div class="sub">${r?r.name:""}${s?(" ("+s.name+")"):""} · ${c?c.name:""}${state.alignment?(" · "+state.alignment):""}${(state.heightCm&&state.weightKg)?(" · "+state.heightCm+" см, "+state.weightKg+" кг"):""}</div>

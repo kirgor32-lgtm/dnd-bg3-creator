@@ -43,7 +43,7 @@
     tongues = [];
     [[16,.17,.95,0],[20,.12,.78,1],[24,.075,.55,2]].forEach(([n, w, h, layer]) => {
       for (let i = 0; i < n; i++) tongues.push({ layer, u: (i + rnd(.1,.9)) / n, w: w * rnd(.7, 1.35), h: h * rnd(.7, 1.15),
-        p1: rnd(0, 6.28), p2: rnd(0, 6.28), f1: rnd(.0022,.0042), f2: rnd(.006,.011) });
+        p1: rnd(0, 6.28), p2: rnd(0, 6.28), f1: rnd(.0009,.0017), f2: rnd(.0026,.0048) });
     });
     coals = [];
     for (let x = -mw/2 + 6; x < mw/2 - 6; x += rnd(12, 22)) coals.push({ x, r: rnd(7, 14), h: rnd(.55,.9), p: rnd(0,6.28) });
@@ -141,7 +141,7 @@
   function drawIngot(t){
     if (geo.mobile && W <= 420) return;
     const s = geo.mobile ? 0.7 : 1, ax = geo.anvilX, base = H;
-    const p = .75 + .25*Math.sin(t/600);
+    const p = .75 + .25*Math.sin(t/1600);
     g.save(); g.translate(ax, base); g.scale(s, s);
     g.globalCompositeOperation = "lighter";
     g.globalAlpha = .55*p; g.drawImage(S.hot, -20, -150, 110, 60);
@@ -157,17 +157,17 @@
   function spawnFlame(){
     const { cx, mw, floor, mh } = geo;
     const u = (Math.random() + Math.random()) / 2;
-    flames.push({ x: cx + (u - .5) * mw * 0.85, y: floor - 6, vy: -rnd(.8, 2) * (mh/180), life: 0, max: rnd(35, 70), size: rnd(20, 44), seed: rnd(0, 6.28) });
+    flames.push({ x: cx + (u - .5) * mw * 0.85, y: floor - 6, vy: -rnd(.45, 1.1) * (mh/180), life: 0, max: rnd(70, 120), size: rnd(20, 44), seed: rnd(0, 6.28) });
   }
   function spawnSpark(){
     const { cx, mw, floor, mh } = geo;
-    sparks.push({ x: cx + (Math.random()-.5)*mw*0.6, y: floor - mh*0.55, vx: (Math.random()-.5)*.8,
-      vy: -rnd(1.2, 3.2), life: 0, max: rnd(140, 360), s: rnd(.8, 2.2), seed: rnd(0, 6.28) });
+    sparks.push({ x: cx + (Math.random()-.5)*mw*0.6, y: floor - mh*0.55, vx: (Math.random()-.5)*.4,
+      vy: -rnd(.55, 1.4), life: 0, max: rnd(260, 560), s: rnd(.8, 2.2), seed: rnd(0, 6.28) });
   }
   function burst(x, y, n, list, power = 1){
     for (let i = 0; i < n; i++){
       const a = -Math.PI/2 + (Math.random()-.5) * Math.PI * 1.3, v = rnd(2, 6) * power;
-      list.push({ x, y, vx: Math.cos(a)*v, vy: Math.sin(a)*v, life: 0, max: rnd(28, 60), s: rnd(.9, 2) });
+      list.push({ x, y, vx: Math.cos(a)*v, vy: Math.sin(a)*v, life: 0, max: rnd(50, 95), s: rnd(.9, 2) });
     }
   }
 
@@ -183,7 +183,7 @@
     ];
     tongues.forEach(T => {
       const center = 1 - Math.pow(Math.abs(T.u - .5) * 2, 2) * .6;
-      const nse = .62 + .22*Math.sin(t*T.f1 + T.p1) + .14*Math.sin(t*T.f2 + T.p2) + Math.random()*.06;
+      const nse = .62 + .22*Math.sin(t*T.f1 + T.p1) + .14*Math.sin(t*T.f2 + T.p2) + Math.random()*.015;
       const h = mh * T.h * center * nse * sc, w = mw * T.w * sc;
       const x0 = (T.u * mw * .94 + mw*.03) * sc, base = mh * sc + 2;
       const sway = Math.sin(t*T.f1*1.7 + T.p2) * w * .55;
@@ -199,7 +199,7 @@
     for (let i = flames.length - 1; i >= 0; i--){
       const f = flames[i]; f.life++;
       const k = f.life / f.max;
-      f.x += Math.sin(f.seed + f.life*.13) * .7; f.y += f.vy;
+      f.x += Math.sin(f.seed + f.life*.05) * .45; f.y += f.vy;
       const sz = f.size * (1 - k*.7) * sc;
       gx.globalAlpha = (1 - k) * .5;
       gx.drawImage(k < .4 ? S.hot : S.deep, (f.x - ox) * sc - sz/2, (f.y - oy) * sc - sz*.8, sz, sz*1.4);
@@ -209,7 +209,7 @@
     // угли поверх основания пламени
     coals.forEach(k => {
       const x = (k.x + mw/2) * sc, y = mh * sc - 1, r = k.r * sc;
-      const glow = .5 + .5*Math.sin(t/420 + k.p);
+      const glow = .5 + .5*Math.sin(t/1300 + k.p);
       gx.fillStyle = "#2a1007";
       gx.beginPath(); gx.ellipse(x, y, r, r*k.h, 0, Math.PI, 0); gx.fill();
       gx.fillStyle = `rgba(255,${110 + 90*glow|0},40,${.55 + .4*glow})`;
@@ -235,7 +235,7 @@
   function frame(t){
     g.clearRect(0,0,W,H);
     const { cx, floor, mh } = geo;
-    const flick = 0.82 + Math.sin(t/180)*.06 + Math.sin(t/77)*.05 + Math.random()*.05;
+    const flick = 0.82 + Math.sin(t/520)*.06 + Math.sin(t/233)*.04 + Math.random()*.012;
     const glow = g.createRadialGradient(cx, floor - mh*0.4, 10, cx, floor - mh*0.4, Math.max(W, H) * 0.75);
     glow.addColorStop(0, `rgba(255,150,60,${0.30*flick})`);
     glow.addColorStop(.35, `rgba(255,170,90,${0.12*flick})`);
@@ -246,12 +246,12 @@
     drawFire(t);
     drawIngot(t);
     // время от времени заготовка «стреляет» искрами
-    if (!geo.mobile || W > 420){ if (Math.random() < .012) burst(geo.anvilX + 40*(geo.mobile?.7:1), H - 124*(geo.mobile?.7:1), 10, pops, .7); }
+    if (!geo.mobile || W > 420){ if (Math.random() < .004) burst(geo.anvilX + 40*(geo.mobile?.7:1), H - 124*(geo.mobile?.7:1), 8, pops, .45); }
     for (const arr of [sparks, pops]){
       for (let i = arr.length - 1; i >= 0; i--){
         const p = arr[i]; p.life++;
-        if (arr === sparks){ p.x += p.vx + Math.sin(p.seed + p.life*.05)*.7; p.y += p.vy; p.vy *= .997; }
-        else { p.x += p.vx; p.y += p.vy; p.vy += .22; p.vx *= .98; }
+        if (arr === sparks){ p.x += p.vx + Math.sin(p.seed + p.life*.022)*.45; p.y += p.vy; p.vy *= .998; }
+        else { p.x += p.vx; p.y += p.vy; p.vy += .09; p.vx *= .985; }
         const a = Math.max(0, 1 - p.life/p.max);
         g.globalAlpha = a;
         const sz = p.s * 5;
@@ -267,8 +267,8 @@
   let running = true;
   function loop(t){
     if (!running) return;
-    for (let i = 0; i < (geo.mobile ? 2 : 4); i++) spawnFlame();
-    if (Math.random() < (geo.mobile ? .25 : .45)) spawnSpark();
+    for (let i = 0; i < (geo.mobile ? 1 : 2); i++) spawnFlame();
+    if (Math.random() < (geo.mobile ? .08 : .14)) spawnSpark();
     frame(t);
     requestAnimationFrame(loop);
   }
@@ -279,7 +279,7 @@
     gf.clearRect(0,0,W,H);
     for (let i = clickSparks.length - 1; i >= 0; i--){
       const p = clickSparks[i]; p.life++;
-      p.x += p.vx; p.y += p.vy; p.vy += .25; p.vx *= .97;
+      p.x += p.vx; p.y += p.vy; p.vy += .1; p.vx *= .975;
       gf.globalAlpha = Math.max(0, 1 - p.life/p.max);
       const sz = p.s * 5; gf.drawImage(S.spark, p.x - sz/2, p.y - sz/2, sz, sz);
       if (p.life >= p.max) clickSparks.splice(i, 1);
@@ -291,7 +291,7 @@
     if (reduce) return;
     const el = e.target.closest(".btn-gold, .choice-tile, .pick-row, .class-icon-item, .choice-card, .mode-tab, .equip-choice, .spell-card, .lore-btn, .skill-opt");
     if (!el || el.disabled) return;
-    burst(e.clientX, e.clientY, el.matches(".btn-gold") ? 26 : 14, clickSparks);
+    burst(e.clientX, e.clientY, el.matches(".btn-gold") ? 18 : 9, clickSparks, .55);
     if (!fxOn){ fxOn = true; requestAnimationFrame(fxLoop); }
   }, { passive: true });
 
