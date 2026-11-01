@@ -343,7 +343,7 @@ function classLoreHTML(c){
     ${L.sections.map(s => `<h4>${esc(s.title)}</h4>${loreParas(s.paras)}`).join("")}
     ${L.subs.length ? `<h4>${esc(L.subTitle)} — ${lvl === 1 ? "выбор на 1-м уровне" : `выбор на ${lvl}-м уровне`}</h4>
       ${lvl > 1 ? `<p class="lore-note">Персонаж создаётся 1-го уровня, поэтому этот выбор пока не делается — он откроется, когда герой дорастёт до ${lvl}-го уровня. Вот из чего можно будет выбирать:</p>` : ""}
-      ${lvl === 1 && SUBCLASSES[c.id] ? `<p class="lore-note">В генераторе можно выбрать варианты из «Книги игрока»: ${SUBCLASSES[c.id].map(x => x.name).join(", ")}. Остальные — из дополнений, они здесь для знакомства.</p>` : ""}
+      ${lvl === 1 && SUBCLASSES[c.id] ? `<p class="lore-note">В генераторе можно выбрать: ${SUBCLASSES[c.id].map(x => x.name).join(", ")}. Остальные — из дополнений, они здесь для знакомства.</p>` : ""}
       ${L.subs.map(x => `<p><b>${esc(x.name)}.</b>${lvl === 1 && SUBCLASSES[c.id] && !SUBCLASSES[c.id].some(y => y.name === x.name) ? ` <span class="lore-tag">дополнение</span>` : ""} ${esc(x.text)}</p>`).join("")}` : ""}
     <p class="lore-src">Источник: dnd.su</p>`;
 }
@@ -1072,7 +1072,7 @@ function raceChoicesDone(){
 
 /* Выборы подкласса (домен / происхождение / покровитель и их под-выборы) делаются прямо на шаге класса,
    остальные (боевой стиль, избранный враг, компетентность) — на отдельном шаге после навыков. */
-const SUB_NEEDS = ["subclass","dragonAncestor","natureSkill","natureCantrip","knowledgeSkills","pactBoon","pactTome","pactBlade","pactChain"];
+const SUB_NEEDS = ["subclass","dragonAncestor","natureSkill","natureCantrip","deathCantrip","knowledgeSkills","pactBoon","pactTome","pactBlade","pactChain"];
 function subclassNeeds(classId){ return classChoiceNeeds(classId).filter(n => SUB_NEEDS.includes(n)); }
 function laterClassNeeds(classId){ return classChoiceNeeds(classId).filter(n => !SUB_NEEDS.includes(n)); }
 
@@ -1104,6 +1104,9 @@ function classChoicesHTML(c, needs){
   if (needs.includes("dragonAncestor")) html += `<h3 class="spell-group-title">Драконий предок</h3>${tiles("dragonAncestor", DRAGON_ANCESTORS.map(x => ({ id:x.id, name:x.name, text:x.damage })))}`;
   if (needs.includes("natureSkill")) html += `<h3 class="spell-group-title">Навык послушника природы</h3>${tiles("natureSkill", ["Выживание","Природа","Уход за животными"].map(x => ({ id:x, name:x })))}`;
   if (needs.includes("natureCantrip")) html += `<h3 class="spell-group-title">Заговор друида</h3>${tiles("natureCantrip", DND_DATA.spells.filter(x => x.level === 0 && x.classes.includes("druid")).map(x => ({ id:x.id, name:x.name, text:x.description })))}`;
+  if (needs.includes("deathCantrip")) html += `<h3 class="spell-group-title">Жнец: заговор школы Некромантии</h3>
+      <p class="pool-note">Любого класса. Если заговор бьёт одну цель, ты сможешь бить им двоих, стоящих рядом (в пределах 5 футов друг от друга).</p>
+      ${tiles("deathCantrip", DND_DATA.spells.filter(x => x.level === 0 && x.school === "Некромантия").map(x => ({ id:x.id, name:x.name, text:x.description })))}`;
   if (needs.includes("knowledgeSkills")){
     const picks = cc.knowledgeSkills || [];
     html += `<h3 class="spell-group-title">Благословение знаний: выбери 2 навыка</h3>
@@ -1187,7 +1190,7 @@ function bindChoiceTiles(view, redraw){
       }
       if (k === "subclass"){
         // смена подкласса сбрасывает его под-выборы
-        ["dragonAncestor","natureSkill","natureCantrip","knowledgeSkills"].forEach(x => delete cc[x]);
+        ["dragonAncestor","natureSkill","natureCantrip","deathCantrip","knowledgeSkills"].forEach(x => delete cc[x]);
         state.spells = [];
         saveState();
         const y = window.scrollY; redraw(); window.scrollTo(0, y);
@@ -1204,6 +1207,7 @@ function subclassChoicesDone(){
   if (needs.includes("dragonAncestor") && !cc.dragonAncestor) return "Выбери драконьего предка";
   if (needs.includes("natureSkill") && !cc.natureSkill) return "Выбери навык послушника природы";
   if (needs.includes("natureCantrip") && !cc.natureCantrip) return "Выбери заговор друида";
+  if (needs.includes("deathCantrip") && !cc.deathCantrip) return "Выбери заговор некромантии для «Жнеца»";
   if (needs.includes("knowledgeSkills") && (cc.knowledgeSkills || []).length < 2) return "Выбери 2 навыка благословения знаний";
   if (needs.includes("pactBoon") && !cc.pactBoon) return "Выбери предмет договора";
   if (needs.includes("pactTome") && (cc.pactTome || []).length < 3) return "Выбери 3 заговора для Книги теней";
@@ -1219,6 +1223,7 @@ function classChoicesDone(){
   if (needs.includes("dragonAncestor") && !cc.dragonAncestor) return "Выбери драконьего предка";
   if (needs.includes("natureSkill") && !cc.natureSkill) return "Выбери навык послушника природы";
   if (needs.includes("natureCantrip") && !cc.natureCantrip) return "Выбери заговор друида";
+  if (needs.includes("deathCantrip") && !cc.deathCantrip) return "Выбери заговор некромантии для «Жнеца»";
   if (needs.includes("knowledgeSkills") && (cc.knowledgeSkills || []).length < 2) return "Выбери 2 навыка благословения знаний";
   if (needs.includes("fightingStyle") && !cc.fightingStyle) return "Выбери боевой стиль";
   if (needs.includes("favoredEnemy") && !cc.favoredEnemy) return "Выбери избранного врага";
@@ -1577,7 +1582,9 @@ function renderMagic(view){
   const cantripLimit = r.cantrips;
   const spellLimit = casterKnownCount(c.id, abMod);
   const slots = LEVEL1_SPELL_SLOTS[c.id] || 2;
-  const cantrips = DND_DATA.spells.filter(s => s.level === 0 && s.classes.includes(c.id));
+  const granted = [state.classChoices && state.classChoices.natureCantrip, state.classChoices && state.classChoices.deathCantrip].filter(Boolean);
+  const cantrips = DND_DATA.spells.filter(s => s.level === 0 && s.classes.includes(c.id) && !granted.includes(s.id));
+  state.spells = state.spells.filter(id => !granted.includes(id));
   const sub = getSubclass(c.id, state.classChoices);
   const extra = (sub && sub.extraList) || [];
   const fixed = (sub && sub.spells) || []; // заклинания домена всегда подготовлены — их не выбирают
@@ -1787,7 +1794,7 @@ function computeFinal(){
   if (r && r.id === "grung") attacks.forEach(a => { if (/колющ/.test(a.dmg)) a.notes = (a.notes ? a.notes + ", " : "") + "яд кожи: +2к4 ядом (спас ТЕЛ Сл 12)"; });
 
   // Классовые заклинания
-  const subSpellIds = sub ? [...(sub.cantrips || []), ...(sub.id === "nature" && cc.natureCantrip ? [cc.natureCantrip] : []), ...(sub.spells || [])] : [];
+  const subSpellIds = sub ? [...(sub.cantrips || []), ...(sub.id === "nature" && cc.natureCantrip ? [cc.natureCantrip] : []), ...(sub.id === "death" && cc.deathCantrip ? [cc.deathCantrip] : []), ...(sub.spells || [])] : [];
   const spellsDetailed = [
     ...state.spells.filter(id => !subSpellIds.includes(id)).map(id => DND_DATA.spells.find(sp=>sp.id===id)),
     ...subSpellIds.map(id => { const b = DND_DATA.spells.find(sp=>sp.id===id); return b ? Object.assign({}, b, { fromSub: sub.name }) : null; })
