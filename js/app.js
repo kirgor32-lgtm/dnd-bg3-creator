@@ -1976,7 +1976,22 @@ async function exportPDF(){
   const node = document.getElementById("charSheet");
   toast("Готовим PDF…");
   try{
+    // Масштабируем лист до фиксированной ширины (как на десктопе ~750px)
+    // чтобы PDF был одинаковым на всех устройствах
+    const origWidth = node.offsetWidth;
+    const targetWidth = 750;
+    const scale = targetWidth / origWidth;
+    node.style.transform = `scale(${scale})`;
+    node.style.transformOrigin = "top left";
+    node.style.width = `${targetWidth}px`;
+    
     const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ead9b3" });
+    
+    // Восстанавливаем оригинальный стиль
+    node.style.transform = "";
+    node.style.transformOrigin = "";
+    node.style.width = "";
+    
     const img = canvas.toDataURL("image/jpeg", 0.95);
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "b4" });
@@ -1987,7 +2002,18 @@ async function exportPDF(){
     if (h > pageH - 40){ h = pageH - 40; w = h * ratio; }
     pdf.addImage(img, "JPEG", (pageW-w)/2, 20, w, h);
     const fname = (state.name || "personazh").replace(/[^a-zA-Zа-яА-Я0-9_-]+/g,"_") + "_dnd5e.pdf";
-    pdf.save(fname);
+    
+    // Скачивание: создаём blob и ссылку для download (работает лучше на мобильнике)
+    const blob = pdf.output("blob");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
     toast("PDF сохранён ✓");
   }catch(e){
     console.error(e);
