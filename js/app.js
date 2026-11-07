@@ -1998,12 +1998,12 @@ async function exportPDF(){
     // Масштабируем ПРОПОРЦИОНАЛЬНО (без искажений текста), по максимуму
     // заполняя страницу: подгоняем по той стороне, что первой коснётся края,
     // и центрируем по второй — минимальные поля вместо кривого растяжения.
-    const img = canvas.toDataURL("image/png");
+    const img = canvas.toDataURL("image/jpeg", 0.92);
     const ratio = canvas.width / canvas.height;
     let w = pageW, h = w / ratio;
     if (h > pageH){ h = pageH; w = h * ratio; }
     const x = (pageW - w) / 2, y = (pageH - h) / 2;
-    pdf.addImage(img, "PNG", x, y, w, h);
+    pdf.addImage(img, "JPEG", x, y, w, h);
 
     const fname = (state.name || "personazh").replace(/[^a-zA-Zа-яА-Я0-9_-]+/g,"_") + "_dnd5e.pdf";
     const blob = pdf.output("blob");
