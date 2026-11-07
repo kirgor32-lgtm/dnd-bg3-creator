@@ -2005,12 +2005,12 @@ async function exportPDF(){
     const blob = pdf.output("blob");
     const file = new File([blob], fname, { type: "application/pdf" });
 
-    // На мобильных пытаемся сразу открыть системное меню "Поделиться" с РЕАЛЬНЫМ файлом
-    // (не blob: ссылкой — такая ссылка живёт только в памяти текущей страницы и
-    // не открывается у получателя). Если Web Share API с файлами не поддержан
-    // (десктоп, старые браузеры) — падаем на обычное скачивание.
+    // Шаринг открываем только на мобильных: на Windows Edge/Chrome тоже поддерживают
+    // navigator.share (через системное окно), но там раньше работало привычное
+    // автоскачивание — не меняем его ради десктопа, шаринг там не нужен.
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 760;
     let shared = false;
-    if (navigator.canShare && navigator.canShare({ files: [file] })){
+    if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })){
       try{
         await navigator.share({ files: [file], title: fname });
         shared = true;
