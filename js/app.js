@@ -1992,15 +1992,38 @@ async function exportPDF(){
     node.style.transformOrigin = "";
     node.style.width = "";
     
-    const img = canvas.toDataURL("image/jpeg", 0.95);
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "b4" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const ratio = canvas.width / canvas.height;
-    let w = pageW - 40, h = w / ratio;
-    if (h > pageH - 40){ h = pageH - 40; w = h * ratio; }
-    pdf.addImage(img, "JPEG", (pageW-w)/2, 20, w, h);
+    const margin = 20;
+    const usableW = pageW - margin*2;
+    const usableH = pageH - margin*2;
+
+    // Лист персонажа длинный (много блоков друг под другом) — если втиснуть его
+    // в одну страницу по ширине, высота переполнит страницу и придётся сжимать
+    // всё до узкой полоски с огромными белыми полями. Вместо этого режем холст
+    // на несколько страниц, каждая — в полную ширину страницы.
+    const pxPerPt = canvas.width / usableW;     // пикселей холста на 1pt страницы
+    const pageSliceH = Math.floor(usableH * pxPerPt); // высота одной страницы в пикселях холста
+    const totalPages = Math.max(1, Math.ceil(canvas.height / pageSliceH));
+
+    for (let p = 0; p < totalPages; p++){
+      if (p > 0) pdf.addPage();
+      const sy = p * pageSliceH;
+      const sh = Math.min(pageSliceH, canvas.height - sy);
+      const sliceCanvas = document.createElement("canvas");
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = sh;
+      const sctx = sliceCanvas.getContext("2d");
+      sctx.fillStyle = "#ead9b3";
+      sctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+      sctx.drawImage(canvas, 0, sy, canvas.width, sh, 0, 0, canvas.width, sh);
+      const sliceImg = sliceCanvas.toDataURL("image/jpeg", 0.95);
+      const hPt = sh / pxPerPt;
+      pdf.addImage(sliceImg, "JPEG", margin, margin, usableW, hPt);
+    }
+
     const fname = (state.name || "personazh").replace(/[^a-zA-Zа-яА-Я0-9_-]+/g,"_") + "_dnd5e.pdf";
     const blob = pdf.output("blob");
     const file = new File([blob], fname, { type: "application/pdf" });
