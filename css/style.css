@@ -671,7 +671,8 @@ input[type=number]{text-align:center;}
    (не через @media print, которая реагирует на реальный размер экрана/бумаги) —
    нужна, чтобы на телефоне PDF получался в виде нормального листа, а не узкой
    колонки на всю длину. Применяется временно через JS на время html2canvas. ---------- */
-.pdf-export-mode #charSheet{ width:850px !important; max-width:none !important; }
+.pdf-export-mode #charSheet{ width:850px !important; max-width:none !important; flex:0 0 850px !important; }
+.pdf-export-mode .sheet-wrap{ overflow:visible !important; justify-content:flex-start !important; }
 .pdf-export-mode .sheet-grid{ grid-template-columns:150px 1fr 230px !important; }
 .pdf-export-mode .sheet-features{ grid-template-columns:1fr 1fr !important; }
 .pdf-export-mode .sheet-spell-card{ width:calc(50% - 7px) !important; }
