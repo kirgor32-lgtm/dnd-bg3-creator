@@ -2020,6 +2020,17 @@ async function exportPDF(){
     }
     if (!shared){
       const url = URL.createObjectURL(blob);
+      if (isMobile){
+        // Встроенные браузеры (Telegram in-app, некоторые WebView) игнорируют
+        // атрибут download у blob-ссылок — вместо сохранения просто переходят
+        // по ссылке. Открываем PDF в новой вкладке/просмотрщике: там есть
+        // собственная кнопка «Поделиться»/«Сохранить», которая работает
+        // с реальным файлом, а не с мёртвой blob-ссылкой.
+        window.open(url, "_blank");
+        toast("PDF открыт — сохрани или поделись через меню просмотрщика");
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        return;
+      }
       const a = document.createElement("a");
       a.href = url;
       a.download = fname;
