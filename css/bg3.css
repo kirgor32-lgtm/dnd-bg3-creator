@@ -370,6 +370,12 @@ body{ overflow-y:scroll; scrollbar-gutter:stable; }
 .flip-card.flipped .flip-front{ pointer-events:none; }
 .flip-back{ position:absolute; inset:0; transform:rotateY(180deg); display:flex; flex-direction:column; padding:16px 20px 10px; }
 .flip-card:not(.flipped) .flip-back{ pointer-events:none; }
+/* Подстраховка: в некоторых WebView (Telegram in-app browser, старые Android)
+   backface-visibility:hidden игнорируется — скрытая грань всё равно рисуется,
+   зеркально отражённая, и наезжает на видимую. Явно прячем её через visibility,
+   это работает везде, даже если 3D-трансформации для backface-visibility не поддержаны. */
+.flip-card:not(.flipped) .flip-back{ visibility:hidden; }
+.flip-card.flipped .flip-front{ visibility:hidden; }
 .flip-card.lore-full .lore-body{ overflow:hidden; }
 .flip-card:not(.flipped) .lore-body{ overflow:hidden; }
 .lore-head{ display:flex; justify-content:flex-end; margin-bottom:6px; }
