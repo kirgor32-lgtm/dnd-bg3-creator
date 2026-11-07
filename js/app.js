@@ -1981,8 +1981,10 @@ async function exportPDF(){
     // размера экрана. Так лист на телефоне выглядит так же, как на десктопе,
     // а не узкой колонкой из мобильной раскладки.
     document.body.classList.add("pdf-export-mode");
-    // ждём один кадр, чтобы браузер применил новый grid-template-columns
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    // ждём немного, чтобы браузер применил новый grid-template-columns
+    // (setTimeout, а не requestAnimationFrame — rAF не срабатывает, если
+    // вкладка в фоне/не видна, из-за чего экспорт мог зависнуть навечно)
+    await new Promise(r => setTimeout(r, 80));
 
     const canvas = await html2canvas(node, { scale: 3, backgroundColor: "#ead9b3" });
 
