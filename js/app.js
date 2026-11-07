@@ -2002,18 +2002,33 @@ async function exportPDF(){
     if (h > pageH - 40){ h = pageH - 40; w = h * ratio; }
     pdf.addImage(img, "JPEG", (pageW-w)/2, 20, w, h);
     const fname = (state.name || "personazh").replace(/[^a-zA-Zа-яА-Я0-9_-]+/g,"_") + "_dnd5e.pdf";
-    
-    // Скачивание: создаём blob и ссылку для download (работает лучше на мобильнике)
     const blob = pdf.output("blob");
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fname;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
+    const file = new File([blob], fname, { type: "application/pdf" });
+
+    // На мобильных пытаемся сразу открыть системное меню "Поделиться" с РЕАЛЬНЫМ файлом
+    // (не blob: ссылкой — такая ссылка живёт только в памяти текущей страницы и
+    // не открывается у получателя). Если Web Share API с файлами не поддержан
+    // (десктоп, старые браузеры) — падаем на обычное скачивание.
+    let shared = false;
+    if (navigator.canShare && navigator.canShare({ files: [file] })){
+      try{
+        await navigator.share({ files: [file], title: fname });
+        shared = true;
+      }catch(shareErr){
+        if (shareErr && shareErr.name === "AbortError") { shared = true; } // пользователь сам закрыл меню — не ошибка
+      }
+    }
+    if (!shared){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
     toast("PDF сохранён ✓");
   }catch(e){
     console.error(e);
