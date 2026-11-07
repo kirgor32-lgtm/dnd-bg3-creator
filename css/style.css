@@ -667,6 +667,15 @@ input[type=number]{text-align:center;}
   #charSheet .sheet-spell-card{width:calc(50% - 7px) !important;}
 }
 
+/* ---------- Экспорт в PDF: та же раскладка, что и при печати, но принудительно
+   (не через @media print, которая реагирует на реальный размер экрана/бумаги) —
+   нужна, чтобы на телефоне PDF получался в виде нормального листа, а не узкой
+   колонки на всю длину. Применяется временно через JS на время html2canvas. ---------- */
+.pdf-export-mode #charSheet{ width:850px !important; max-width:none !important; }
+.pdf-export-mode .sheet-grid{ grid-template-columns:150px 1fr 230px !important; }
+.pdf-export-mode .sheet-features{ grid-template-columns:1fr 1fr !important; }
+.pdf-export-mode .sheet-spell-card{ width:calc(50% - 7px) !important; }
+
 /* ===== ПРАВИЛО: любой нативный браузерный контрол (range, select, number
    spinner) обязан быть переоформлен в теме проекта — никаких синих/белых
    стандартных слайдеров, стрелочек или выпадающих меню браузера. ===== */

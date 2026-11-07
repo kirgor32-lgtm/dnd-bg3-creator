@@ -1976,53 +1976,28 @@ async function exportPDF(){
   const node = document.getElementById("charSheet");
   toast("Готовим PDF…");
   try{
-    // Масштабируем лист до фиксированной ширины (как на десктопе ~750px)
-    // чтобы PDF был одинаковым на всех устройствах
-    const origWidth = node.offsetWidth;
-    const targetWidth = 750;
-    const scale = targetWidth / origWidth;
-    node.style.transform = `scale(${scale})`;
-    node.style.transformOrigin = "top left";
-    node.style.width = `${targetWidth}px`;
-    
+    // Принудительно включаем ту же плотную 3-колоночную раскладку, что уже
+    // используется при печати (@media print) — независимо от реального
+    // размера экрана. Так лист на телефоне выглядит так же, как на десктопе,
+    // а не узкой колонкой из мобильной раскладки.
+    document.body.classList.add("pdf-export-mode");
+    // ждём один кадр, чтобы браузер применил новый grid-template-columns
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
     const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ead9b3" });
-    
-    // Восстанавливаем оригинальный стиль
-    node.style.transform = "";
-    node.style.transformOrigin = "";
-    node.style.width = "";
-    
+
+    document.body.classList.remove("pdf-export-mode");
+
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "b4" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 20;
-    const usableW = pageW - margin*2;
-    const usableH = pageH - margin*2;
 
-    // Лист персонажа длинный (много блоков друг под другом) — если втиснуть его
-    // в одну страницу по ширине, высота переполнит страницу и придётся сжимать
-    // всё до узкой полоски с огромными белыми полями. Вместо этого режем холст
-    // на несколько страниц, каждая — в полную ширину страницы.
-    const pxPerPt = canvas.width / usableW;     // пикселей холста на 1pt страницы
-    const pageSliceH = Math.floor(usableH * pxPerPt); // высота одной страницы в пикселях холста
-    const totalPages = Math.max(1, Math.ceil(canvas.height / pageSliceH));
-
-    for (let p = 0; p < totalPages; p++){
-      if (p > 0) pdf.addPage();
-      const sy = p * pageSliceH;
-      const sh = Math.min(pageSliceH, canvas.height - sy);
-      const sliceCanvas = document.createElement("canvas");
-      sliceCanvas.width = canvas.width;
-      sliceCanvas.height = sh;
-      const sctx = sliceCanvas.getContext("2d");
-      sctx.fillStyle = "#ead9b3";
-      sctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-      sctx.drawImage(canvas, 0, sy, canvas.width, sh, 0, 0, canvas.width, sh);
-      const sliceImg = sliceCanvas.toDataURL("image/jpeg", 0.95);
-      const hPt = sh / pxPerPt;
-      pdf.addImage(sliceImg, "JPEG", margin, margin, usableW, hPt);
-    }
+    // Заполняем лист B4 целиком, без полей: раскладка теперь плотная и близкая
+    // по пропорциям к странице, так что растяжение до размеров страницы
+    // минимально и не искажает читаемость.
+    const img = canvas.toDataURL("image/jpeg", 0.95);
+    pdf.addImage(img, "JPEG", 0, 0, pageW, pageH);
 
     const fname = (state.name || "personazh").replace(/[^a-zA-Zа-яА-Я0-9_-]+/g,"_") + "_dnd5e.pdf";
     const blob = pdf.output("blob");
@@ -2065,6 +2040,7 @@ async function exportPDF(){
 
     toast("PDF сохранён ✓");
   }catch(e){
+    document.body.classList.remove("pdf-export-mode");
     console.error(e);
     toast("Не удалось создать PDF, попробуй кнопку «Печать»");
   }
