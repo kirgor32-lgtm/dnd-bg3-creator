@@ -1830,14 +1830,12 @@ function renderSheet(view){
   view.innerHTML = `
     <div class="view-header"><h1>Твой герой готов</h1><p>Нажми на рамку слева вверху, чтобы добавить портрет героя. Потом скачай лист в PDF или сразу отправь на печать.</p></div>
     <div class="sheet-actions">
-      <button class="btn btn-gold" id="btnPdf">⇩ Скачать PDF</button>
-      <button class="btn btn-gold" id="btnPdfA4">📜 PDF A4 (лицо + оборот)</button>
+      <button class="btn btn-gold" id="btnPdfA4">⇩ Скачать PDF (A4)</button>
       <button class="btn btn-ghost" id="btnPrint">🖶 Печать</button>
       <button class="btn btn-ghost" id="btnRestart">↻ Начать заново</button>
     </div>
     <div class="sheet-wrap"><div id="charSheet">${sheetHTML(d)}</div></div>
   `;
-  view.querySelector("#btnPdf").onclick = () => exportPDF();
   view.querySelector("#btnPdfA4").onclick = () => exportPDFA4();
   view.querySelector("#btnPrint").onclick = () => window.print();
   bindSheetPhoto(view);
@@ -1985,12 +1983,14 @@ function a4FrontHTML(d){
   const sub = c ? getSubclass(c.id, state.classChoices || {}) : null;
   const name = escapeHtml(state.name) || "Безымянный герой";
   const subtitleParts = [r ? (s ? s.name : r.name) : "", c ? c.name + (sub ? ` (${sub.name})` : "") : ""].filter(Boolean);
-  let portraitHTML = `<span class="a4-ph-glyph">❖</span>`;
+  // Фото персонажа почти всегда приходит со светлым/белым фоном (обычное
+  // селфи или студийное фото) — mix-blend-mode:multiply растворяет его в
+  // цвете пергамента вместо режущего белого прямоугольника. Если фото не
+  // приложено на первой странице редактора, НЕ подставляем картинку расы
+  // (это другой персонаж/другое фото) — пишем честно текстом "Нет фото".
+  let portraitHTML = `<span class="a4-ph-glyph a4-no-photo">Нет фото</span>`;
   if (state.photoDataUrl){
-    portraitHTML = `<img src="${state.photoDataUrl}" alt="Портрет">`;
-  } else if (r && typeof WHITE_BG_PORTRAITS !== "undefined"){
-    const cls = WHITE_BG_PORTRAITS.includes(r.id) ? " a4-on-parchment" : "";
-    portraitHTML = `<img class="${cls}" src="assets/img/races/${r.id}.jpg" alt="Портрет расы" onerror="this.parentNode.innerHTML='<span class=&quot;a4-ph-glyph&quot;>❖</span>'">`;
+    portraitHTML = `<img class="a4-on-parchment" src="${state.photoDataUrl}" alt="Портрет">`;
   }
   const bg = state.background ? escapeHtml(state.background).split(/\n{2,}/).map(p => `<p>${p.replace(/\n/g,"<br>")}</p>`).join("") : "<p><i>Предыстория не заполнена.</i></p>";
   const tags = [
@@ -2130,83 +2130,9 @@ async function exportPDFA4(){
 }
 
 async function exportPDF(){
-  const node = document.getElementById("charSheet");
-  toast("Готовим PDF…");
-  try{
-    // Принудительно включаем ту же плотную 3-колоночную раскладку, что уже
-    // используется при печати (@media print) — независимо от реального
-    // размера экрана. Так лист на телефоне выглядит так же, как на десктопе,
-    // а не узкой колонкой из мобильной раскладки.
-    document.body.classList.add("pdf-export-mode");
-    // ждём немного, чтобы браузер применил новый grid-template-columns
-    // (setTimeout, а не requestAnimationFrame — rAF не срабатывает, если
-    // вкладка в фоне/не видна, из-за чего экспорт мог зависнуть навечно)
-    await new Promise(r => setTimeout(r, 80));
-
-    const canvas = await html2canvas(node, { scale: 3, backgroundColor: "#ead9b3" });
-
-    document.body.classList.remove("pdf-export-mode");
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-
-    // Масштабируем ПРОПОРЦИОНАЛЬНО (без искажений текста), по максимуму
-    // заполняя страницу: подгоняем по той стороне, что первой коснётся края,
-    // и центрируем по второй — минимальные поля вместо кривого растяжения.
-    const img = canvas.toDataURL("image/jpeg", 0.92);
-    const ratio = canvas.width / canvas.height;
-    let w = pageW, h = w / ratio;
-    if (h > pageH){ h = pageH; w = h * ratio; }
-    const x = (pageW - w) / 2, y = (pageH - h) / 2;
-    pdf.addImage(img, "JPEG", x, y, w, h);
-
-    const fname = (state.name || "personazh").replace(/[^a-zA-Zа-яА-Я0-9_-]+/g,"_") + "_dnd5e.pdf";
-    const blob = pdf.output("blob");
-    const file = new File([blob], fname, { type: "application/pdf" });
-
-    // Шаринг открываем только на мобильных: на Windows Edge/Chrome тоже поддерживают
-    // navigator.share (через системное окно), но там раньше работало привычное
-    // автоскачивание — не меняем его ради десктопа, шаринг там не нужен.
-    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 760;
-    let shared = false;
-    if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })){
-      try{
-        await navigator.share({ files: [file], title: fname });
-        shared = true;
-      }catch(shareErr){
-        if (shareErr && shareErr.name === "AbortError") { shared = true; } // пользователь сам закрыл меню — не ошибка
-      }
-    }
-    if (!shared){
-      const url = URL.createObjectURL(blob);
-      if (isMobile){
-        // Встроенные браузеры (Telegram in-app, некоторые WebView) игнорируют
-        // атрибут download у blob-ссылок — вместо сохранения просто переходят
-        // по ссылке. Открываем PDF в новой вкладке/просмотрщике: там есть
-        // собственная кнопка «Поделиться»/«Сохранить», которая работает
-        // с реальным файлом, а не с мёртвой blob-ссылкой.
-        window.open(url, "_blank");
-        toast("PDF открыт — сохрани или поделись через меню просмотрщика");
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-        return;
-      }
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fname;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-
-    toast("PDF сохранён ✓");
-  }catch(e){
-    document.body.classList.remove("pdf-export-mode");
-    console.error(e);
-    toast("Не удалось создать PDF, попробуй кнопку «Печать»");
-  }
+  // Старая кнопка PDF удалена из интерфейса (оставлена только A4-версия
+  // exportPDFA4) — функция не вызывается, код сохранён на случай, если
+  // понадобится откатить решение.
 }
 
 /* ---------------- Validation / Navigation ---------------- */

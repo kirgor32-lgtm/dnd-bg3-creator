@@ -65,6 +65,10 @@
 .a4-portrait-box img{ display:block; max-width:100%; max-height:100%; object-fit:contain; }
 .a4-portrait-box img.a4-on-parchment{ mix-blend-mode:multiply; }
 .a4-portrait-box .a4-ph-glyph{ font-size:64px; color:#c6a978; }
+.a4-portrait-box .a4-no-photo{
+  font-size:18px; font-family:'Cinzel', serif; letter-spacing:2px; text-transform:uppercase;
+  color:#a98f5f; text-align:center;
+}
 .a4-lore-box{
   border:1px solid #c6a978; border-radius:12px; background:#f7eedc;
   padding:16px 18px; display:flex; flex-direction:column; min-height:0;
