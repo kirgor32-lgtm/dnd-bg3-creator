@@ -6,7 +6,7 @@ const RACE_GLYPH = {
   human:"🙂", elf:"🧝", dwarf:"⛏", halfling:"🍀", dragonborn:"🐉",
   gnome:"🔧", "half-elf":"🌙", "half-orc":"🪓", tiefling:"🔥",
   genasi:"🌪", kenku:"🐦", shifter:"🐺", aasimar:"👼", tabaxi:"🐱",
-  goliath:"⛰", triton:"🔱", goblin:"🗿", centaur:"🐎", changeling:"🎭"
+  goliath:"⛰", triton:"🔱", goblin:"🗿", centaur:"🐎", changeling:"🎭", grung:"🐸"
 };
 const CLASS_GLYPH = {
   barbarian:"🪓", bard:"🎵", cleric:"✝", druid:"🌿", fighter:"⚔",
@@ -24,6 +24,7 @@ let state = {
   equipmentChoice: null,
   customEquip: { weapons: [], armorId: null, shield: false, shieldId: null, packId: null },
   spells: [], spellSlotsUsed: 0,
+  raceChoices: {}, classChoices: {},
 };
 
 function loadState(){
@@ -54,9 +55,12 @@ const STEP_META = {
   race:      { title: "Выбор расы", caption: "Шаг 2 — Раса" },
   subrace:   { title: "Выбор подрасы", caption: "Шаг 3 — Подраса" },
   class:     { title: "Выбор класса", caption: "Шаг 4 — Класс" },
+  subclass:  { title: "Путь класса", caption: "Путь класса" },
+  racechoice:{ title: "Особенности расы", caption: "Выбор расовых особенностей" },
   flexbonus: { title: "Расовый бонус", caption: "Расовый бонус характеристик" },
   abilities: { title: "Характеристики", caption: "Распределение характеристик" },
   skills:    { title: "Навыки", caption: "Навыки класса" },
+  classchoice:{ title: "Умения класса", caption: "Выбор умений класса" },
   physique:  { title: "Телосложение", caption: "Рост и вес" },
   equipment: { title: "Снаряжение", caption: "Снаряжение" },
   magic:     { title: "Магия", caption: "Заклинания" },
@@ -68,9 +72,14 @@ function getActiveSteps(){
   const r = getRace();
   if (r && r.subraces && r.subraces.length) steps.push("subrace");
   steps.push("class");
+  const cls = getClass();
+  if (cls && subclassNeeds(cls.id).length) steps.push("subclass");
+  if (raceChoiceNeeds().length) steps.push("racechoice");
   if (r && r.abilityBonuses && r.abilityBonuses.flexible) steps.push("flexbonus");
   steps.push("abilities");
   steps.push("skills");
+  const cl = getClass();
+  if (cl && laterClassNeeds(cl.id).length) steps.push("classchoice");
   steps.push("physique");
   steps.push("equipment");
   const c = getClass();
@@ -111,8 +120,9 @@ function render(){
   document.getElementById("stepCaption").textContent = STEP_META[state.step].caption;
 
   const renderers = {
-    intro: renderIntro, race: renderRace, subrace: renderSubrace, class: renderClassStep,
+    intro: renderIntro, race: renderRace, subrace: renderSubrace, class: renderClassStep, subclass: renderSubclassStep,
     flexbonus: renderFlexBonusStep, abilities: renderAbilities, skills: renderSkillsStep,
+    racechoice: renderRaceChoiceStep, classchoice: renderClassChoiceStep,
     physique: renderPhysique, equipment: renderEquipment, magic: renderMagic, sheet: renderSheet
   };
   renderers[state.step](view);
@@ -150,14 +160,6 @@ function renderIntro(view){
       <p>Прежде чем ступить на путь приключений, дай себе имя. Остальное — раса, класс и судьба — определится дальше.</p>
     </div>
     <div class="intro-layout">
-      <div class="intro-photo-col">
-        <div class="photo-drop" id="photoDrop">
-          ${state.photoDataUrl ? `<img id="photoPreview" src="${state.photoDataUrl}">` : `<div class="photo-placeholder"><span>🖼</span><span>Загрузить портрет</span></div>`}
-          <input type="file" id="inPhoto" accept="image/*" hidden>
-        </div>
-        ${state.photoDataUrl ? `<button class="btn btn-ghost" id="btnPhotoClear" style="margin-top:8px;">✕ Убрать фото</button>` : ""}
-        <p class="pool-note" style="margin-top:8px;">Любое фото или арт — подгонится под рамку автоматически. Появится в левом верхнем углу итогового листа.</p>
-      </div>
       <div class="intro-form-col">
         <div class="form-row">
           <label>Имя персонажа</label>
@@ -180,24 +182,11 @@ function renderIntro(view){
   view.querySelector("#inName").oninput = e => { state.name = e.target.value; updateNextEnabled(); };
   view.querySelector("#inAlign").onchange = e => state.alignment = e.target.value;
   view.querySelector("#inBg").oninput = e => state.background = e.target.value;
-  const drop = view.querySelector("#photoDrop");
-  const fileInput = view.querySelector("#inPhoto");
-  drop.onclick = () => fileInput.click();
-  fileInput.onchange = e => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    cropImageToSquare(file, 640).then(dataUrl => {
-      state.photoDataUrl = dataUrl;
-      saveState();
-      renderIntro(view);
-    });
-  };
-  const clearBtn = view.querySelector("#btnPhotoClear");
-  if (clearBtn) clearBtn.onclick = (e) => { e.stopPropagation(); state.photoDataUrl = null; saveState(); renderIntro(view); };
 }
 /* Авто-кадрирование: любое фото любого формата приводится к квадрату (cover-кроп по центру),
    чтобы хорошо смотреться и в рамке загрузки, и на итоговом листе персонажа. */
-function cropImageToSquare(file, size){
+function cropImageToSquare(file, size, ratio = 1){
+  // ratio = высота/ширина; для листа персонажа — 4:3 (вертикальный прямоугольник)
   return new Promise((resolve, reject) => {
     const img = new Image();
     const reader = new FileReader();
@@ -205,11 +194,12 @@ function cropImageToSquare(file, size){
     reader.onerror = reject;
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = size; canvas.height = size;
+      canvas.width = size; canvas.height = Math.round(size * ratio);
       const ctx = canvas.getContext("2d");
-      const side = Math.min(img.width, img.height);
-      const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+      let sw = img.width, sh = sw * ratio;
+      if (sh > img.height){ sh = img.height; sw = sh / ratio; }
+      const sx = (img.width - sw) / 2, sy = Math.max(0, (img.height - sh) * 0.3);   // чуть выше центра — чтобы не срезать голову
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL("image/jpeg", 0.9));
     };
     img.onerror = reject;
@@ -243,6 +233,7 @@ function renderRace(view){
       if (!r.subraces || !r.subraces.some(s => s.id === state.subraceId)) state.subraceId = null;
       state.physiqueMode = null; state.heightCm = null; state.weightKg = null;
       state.flexBonus = null;
+      state.raceChoices = {};
       grid.querySelectorAll(".pick-row.selected").forEach(n => n.classList.remove("selected"));
       row.classList.add("selected");
       renderRaceDetail(view.querySelector("#raceDetail"));
@@ -257,10 +248,10 @@ function renderRace(view){
 function renderRaceDetail(el){
   const r = getRace();
   if (!r){ el.innerHTML = `<p class="pool-note">Выбери расу, чтобы увидеть её черты.</p>`; return; }
-  el.innerHTML = `
+  el.innerHTML = flipCard(`
     <div class="detail-panel race-detail">
       <div class="race-portrait-frame">
-        <img src="assets/img/races/${r.id}.jpg?v=16" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
+        <img class="${WHITE_BG_PORTRAITS.includes(r.id) ? "on-parchment" : ""}" src="assets/img/races/${r.id}.jpg?v=30" alt="${r.name}" loading="lazy" onerror="this.parentNode.classList.add('empty');this.remove()">
         <div class="portrait-empty"><span>${RACE_GLYPH[r.id] || "❖"}</span><small>Портрет появится позже</small></div>
       </div>
       <div class="race-info">
@@ -270,9 +261,110 @@ function renderRaceDetail(el){
         <div class="bg3-divider"><span></span></div>
         <ul>${(r.traits||[]).map(t => `<li>${t}</li>`).join("")}</ul>
         ${r.languages ? `<p class="detail-note"><b>Языки:</b> ${r.languages.join(", ")}</p>` : ""}
+        ${loreButton(r.id)}
       </div>
     </div>
-  `;
+  `, raceLoreHTML(r), r.id);
+  bindFlip(el);
+}
+/* ---- Оборот карточки: «История» ---- */
+function esc(t){ return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function loreButton(key){
+  return `<button type="button" class="lore-btn" data-flip="1"><span>📜</span> История</button>`;
+}
+/* Портреты на белом фоне — на сайте фон «впитывается» в пергамент. */
+const WHITE_BG_PORTRAITS = ["halfling","half-elf","goblin","gnome","tiefling","genasi","elf","human","shifter","grung","dragonborn","tabaxi","goliath","half-orc","kenku","aasimar","triton","changeling","dwarf","centaur"];
+function flipCard(front, back, key, backLabel){
+  if (!back) return front;
+  return `<div class="flip-card" data-key="${key}">
+    <div class="flip-inner">
+      <div class="flip-face flip-front">${front}</div>
+      <div class="flip-face flip-back detail-panel" aria-hidden="true">
+        <div class="lore-head"><button type="button" class="lore-btn lore-btn--back" data-flip="1">← ${backLabel || "К чертам"}</button></div>
+        <div class="lore-body">${back}</div>
+      </div>
+    </div>
+  </div>`;
+}
+function bindFlip(el){
+  const card = el.querySelector(".flip-card"); if (!card) return;
+  const front = card.querySelector(".flip-front"), back = card.querySelector(".flip-back");
+  const fit = () => {
+    const h = front.offsetHeight;
+    if (!card.classList.contains("flipped")) { card.style.height = h + "px"; return; }
+    const full = window.innerWidth < 760 || h > window.innerHeight * 0.8;
+    card.classList.toggle("lore-full", full);   // текст раскрывается целиком — внутренняя прокрутка не нужна (и не мигает во время анимации высоты)
+    if (full) {
+      // на телефоне и при высокой лицевой стороне оборот раскрывается на всю длину текста — без прокрутки внутри прокрутки
+      const body = back.querySelector(".lore-body");
+      card.style.height = (back.offsetHeight - body.clientHeight + body.scrollHeight + 4) + "px";
+    } else card.style.height = Math.max(h, 520) + "px";
+  };
+  fit();
+  card._fit = fit;   // можно вызвать вручную после дорисовки содержимого
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(front);
+  card.querySelectorAll("img").forEach(i => i.addEventListener("load", fit));
+  card.querySelectorAll("[data-flip]").forEach(b => b.addEventListener("click", () => {
+    const on = !card.classList.contains("flipped");
+    card.classList.toggle("flipped", on);
+    card.classList.remove("flipping"); void card.offsetWidth; card.classList.add("flipping");   // «поднять» карточку на время переворота
+    clearTimeout(card._ft); card._ft = setTimeout(() => card.classList.remove("flipping"), 1300);
+    back.setAttribute("aria-hidden", String(!on)); front.setAttribute("aria-hidden", String(on));
+    fit();
+    if (on) back.querySelector(".lore-body").scrollTop = 0;
+    if (window.innerWidth < 760 || card.getBoundingClientRect().top < 0) card.scrollIntoView({ behavior:"smooth", block:"start" });
+  }));
+}
+function loreParas(arr){
+  return (arr || []).map(p => typeof p === "string" ? `<p>${esc(p)}</p>`
+    : `<ul class="lore-list">${p.list.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`).join("");
+}
+/* Оборот карточки класса: история класса из dnd.su + обзор подклассов */
+function classLoreHTML(c){
+  const L = (typeof CLASS_LORE !== "undefined") && CLASS_LORE[c.id];
+  if (!L) return "";
+  const lvl = L.subLevel || 1;
+  return `<h3>${c.name}: история класса</h3>
+    ${loreParas(L.intro)}
+    ${L.sections.map(s => `<h4>${esc(s.title)}</h4>${loreParas(s.paras)}`).join("")}
+    ${L.subs.length ? `<h4>${esc(L.subTitle)} — ${lvl === 1 ? "выбор на 1-м уровне" : `выбор на ${lvl}-м уровне`}</h4>
+      ${lvl > 1 ? `<p class="lore-note">Персонаж создаётся 1-го уровня, поэтому этот выбор пока не делается — он откроется, когда герой дорастёт до ${lvl}-го уровня. Вот из чего можно будет выбирать:</p>` : ""}
+      ${lvl === 1 && SUBCLASSES[c.id] ? `<p class="lore-note">В генераторе можно выбрать: ${SUBCLASSES[c.id].map(x => x.name).join(", ")}. Остальные — из дополнений, они здесь для знакомства.</p>` : ""}
+      ${L.subs.map(x => `<p><b>${esc(x.name)}.</b>${lvl === 1 && SUBCLASSES[c.id] && !SUBCLASSES[c.id].some(y => y.name === x.name) ? ` <span class="lore-tag">дополнение</span>` : ""} ${esc(x.text)}</p>`).join("")}` : ""}
+    <p class="lore-src">Источник: dnd.su</p>`;
+}
+/* Подробности выбранного подкласса: кто это, что даёт сейчас и потом */
+function subclassInfoHTML(c, sub, cc){
+  const SL = (typeof SUBCLASS_LORE !== "undefined") && SUBCLASS_LORE[c.id] && SUBCLASS_LORE[c.id][cc.subclass];
+  const always = [...(sub.cantrips||[]), ...(sub.spells||[])].map(id => (DND_DATA.spells.find(x => x.id === id) || {name:id}).name);
+  if (!SL) return `<div class="subclass-info"><b>${sub.name}.</b> ${sub.text}</div>`;
+  const now = SL.features.filter(f => f.level === 1);
+  const later = SL.features.filter(f => f.level && f.level > 1);
+  const parasNoBigTables = ps => loreParas(ps.map(p => (typeof p !== "string" && p.list.length > 12) ? `(таблица из ${p.list.length} строк — в «Книге игрока»; Мастер подскажет результат броска)` : p));
+  let html = `<div class="subclass-info">
+    <h4 class="si-title">${sub.name}: кто это</h4>
+    ${loreParas(SL.intro)}
+    <h4 class="si-title">Что даёт на 1-м уровне</h4>
+    ${now.map(f => `<div class="si-feat"><b>${esc(f.name)}.</b> ${parasNoBigTables(f.paras)}</div>`).join("")}
+    ${always.length ? `<p class="pool-note">Всегда подготовлены (не тратят выбор): ${always.join(", ")}</p>` : ""}
+    ${later.length ? `<h4 class="si-title">Что откроется дальше</h4><p class="si-later">${later.map(f => `<span>${f.level} ур. — ${esc(f.name)}</span>`).join("")}</p>` : ""}`;
+  return html + `<p class="lore-src">Источник: dnd.su</p></div>`;
+}
+function raceLoreHTML(r){
+  const L = (typeof RACE_LORE !== "undefined") && RACE_LORE[r.id];
+  if (!L) return "";
+  const subs = (r.subraces || []).filter(s => L.subs && L.subs[s.id] && L.subs[s.id].length);
+  return `<h3>${r.name}: история народа</h3>
+    ${L.quote ? `<blockquote class="lore-quote">${esc(L.quote)}</blockquote>` : ""}
+    ${loreParas(L.intro)}
+    ${L.sections.map(s => `<h4>${esc(s.title)}</h4>${loreParas(s.paras)}`).join("")}
+    ${subs.length ? `<h4>Подрасы</h4>${subs.map(s => `<p><b>${s.name}.</b> ${esc(L.subs[s.id][0])}</p>`).join("")}` : ""}
+    <p class="lore-src">Источник: dnd.su</p>`;
+}
+function subraceLoreHTML(r, s){
+  const L = (typeof RACE_LORE !== "undefined") && RACE_LORE[r.id];
+  if (!L || !L.subs || !L.subs[s.id] || !L.subs[s.id].length) return "";
+  return `<h3>${s.name}</h3>${loreParas(L.subs[s.id])}<p class="lore-src">Источник: dnd.su</p>`;
 }
 function abilityBonusChips(bonuses){
   if (!bonuses) return "";
@@ -305,6 +397,7 @@ function renderSubrace(view){
     row.onclick = () => {
       if (state.subraceId === s.id) return;
       state.subraceId = s.id;
+      state.raceChoices = {};
       state.physiqueMode = null; state.heightCm = null; state.weightKg = null;
       grid.querySelectorAll(".pick-row.selected").forEach(n => n.classList.remove("selected"));
       row.classList.add("selected");
@@ -321,14 +414,17 @@ function renderSubraceDetail(el){
   const s = getSubrace();
   const r = getRace();
   if (!s){ el.innerHTML = `<p class="pool-note">Выбери подрасу, чтобы увидеть её черты.</p>`; return; }
-  el.innerHTML = `
+  const back = subraceLoreHTML(r, s);
+  el.innerHTML = flipCard(`
     <div class="detail-panel">
       <h3>${s.name}</h3>
       <p class="detail-sub">Подраса: ${r.name.toLowerCase()}</p>
       <div class="stat-row">${abilityBonusChips(s.abilityBonuses)}</div>
       <ul>${(s.traits||[]).map(t => `<li>${t}</li>`).join("")}</ul>
+      ${back ? loreButton(s.id) : ""}
     </div>
-  `;
+  `, back, s.id);
+  bindFlip(el);
 }
 
 /* ---------------- Step: Class ---------------- */
@@ -355,6 +451,7 @@ function renderClassStep(view){
       state.equipmentChoice = null;
       state.customEquip = { weapons: [], armorId: null, shield: false, shieldId: null, packId: null };
       state.spells = [];
+      state.classChoices = {};
       state.abilityMode = null;
       state.abilityAssign = {};
       state.diceRolls = null;
@@ -364,6 +461,7 @@ function renderClassStep(view){
       revealOnMobile(view.querySelector("#classDetail"));
       saveState();
       updateNextEnabled();
+      renderRail();
     };
     grid.appendChild(row);
   });
@@ -377,22 +475,47 @@ function renderClassDetail(el){
   ).join("");
   const skillOpts = (c.skillChoices && c.skillChoices.options) || [];
   const equipRoles = (c.startingEquipment||[]).map(e => `${e.choice}: ${e.role}`).join(" · ");
-  el.innerHTML = `
+  el.innerHTML = flipCard(`
     <div class="detail-panel">
       <div class="class-icon-badge"><img src="assets/img/classes/${c.id}.png" alt="${c.name}" loading="lazy" onerror="this.outerHTML='${CLASS_GLYPH[c.id] || "❖"}'"></div>
       <h3>${c.name}</h3>
       ${c.description ? `<p class="class-flavor">${c.description}</p>` : ""}
+      ${classLoreHTML(c) ? loreButton(c.id) : ""}
       <div class="stat-row">
         <span class="stat-chip"><b>Кость хитов</b> к${c.hitDie}</span>
         <span class="stat-chip"><b>Спасброски</b> ${(c.savingThrows||[]).map(s => ABILITY_NAMES[s.toLowerCase()] || s).join(", ")}</span>
       </div>
-      <p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Доспехи:</b> ${(c.armorProficiency||[]).join(", ") || "—"}</p>
-      <p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Оружие:</b> ${(c.weaponProficiency||[]).join(", ") || "—"}</p>
-      ${featuresHtml ? `<p style="margin:10px 0 4px;color:var(--parchment)"><b>Умения 1 уровня:</b></p><ul class="feature-list">${featuresHtml}</ul>` : ""}
-      ${skillOpts.length ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Навыки на выбор (${c.skillChoices.count}):</b> ${skillOpts.join(", ")}</p>` : ""}
-      ${equipRoles ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--parchment)">Снаряжение:</b> ${equipRoles}</p>` : ""}
+      <p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--text-strong, #ead9b3)">Доспехи:</b> ${(c.armorProficiency||[]).join(", ") || "—"}</p>
+      <p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--text-strong, #ead9b3)">Оружие:</b> ${(c.weaponProficiency||[]).join(", ") || "—"}</p>
+      ${featuresHtml ? `<p style="margin:10px 0 4px;color:var(--text-strong, #ead9b3)"><b>Умения 1 уровня:</b></p><ul class="feature-list">${featuresHtml}</ul>` : ""}
+      ${skillOpts.length ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--text-strong, #ead9b3)">Навыки на выбор (${c.skillChoices.count}):</b> ${skillOpts.join(", ")}</p>` : ""}
+      ${equipRoles ? `<p style="color:var(--text-dim);margin:8px 0;"><b style="color:var(--text-strong, #ead9b3)">Снаряжение:</b> ${equipRoles}</p>` : ""}
+      ${subclassNeeds(c.id).length ? `<p class="next-hint">➜ На следующей странице: ${SUBCLASS_STEP_TITLE[c.id] ? SUBCLASS_STEP_TITLE[c.id].toLowerCase() : "путь класса"}.</p>` : ""}
     </div>
-  `;
+  `, classLoreHTML(c), c.id, "К умениям");
+  bindFlip(el);
+}
+
+/* ---------------- Step: Путь класса (домен, происхождение, покровитель + договор) ---------------- */
+const SUBCLASS_STEP_TITLE = { paladin:"Божество-покровитель", cleric:"Божественный домен", sorcerer:"Происхождение чародея", warlock:"Покровитель и договор" };
+const SUBCLASS_STEP_TEXT = {
+  paladin:"Паладин черпает силу из клятвы, но многие служат и конкретному богу. Выбор не обязателен и нужен только для отыгрыша — он попадёт в лист персонажа.",
+  cleric:"Жрец служит конкретному божеству: домен определяет, какие дары оно даёт уже на 1-м уровне — доспехи, заклинания, особые умения.",
+  sorcerer:"Магия чародея — врождённая. Происхождение объясняет, откуда она взялась, и даёт особые умения уже на 1-м уровне.",
+  warlock:"Колдун заключил сделку с могущественным существом. Выбери покровителя, а затем — предмет договора, который он тебе вручит."
+};
+function renderSubclassStep(view){
+  const c = getClass();
+  view.innerHTML = `
+    <div class="view-header"><h1>${SUBCLASS_STEP_TITLE[c.id] || "Путь класса"}</h1><p>${SUBCLASS_STEP_TEXT[c.id] || ""}</p></div>
+    <div class="detail-panel subclass-step" id="subclassPick"></div>`;
+  const box = view.querySelector("#subclassPick");
+  const draw = () => {
+    box.innerHTML = classChoicesHTML(c, subclassNeeds(c.id));
+    bindChoiceTiles(box, draw);
+    updateNextEnabled();
+  };
+  draw();
 }
 
 /* ---------------- Step: Abilities ---------------- */
@@ -414,6 +537,8 @@ function racialBonusFor(ability){
     if (s.abilityBonuses.all) bonus += s.abilityBonuses.all;
     else if (s.abilityBonuses[ability]) bonus += s.abilityBonuses[ability];
   }
+  const rc = state.raceChoices || {};
+  if (raceChoiceNeeds().some(n => n.type === "abilityPlus") && (rc.abilityPlus || []).includes(ability)) bonus += 1;
   return bonus;
 }
 /* Гибкий расовый бонус (MPMM/Monsters of the Multiverse): игрок сам распределяет
@@ -681,10 +806,9 @@ function renderReadonlyGrid(body){
     card.className = "ability-card";
     card.innerHTML = `
       <div class="ab-name">${ABILITY_NAMES[ab]}</div>
-      <div class="ab-roll">${base ?? "—"}</div>
       <div class="ab-total">${total ?? "—"}</div>
       <div class="ab-mod">модификатор ${total!=null?fmtMod(abilityMod(total)):"—"}</div>
-      ${bonus ? `<div class="ab-bonus">расовый бонус +${bonus}</div>` : ""}
+      <div class="ab-roll">база ${base ?? "—"}${bonus ? ` + ${bonus} от расы` : ""}</div>
     `;
     grid.appendChild(card);
   });
@@ -801,22 +925,320 @@ function renderSkillGrid(view){
   const grid = view.querySelector("#skillGrid");
   const hint = view.querySelector("#skillHint");
   if (!c || !c.skillChoices){ grid.innerHTML=""; hint.textContent=""; return; }
-  hint.textContent = `Выбери ${c.skillChoices.count} навыков из списка класса.`;
+  const raceSk = racialSkills();
+  state.skillChoices = state.skillChoices.filter(sk => !raceSk.includes(sk));
+  hint.textContent = `Выбери ${c.skillChoices.count} навыков из списка класса.` + (raceSk.length ? ` От расы уже есть: ${raceSk.join(", ")}.` : "");
   grid.innerHTML = "";
   (c.skillChoices.options||[]).forEach(skill => {
-    const checked = state.skillChoices.includes(skill);
-    const atLimit = state.skillChoices.length >= c.skillChoices.count && !checked;
+    const fromRace = raceSk.includes(skill);
+    const checked = fromRace || state.skillChoices.includes(skill);
+    const atLimit = !fromRace && state.skillChoices.length >= c.skillChoices.count && !checked;
     const opt = document.createElement("label");
-    opt.className = "skill-opt" + (checked?" checked":"") + (atLimit?" disabled":"");
-    opt.innerHTML = `<input type="checkbox" ${checked?"checked":""} ${atLimit?"disabled":""}> ${skill} <span style="color:var(--text-dim);font-size:.75rem;margin-left:auto;">${SKILL_ABILITY[skill]?SKILL_ABILITY[skill].toUpperCase():""}</span>`;
-    opt.querySelector("input").onchange = e => {
+    opt.className = "skill-opt" + (checked?" checked":"") + ((atLimit||fromRace)?" disabled":"");
+    opt.innerHTML = `<input type="checkbox" ${checked?"checked":""} ${(atLimit||fromRace)?"disabled":""}> ${skill} <span style="color:var(--text-dim);font-size:.75rem;margin-left:auto;">${fromRace?"от расы":(SKILL_ABILITY[skill]?SKILL_ABILITY[skill].toUpperCase():"")}</span>`;
+    if (!fromRace) opt.querySelector("input").onchange = e => {
       if (e.target.checked) state.skillChoices.push(skill);
       else state.skillChoices = state.skillChoices.filter(s => s !== skill);
+      if (state.classChoices && state.classChoices.expertise) state.classChoices.expertise = state.classChoices.expertise.filter(x => x === "Воровские инструменты" || state.skillChoices.includes(x) || raceSk.includes(x));
       renderSkillGrid(view);
       updateNextEnabled();
     };
     grid.appendChild(opt);
   });
+}
+
+/* ---------------- Расовые данные для листа (js/race-sheet.js) ---------------- */
+function raceSheetEntries(){
+  const r = getRace(), s = getSubrace();
+  const map = (typeof RACE_SHEET !== "undefined") ? RACE_SHEET : {};
+  return [r && map[r.id], s && map[s.id]].filter(Boolean);
+}
+function raceChoiceNeeds(){
+  const needs = [];
+  raceSheetEntries().forEach(e => {
+    (e.choices || []).forEach(ch => needs.push(ch));
+    if (e.skillChoice && e.skillChoice.count) needs.push({ type:"skills", count:e.skillChoice.count, options:e.skillChoice.options });
+  });
+  return needs;
+}
+function racialFixedSkills(){
+  const out = [];
+  raceSheetEntries().forEach(e => (e.skills || []).forEach(sk => { if (!out.includes(sk)) out.push(sk); }));
+  return out;
+}
+function racialSkills(){
+  const out = racialFixedSkills();
+  ((state.raceChoices || {}).skills || []).forEach(sk => { if (!out.includes(sk)) out.push(sk); });
+  return out;
+}
+function allSkillNames(){ return Object.keys(SKILL_ABILITY); }
+
+/* ---------------- Step: Race choices (дракон-предок, кантрип, навыки, +1/+1) ---------------- */
+function renderRaceChoiceStep(view){
+  if (!state.raceChoices) state.raceChoices = {};
+  const rc = state.raceChoices;
+  const r = getRace(), s = getSubrace();
+  const needs = raceChoiceNeeds();
+  const blocks = needs.map((n, i) => {
+    if (n.type === "ancestry"){
+      return `<h3 class="spell-group-title">Драконий предок</h3>
+        <p class="pool-note">Определяет вид урона оружия дыхания и сопротивление.</p>
+        <div class="choice-grid">${n.options.map(o => `
+          <button type="button" class="choice-tile${rc.ancestry===o.id?" selected":""}" data-k="ancestry" data-v="${o.id}">
+            <b>${o.name}</b><span>${o.damage} · ${o.shape} · спасбросок ${ABILITY_NAMES[o.save]||o.save}</span>
+          </button>`).join("")}</div>`;
+    }
+    if (n.type === "cantrip"){
+      const list = DND_DATA.spells.filter(sp => sp.level === 0 && sp.classes.includes(n.from || "wizard"));
+      return `<h3 class="spell-group-title">Заговор волшебника</h3>
+        <p class="pool-note">Один заговор из списка волшебника; базовая характеристика — Интеллект.</p>
+        <div class="choice-grid">${list.map(sp => `
+          <button type="button" class="choice-tile${rc.cantrip===sp.id?" selected":""}" data-k="cantrip" data-v="${sp.id}">
+            <b>${sp.name}</b><span>${escapeHtml((sp.description||"").split(". ")[0])}.</span>
+          </button>`).join("")}</div>`;
+    }
+    if (n.type === "abilityPlus"){
+      const picks = rc.abilityPlus || [];
+      return `<h3 class="spell-group-title">+${n.value||1} к ${n.count} характеристикам</h3>
+        <p class="pool-note">Выбери ${n.count} разные характеристики${(n.exclude||[]).length?` (кроме: ${(n.exclude||[]).map(a=>ABILITY_NAMES[a]).join(", ")})`:""}.</p>
+        <div class="choice-grid choice-grid--abil">${ABILITY_ORDER.filter(a => !(n.exclude||[]).includes(a)).map(a => `
+          <button type="button" class="choice-tile${picks.includes(a)?" selected":""}" data-k="abilityPlus" data-v="${a}" data-max="${n.count}">
+            <b>${ABILITY_NAMES[a]}</b><span>${picks.includes(a)?"+1":"—"}</span>
+          </button>`).join("")}</div>`;
+    }
+    if (n.type === "skills"){
+      const opts = (n.options === "any" || !n.options) ? allSkillNames() : n.options;
+      const fixed = racialFixedSkills();
+      const picks = rc.skills || [];
+      return `<h3 class="spell-group-title">Навыки расы: выбери ${n.count}</h3>
+        <div class="choice-grid choice-grid--abil">${opts.filter(o => !fixed.includes(o)).map(o => `
+          <button type="button" class="choice-tile${picks.includes(o)?" selected":""}" data-k="skills" data-v="${o}" data-max="${n.count}">
+            <b>${o}</b><span>${ABILITY_NAMES[SKILL_ABILITY[o]]||""}</span>
+          </button>`).join("")}</div>`;
+    }
+    return "";
+  }).join("");
+  view.innerHTML = `
+    <div class="view-header"><h1>Особенности: ${s ? s.name : r.name}</h1><p>Раса даёт выбор — он попадёт в лист персонажа.</p></div>
+    ${blocks}
+  `;
+  view.querySelectorAll(".choice-tile").forEach(btn => {
+    btn.onclick = () => {
+      const k = btn.dataset.k, v = btn.dataset.v, max = Number(btn.dataset.max || 1);
+      if (k === "ancestry" || k === "cantrip"){
+        rc[k] = v;
+        btn.parentNode.querySelectorAll(".choice-tile.selected").forEach(n => n.classList.remove("selected"));
+        btn.classList.add("selected");
+      } else {
+        const arr = (rc[k] || []).slice();
+        const i = arr.indexOf(v);
+        if (i >= 0) arr.splice(i, 1);
+        else { if (arr.length >= max) arr.shift(); arr.push(v); }
+        rc[k] = arr;
+        btn.parentNode.querySelectorAll(".choice-tile").forEach(n => {
+          const on = arr.includes(n.dataset.v);
+          n.classList.toggle("selected", on);
+          if (k === "abilityPlus") n.querySelector("span").textContent = on ? "+1" : "—";
+        });
+      }
+      saveState();
+      updateNextEnabled();
+    };
+  });
+}
+function raceChoicesDone(){
+  const rc = state.raceChoices || {};
+  for (const n of raceChoiceNeeds()){
+    if (n.type === "ancestry" && !rc.ancestry) return "Выбери драконьего предка";
+    if (n.type === "cantrip" && !rc.cantrip) return "Выбери заговор";
+    if (n.type === "abilityPlus" && (rc.abilityPlus||[]).length < n.count) return `Выбери ${n.count} характеристики для +1`;
+    if (n.type === "skills" && (rc.skills||[]).length < n.count) return `Выбери ${n.count} навык(а) расы`;
+  }
+  return true;
+}
+
+/* Выборы подкласса (домен / происхождение / покровитель и их под-выборы) делаются прямо на шаге класса,
+   остальные (боевой стиль, избранный враг, компетентность) — на отдельном шаге после навыков. */
+const SUB_NEEDS = ["subclass","dragonAncestor","natureSkill","natureCantrip","deathCantrip","knowledgeSkills","deity","pactBoon","pactTome","pactBlade","pactChain"];
+function subclassNeeds(classId){ return classChoiceNeeds(classId).filter(n => SUB_NEEDS.includes(n)); }
+function laterClassNeeds(classId){ return classChoiceNeeds(classId).filter(n => !SUB_NEEDS.includes(n)); }
+
+/* ---------------- Step: Class choices (боевой стиль, избранный враг, компетентность) ---------------- */
+function renderClassChoiceStep(view){
+  const c = getClass();
+  view.innerHTML = `
+    <div class="view-header"><h1>Умения класса: ${c.name}</h1><p>На 1-м уровне ${c.name.toLowerCase()} делает выбор, который сразу работает в бою и попадёт в лист.</p></div>
+    <div id="ccBody"></div>`;
+  const body = view.querySelector("#ccBody");
+  const draw = () => { body.innerHTML = classChoicesHTML(c, laterClassNeeds(c.id)); bindChoiceTiles(body, draw); };
+  draw();
+}
+function classChoicesHTML(c, needs){
+  if (!state.classChoices) state.classChoices = {};
+  const cc = state.classChoices;
+  const tiles = (key, items) => `<div class="choice-grid">${items.map(it => `
+    <button type="button" class="choice-tile${cc[key]===it.id?" selected":""}" data-k="${key}" data-v="${escapeHtml(it.id)}">
+      <b>${it.name}</b>${it.text?`<span>${it.text}</span>`:""}
+    </button>`).join("")}</div>`;
+  let html = "";
+  if (needs.includes("subclass")){
+    const sub = getSubclass(c.id, cc);
+    html += `<h3 class="spell-group-title">${SUBCLASS_TITLE[c.id]}</h3>
+      <p class="pool-note">В D&amp;D ${c.name.toLowerCase()} выбирает это уже на 1-м уровне — выбор сразу даёт умения${c.id === "cleric" ? " и заклинания домена" : ""}.</p>
+      ${tiles("subclass", SUBCLASSES[c.id].map(x => ({ id:x.id, name:x.name, text:x.short })))}
+      ${sub ? subclassInfoHTML(c, sub, cc) : ""}`;
+  }
+  if (needs.includes("dragonAncestor")) html += `<h3 class="spell-group-title">Драконий предок</h3>${tiles("dragonAncestor", DRAGON_ANCESTORS.map(x => ({ id:x.id, name:x.name, text:x.damage })))}`;
+  if (needs.includes("natureSkill")) html += `<h3 class="spell-group-title">Навык послушника природы</h3>${tiles("natureSkill", ["Выживание","Природа","Уход за животными"].map(x => ({ id:x, name:x })))}`;
+  if (needs.includes("natureCantrip")) html += `<h3 class="spell-group-title">Заговор друида</h3>${tiles("natureCantrip", DND_DATA.spells.filter(x => x.level === 0 && x.classes.includes("druid")).map(x => ({ id:x.id, name:x.name, text:x.description })))}`;
+  if (needs.includes("deathCantrip")) html += `<h3 class="spell-group-title">Жнец: заговор школы Некромантии</h3>
+      <p class="pool-note">Любого класса. Если заговор бьёт одну цель, ты сможешь бить им двоих, стоящих рядом (в пределах 5 футов друг от друга).</p>
+      ${tiles("deathCantrip", DND_DATA.spells.filter(x => x.level === 0 && x.school === "Некромантия").map(x => ({ id:x.id, name:x.name, text:x.description })))}`;
+  if (needs.includes("knowledgeSkills")){
+    const picks = cc.knowledgeSkills || [];
+    html += `<h3 class="spell-group-title">Благословение знаний: выбери 2 навыка</h3>
+      <p class="pool-note">Ты владеешь ими с удвоенным бонусом мастерства.</p>
+      <div class="choice-grid choice-grid--abil">${["История","Магия","Природа","Религия"].map(o => `
+        <button type="button" class="choice-tile${picks.includes(o)?" selected":""}" data-k="knowledgeSkills" data-v="${o}" data-multi="2"><b>${o}</b><span>Интеллект</span></button>`).join("")}</div>`;
+  }
+  if (needs.includes("deity")){
+    const opts = deityOptions(c.id, cc);
+    const isW = c.id === "warlock";
+    html += `<h3 class="spell-group-title">${isW ? "Кто именно твой покровитель" : "Божество, которому ты служишь"} <span class="opt-tag">для отыгрыша</span></h3>
+      <p class="pool-note">${isW ? "Примеры могущественных существ этого типа из «Книги игрока»." : c.id === "cleric" ? "Боги Забытых Королевств, которым подходит выбранный домен («Книга игрока», приложение Б)." : "Боги Забытых Королевств («Книга игрока», приложение Б)."} На правила не влияет — имя попадёт в лист. Можно вписать своего.</p>
+      <div class="choice-grid choice-grid--deity">${opts.map(g => `
+        <button type="button" class="choice-tile${!cc.deityCustom && cc.deity===g.id?" selected":""}" data-k="deity" data-v="${escapeHtml(g.id)}">
+          <b>${g.name}</b><span>${g.title}${g.al ? " · " + g.al : ""}</span>${g.lore ? `<em class="tile-flavor">${esc(g.lore)}</em>` : g.symbol ? `<em class="tile-flavor">Символ: ${esc(g.symbol.charAt(0).toLowerCase() + g.symbol.slice(1))}</em>` : ""}</button>`).join("")}</div>
+      <label class="deity-custom">Свой вариант: <input type="text" id="deityCustom" maxlength="60" placeholder="${isW ? "имя покровителя" : "имя божества"}" value="${escapeHtml(cc.deityCustom || "")}"></label>`;
+  }
+  if (needs.includes("pactBoon") && typeof PACT_BOONS !== "undefined"){
+    const patron = getSubclass(c.id, cc);
+    const pname = patron ? ({ archfey:"Архифеи", fiend:"Исчадия", greatold:"Великого Древнего" }[patron.id] || patron.name) : "";
+    html += `<h3 class="spell-group-title">Предмет договора — дар покровителя</h3>
+      <p class="pool-note">По «Книге игрока» покровитель вручает дар на 3-м уровне. Выбери его сейчас — он попадёт в лист персонажа с пометкой «с 3-го уровня»${pname ? `, а описание подстроится под ${pname}` : ""}.</p>
+      <div class="choice-grid choice-grid--pact">${PACT_BOONS.map(pb => {
+        const fl = pb.flavor && (pb.flavor[cc.subclass] || pb.flavor._);
+        return `<button type="button" class="choice-tile${cc.pactBoon===pb.id?" selected":""}" data-k="pactBoon" data-v="${pb.id}">
+          <b>${pb.name}</b><span>${pb.sub}</span>${fl ? `<em class="tile-flavor">${esc(fl)}</em>` : ""}</button>`;
+      }).join("")}</div>`;
+    const boon = PACT_BOONS.find(x => x.id === cc.pactBoon);
+    if (boon) html += `<div class="subclass-info"><h4 class="si-title">${boon.name}: что даёт</h4>${loreParas(boon.paras)}</div>`;
+  }
+  if (needs.includes("pactTome")){
+    const picks = cc.pactTome || [];
+    html += `<h3 class="spell-group-title">Книга теней: выбери 3 заговора любых классов <span class="pick-count">${picks.length}/3</span></h3>
+      <div class="choice-grid">${DND_DATA.spells.filter(x => x.level === 0).map(sp => `
+        <button type="button" class="choice-tile${picks.includes(sp.id)?" selected":""}" data-k="pactTome" data-v="${sp.id}" data-multi="3">
+          <b>${sp.name}</b><span>${esc((sp.description||"").length > 110 ? sp.description.slice(0,107).replace(/\s+\S*$/,"") + "…" : (sp.description||""))}</span></button>`).join("")}</div>`;
+  }
+  if (needs.includes("pactBlade") && typeof WEAPON_CATALOG !== "undefined"){
+    html += `<h3 class="spell-group-title">Оружие договора: обычный облик</h3>
+      <p class="pool-note">Призвать можно любое рукопашное оружие — здесь выбери облик, в котором оно будет записано в листе.</p>
+      ${tiles("pactBlade", WEAPON_CATALOG.filter(w => !w.ranged).map(w => ({ id:w.id, name:w.name, text:w.info.replace(/(\d+)d(\d+)/g,"$1к$2") })))}`;
+  }
+  if (needs.includes("pactChain") && typeof PACT_FAMILIARS !== "undefined"){
+    html += `<h3 class="spell-group-title">Особый фамильяр</h3>
+      <div class="choice-grid choice-grid--pact">${PACT_FAMILIARS.map(f => `
+        <button type="button" class="choice-tile${cc.pactChain===f.id?" selected":""}" data-k="pactChain" data-v="${f.id}">
+          <b>${f.name}${f.patron === cc.subclass || cc.subclass === "greatold" ? ` <i class="tile-star" title="подходит вашему покровителю">★</i>` : ""}</b><span>${f.type}</span><em class="tile-flavor">${f.stats}</em></button>`).join("")}</div>
+      <p class="pool-note">★ — облик, который отражает сущность покровителя (Великому Древнему подходит любой).</p>`;
+  }
+  const ruleNote = k => (typeof CLASS_RULE_TEXT !== "undefined" && CLASS_RULE_TEXT[k]) ? `<div class="rule-note">${loreParas(CLASS_RULE_TEXT[k])}</div>` : "";
+  if (needs.includes("fightingStyle")) html += `<h3 class="spell-group-title">Боевой стиль</h3>${ruleNote("fightingStyle")}${tiles("fightingStyle", FIGHTING_STYLES)}`;
+  if (needs.includes("favoredEnemy")) html += `<h3 class="spell-group-title">Избранный враг</h3>${ruleNote("favoredEnemy")}${tiles("favoredEnemy", FAVORED_ENEMIES.map(x => ({id:x, name:x, text:FAVORED_ENEMY_HINT[x] || ""})))}`;
+  if (needs.includes("favoredTerrain")) html += `<h3 class="spell-group-title">Излюбленная местность (умение «Исследователь природы»)</h3>${ruleNote("favoredTerrain")}${tiles("favoredTerrain", FAVORED_TERRAINS.map(x => ({id:x, name:x})))}`;
+  if (needs.includes("expertise")){
+    const prof = [...new Set([...state.skillChoices, ...racialSkills()])];
+    const opts = [...prof, "Воровские инструменты"];
+    const picks = cc.expertise || [];
+    html += `<h3 class="spell-group-title">Компетентность: выбери 2</h3>
+      <p class="pool-note">Так по «Книге игрока»: плут с 1 уровня владеет воровскими инструментами, и «Компетентность» позволяет удвоить бонус мастерства либо для двух навыков, либо для одного навыка и воровских инструментов (взлом замков, обезвреживание ловушек).</p>
+      <div class="choice-grid choice-grid--abil">${opts.map(o => `
+        <button type="button" class="choice-tile${picks.includes(o)?" selected":""}" data-k="expertise" data-v="${escapeHtml(o)}" data-multi="2">
+          <b>${o}</b><span>${SKILL_ABILITY[o] ? ABILITY_NAMES[SKILL_ABILITY[o]] : "инструменты"}</span>
+        </button>`).join("")}</div>`;
+  }
+  return html;
+}
+function bindChoiceTiles(view, redraw){
+  const cc = state.classChoices;
+  view.querySelectorAll(".choice-tile").forEach(btn => {
+    btn.onclick = () => {
+      const k = btn.dataset.k, v = btn.dataset.v;
+      if (btn.dataset.multi){
+        const max = Number(btn.dataset.multi);
+        const arr = (cc[k] || []).slice();
+        const i = arr.indexOf(v);
+        if (i >= 0) arr.splice(i, 1); else { if (arr.length >= max) arr.shift(); arr.push(v); }
+        cc[k] = arr;
+        btn.parentNode.querySelectorAll(".choice-tile").forEach(n => n.classList.toggle("selected", arr.includes(n.dataset.v)));
+        const cnt = btn.parentNode.previousElementSibling && btn.parentNode.previousElementSibling.querySelector(".pick-count");
+        if (cnt) cnt.textContent = `${arr.length}/${max}`;
+      } else {
+        cc[k] = v;
+        btn.parentNode.querySelectorAll(".choice-tile.selected").forEach(n => n.classList.remove("selected"));
+        btn.classList.add("selected");
+      }
+      if (k === "deity"){ delete cc.deityCustom; const inp = view.querySelector("#deityCustom"); if (inp) inp.value = ""; }
+      saveState();
+      if (k === "pactBoon"){
+        ["pactTome","pactBlade","pactChain"].forEach(x => delete cc[x]);
+        saveState();
+        const y = window.scrollY; redraw(); window.scrollTo(0, y);
+      }
+      if (k === "subclass"){
+        // смена подкласса сбрасывает его под-выборы
+        ["dragonAncestor","natureSkill","natureCantrip","deathCantrip","knowledgeSkills","deity"].forEach(x => delete cc[x]);
+        state.spells = [];
+        saveState();
+        const y = window.scrollY; redraw(); window.scrollTo(0, y);
+      }
+      updateNextEnabled();
+    };
+  });
+  const dc = view.querySelector("#deityCustom");
+  if (dc) dc.oninput = () => {
+    const v = dc.value.trim();
+    if (v){ cc.deityCustom = v; view.querySelectorAll('.choice-tile[data-k="deity"]').forEach(n => n.classList.remove("selected")); }
+    else delete cc.deityCustom;
+    saveState();
+  };
+}
+function subclassChoicesDone(){
+  const c = getClass(); if (!c) return true;
+  const cc = state.classChoices || {};
+  const needs = subclassNeeds(c.id);
+  if (needs.includes("subclass") && !cc.subclass) return "Выбери: " + SUBCLASS_TITLE[c.id].toLowerCase();
+  if (needs.includes("dragonAncestor") && !cc.dragonAncestor) return "Выбери драконьего предка";
+  if (needs.includes("natureSkill") && !cc.natureSkill) return "Выбери навык послушника природы";
+  if (needs.includes("natureCantrip") && !cc.natureCantrip) return "Выбери заговор друида";
+  if (needs.includes("deathCantrip") && !cc.deathCantrip) return "Выбери заговор некромантии для «Жнеца»";
+  if (needs.includes("knowledgeSkills") && (cc.knowledgeSkills || []).length < 2) return "Выбери 2 навыка благословения знаний";
+  if (needs.includes("pactBoon") && !cc.pactBoon) return "Выбери предмет договора";
+  if (needs.includes("pactTome") && (cc.pactTome || []).length < 3) return "Выбери 3 заговора для Книги теней";
+  if (needs.includes("pactBlade") && !cc.pactBlade) return "Выбери облик оружия договора";
+  if (needs.includes("pactChain") && !cc.pactChain) return "Выбери облик фамильяра";
+  return true;
+}
+function classChoicesDone(){
+  const c = getClass(); if (!c) return true;
+  const cc = state.classChoices || {};
+  const needs = classChoiceNeeds(c.id);
+  if (needs.includes("subclass") && !cc.subclass) return "Выбери: " + SUBCLASS_TITLE[c.id].toLowerCase();
+  if (needs.includes("dragonAncestor") && !cc.dragonAncestor) return "Выбери драконьего предка";
+  if (needs.includes("natureSkill") && !cc.natureSkill) return "Выбери навык послушника природы";
+  if (needs.includes("natureCantrip") && !cc.natureCantrip) return "Выбери заговор друида";
+  if (needs.includes("deathCantrip") && !cc.deathCantrip) return "Выбери заговор некромантии для «Жнеца»";
+  if (needs.includes("knowledgeSkills") && (cc.knowledgeSkills || []).length < 2) return "Выбери 2 навыка благословения знаний";
+  if (needs.includes("fightingStyle") && !cc.fightingStyle) return "Выбери боевой стиль";
+  if (needs.includes("favoredEnemy") && !cc.favoredEnemy) return "Выбери избранного врага";
+  if (needs.includes("favoredTerrain") && !cc.favoredTerrain) return "Выбери излюбленную местность";
+  if (needs.includes("expertise")){
+    const prof = new Set([...state.skillChoices, ...racialSkills(), "Воровские инструменты"]);
+    const ex = (cc.expertise || []).filter(x => prof.has(x));
+    if (ex.length < 2) return "Выбери 2 навыка для компетентности";
+  }
+  return true;
 }
 
 /* ---------------- Step: Physique (рост/вес/телосложение, интерактивная миниатюра) ---------------- */
@@ -991,15 +1413,15 @@ function renderEquipList(view){
     const row = document.createElement("div");
     row.className = "pick-row" + (state.equipmentChoice === opt.choice ? " selected" : "");
     row.innerHTML = `
-      <span class="glyph">${opt.choice}</span>
-      <div class="pr-text"><div class="pr-name">Вариант ${opt.choice}</div><div class="pr-sub">${opt.role || ""}</div></div>
+      <span class="glyph glyph--letter">${CYR_LETTER[opt.choice] || opt.choice}</span>
+      <div class="pr-text"><div class="pr-name">Вариант ${CYR_LETTER[opt.choice] || opt.choice}</div><div class="pr-sub">${opt.role || ""}</div></div>
     `;
     row.onclick = () => selectRow(row, opt.choice);
     grid.appendChild(row);
   });
   const rowD = document.createElement("div");
   rowD.className = "pick-row" + (state.equipmentChoice === "D" ? " selected" : "");
-  rowD.innerHTML = `<span class="glyph">D</span><div class="pr-text"><div class="pr-name">Своя сборка</div><div class="pr-sub">оружие, доспех, набор</div></div>`;
+  rowD.innerHTML = `<span class="glyph glyph--letter">✎</span><div class="pr-text"><div class="pr-name">Своя сборка</div><div class="pr-sub">оружие, доспех, набор</div></div>`;
   rowD.onclick = () => selectRow(rowD, "D");
   grid.appendChild(rowD);
   renderEquipDetail(view);
@@ -1016,16 +1438,20 @@ function renderEquipDetail(view){
     renderCustomEquip(view, detail.querySelector("#customBox"));
     return;
   }
-  const opt = (c.startingEquipment||[]).find(e => e.choice === state.equipmentChoice);
+  let opt = (c.startingEquipment||[]).find(e => e.choice === state.equipmentChoice);
+  if (!opt){ opt = (c.startingEquipment||[])[0]; if (!opt) return; state.equipmentChoice = opt.choice; }
     detail.innerHTML = `
       <div class="detail-panel">
-        <h3>Вариант ${opt.choice}${opt.role ? " — " + opt.role : ""}</h3>
+        <h3>Вариант ${CYR_LETTER[opt.choice] || opt.choice}${opt.role ? " — " + opt.role : ""}</h3>
         <ul>${opt.items.map(i => `<li>${itemIconHTML(i.name||i)}<b>${i.name||i}</b>${i.info ? `<span class="eq-info">— ${i.info}</span>` : ""}</li>`).join("")}</ul>
       </div>
     `;
   }
   function itemIconHTML(name){
-    const w = WEAPON_CATALOG.find(x => x.name === name);
+    const ICON_ALIAS = { "Два коротких меча":"shortsword", "Два кинжала":"dagger", "Два ручных топора":"handaxe", "Праща":"sling", "Лёгкий арбалет":"light-crossbow",
+      "Длинный лук":"longbow", "Короткий лук":"shortbow", "Ручной арбалет":"handcrossbow", "метательн":"javelins", "дротиков":"darts" };
+    const alias = Object.keys(ICON_ALIAS).find(k => name.includes(k));
+    const w = WEAPON_CATALOG.find(x => x.name === name) || (alias && WEAPON_CATALOG.find(x => x.id === ICON_ALIAS[alias]));
     if (w) return `<img class="item-icon" src="assets/img/items/weapons/${w.id}.png" loading="lazy" onerror="this.remove()">`;
     const a = ARMOR_CATALOG.find(x => x.name === name);
     if (a) return `<img class="item-icon" src="assets/img/items/armor/${a.id}.png" loading="lazy" onerror="this.remove()">`;
@@ -1154,7 +1580,9 @@ const SPELL_ICON = {
   "identify":"🔍","illusory-script":"📝","inflict-wounds":"🩸","longstrider":"👢",
   "protection-from-evil-and-good":"🕊️","purify-food-and-drink":"🍞","sanctuary":"⛪",
   "shield-of-faith":"🛡️","silent-image":"🖼️","sleep":"💤","speak-with-animals":"🐾",
-  "tasha-hideous-laughter":"🤪","thunderwave":"🌩️","unseen-servant":"👻"
+  "tasha-hideous-laughter":"🤪","thunderwave":"🌩️","unseen-servant":"👻",
+  "bless":"🙏","command":"🗣️","burning-hands":"🔥","divine-favor":"⚔️","animal-friendship":"🦌",
+  "dissonant-whispers":"👂","fog-cloud":"🌫️"
 };
 function renderMagic(view){
   const c = getClass();
@@ -1163,8 +1591,14 @@ function renderMagic(view){
   const cantripLimit = r.cantrips;
   const spellLimit = casterKnownCount(c.id, abMod);
   const slots = LEVEL1_SPELL_SLOTS[c.id] || 2;
-  const cantrips = DND_DATA.spells.filter(s => s.level === 0 && s.classes.includes(c.id));
-  const lvl1 = DND_DATA.spells.filter(s => s.level === 1 && s.classes.includes(c.id));
+  const granted = [state.classChoices && state.classChoices.natureCantrip, state.classChoices && state.classChoices.deathCantrip].filter(Boolean);
+  const cantrips = DND_DATA.spells.filter(s => s.level === 0 && s.classes.includes(c.id) && !granted.includes(s.id));
+  state.spells = state.spells.filter(id => !granted.includes(id));
+  const sub = getSubclass(c.id, state.classChoices);
+  const extra = (sub && sub.extraList) || [];
+  const fixed = (sub && sub.spells) || []; // заклинания домена всегда подготовлены — их не выбирают
+  const lvl1 = DND_DATA.spells.filter(s => s.level === 1 && (s.classes.includes(c.id) || extra.includes(s.id)) && !fixed.includes(s.id));
+  state.spells = state.spells.filter(id => !fixed.includes(id));
 
   view.innerHTML = `
     <div class="view-header"><h1>Выбери заклинания</h1><p>${c.name} черпает силу из ${ABILITY_NAMES[r.ability]}. Выбери фокусы и заклинания 1-го уровня — они появятся в листе персонажа со слотами применения.</p></div>
@@ -1237,13 +1671,36 @@ function getEquip(c){
   const hasShield = opt.items.some(i => SHIELD_NAMES.includes(i.name || i));
   return { choice: opt.choice, role: opt.role, items: opt.items, armorMeta, hasShield };
 }
-function computeAC(dexMod, equip){
+function computeAC(dexMod, equip, mods, classId){
   const hasShield = equip && equip.hasShield;
-  if (!equip || !equip.armorMeta) return 10 + dexMod + (hasShield ? 2 : 0);
+  if (!equip || !equip.armorMeta){
+    // Защита без доспехов: варвар (щит можно), монах (без щита).
+    if (classId === "barbarian") return 10 + dexMod + mods.con + (hasShield ? 2 : 0);
+    if (classId === "monk" && !hasShield) return 10 + dexMod + mods.wis;
+    return 10 + dexMod + (hasShield ? 2 : 0);
+  }
   const a = equip.armorMeta;
   const dexBonus = a.dexCap === 0 ? 0 : (a.dexCap != null ? Math.min(dexMod, a.dexCap) : dexMod);
   return a.base + dexBonus + (hasShield ? 2 : 0);
 }
+
+/* Подстановка чисел персонажа в тексты особенностей. */
+function fillRuleText(t, mods, pb){
+  return String(t || "")
+    .replace(/\{pb2\}/g, String(pb * 2))
+    .replace(/\{pb\}/g, String(pb))
+    .replace(/\{mod:(\w+)\}/g, (_, ab) => fmtMod(mods[ab]))
+    .replace(/\{dc:(\w+)\}/g, (_, ab) => String(8 + pb + mods[ab]));
+}
+/* Классовые владения инструментами (PHB), которых нет в DND_DATA. */
+const CLASS_TOOLS = {
+  bard:  ["Три музыкальных инструмента на выбор"],
+  druid: ["Набор травника"],
+  monk:  ["Один вид ремесленных инструментов или музыкальный инструмент"],
+  rogue: ["Воровские инструменты"]
+};
+const CLASS_LANGS = { druid:["Друидический"], rogue:["Воровской жаргон"] };
+
 function computeFinal(){
   const r = getRace(), s = getSubrace(), c = getClass();
   const totals = {};
@@ -1251,40 +1708,139 @@ function computeFinal(){
   const mods = {};
   ABILITY_ORDER.forEach(ab => mods[ab] = abilityMod(totals[ab]));
   const pb = PROFICIENCY_BONUS_LVL1;
+  const rs = raceSheetEntries();
+  const rc = state.raceChoices || {};
+  const cc = state.classChoices || {};
+  const ancestry = (() => {
+    const need = raceChoiceNeeds().find(n => n.type === "ancestry");
+    return need ? need.options.find(o => o.id === rc.ancestry) || null : null;
+  })();
+
   const saves = ABILITY_ORDER.map(ab => {
     const prof = c && c.savingThrows && c.savingThrows.map(x=>x.toLowerCase()).includes(ab);
     return { ab, prof, value: mods[ab] + (prof ? pb : 0) };
   });
+  const sub = c ? getSubclass(c.id, cc) : null;
+  const subSkills = sub ? [...(sub.id === "knowledge" ? cc.knowledgeSkills || [] : []), ...(sub.id === "nature" && cc.natureSkill ? [cc.natureSkill] : [])] : [];
+  const raceSk = [...racialSkills(), ...subSkills];
+  const expertise = [...(cc.expertise || []), ...(sub && sub.id === "knowledge" ? cc.knowledgeSkills || [] : [])];
   const skills = Object.entries(SKILL_ABILITY).map(([name, ab]) => {
-    const prof = state.skillChoices.includes(name);
-    return { name, ab, prof, value: mods[ab] + (prof ? pb : 0) };
+    const prof = state.skillChoices.includes(name) || raceSk.includes(name);
+    const exp = prof && expertise.includes(name);
+    return { name, ab, prof, exp, value: mods[ab] + (prof ? pb : 0) + (exp ? pb : 0) };
   });
-  const hp = (c ? c.hitDie : 8) + mods.con;
+  const perception = skills.find(x => x.name === "Восприятие");
+  const passivePerception = 10 + (perception ? perception.value : mods.wis);
+
+  const hpBonus = rs.reduce((acc, e) => acc + (e.hpPerLevel || 0), 0) + ((sub && sub.hpPerLevel) || 0);
+  const hp = (c ? c.hitDie : 8) + mods.con + hpBonus;
   const equip = getEquip(c);
-  const ac = computeAC(mods.dex, equip);
+  let ac = computeAC(mods.dex, equip, mods, c && c.id);
+  if (sub && sub.unarmoredAC && !(equip && equip.armorMeta)) ac = Math.max(ac, sub.unarmoredAC + mods.dex + (equip && equip.hasShield ? 2 : 0));
   const initiative = mods.dex;
-  const spellsDetailed = state.spells.map(id => DND_DATA.spells.find(sp=>sp.id===id)).filter(Boolean);
+
+  // Скорости
+  const pick = k => rs.reduce((v, e) => e[k] != null ? e[k] : v, null);
+  const walk = (s && s.speed) || pick("speed") || (r ? r.speed : 30);
+  const speeds = { walk, climb: pick("climb"), swim: pick("swim"), fly: pick("fly") };
+  const darkvision = pick("darkvision");
+
+  // Сопротивления / иммунитеты
+  const resist = [], immune = [];
+  rs.forEach(e => { (e.resistances||[]).forEach(x => resist.includes(x) || resist.push(x)); (e.immunities||[]).forEach(x => immune.includes(x) || immune.push(x)); });
+  if (ancestry && !resist.includes(ancestry.damage)) resist.push(ancestry.damage);
+
+  // Владения
+  const uniq = arr => arr.filter((x, i) => x && arr.indexOf(x) === i);
+  const armorProf = uniq([...(c ? c.armorProficiency || [] : []), ...rs.flatMap(e => e.armor || []), ...((sub && sub.armor) || [])]);
+  const weaponProf = uniq([...(c ? c.weaponProficiency || [] : []), ...rs.flatMap(e => e.weapons || []), ...((sub && sub.weapons) || [])]);
+  const toolProf = uniq([...(c ? CLASS_TOOLS[c.id] || [] : []), ...rs.flatMap(e => e.tools || []), rc.dwarfTool]);
+  const languages = uniq([...rs.flatMap(e => e.languages || []), ...(r && !rs.some(e => e.languages) ? r.languages || [] : []), ...(c ? CLASS_LANGS[c.id] || [] : []), ...((sub && sub.languages) || [])]);
+
+  // Классовые умения
+  const classFeatures = c ? classSheetFeatures(c.id, { mods, pb, classChoices: cc }) : [];
+
+  // Расовые черты (без «гибкого бонуса» и т.п. — это не игровое умение)
+  const raceTraits = [];
+  if (darkvision) raceTraits.push({ name: darkvision >= 120 ? "Превосходное тёмное зрение" : "Тёмное зрение", text: DARKVISION_TEXT(darkvision), kind:"passive" });
+  rs.forEach(e => (e.traits || []).forEach(t => raceTraits.push(Object.assign({ kind:"passive" }, t, { text: fillRuleText(t.text, mods, pb) }))));
+  if (ancestry){
+    raceTraits.unshift(
+      { name:`Наследие драконов: ${ancestry.name}`, text:`Сопротивление урону: ${ancestry.damage}.`, kind:"passive" },
+      { name:"Оружие дыхания", text:`Действием: ${ancestry.shape}, урон ${ancestry.damage} 2к6; спасбросок ${ABILITY_NAMES[ancestry.save]} Сл ${8 + pb + mods.con}, при успехе половина урона.`, kind:"action", uses:1, rest:"короткий или продолжительный отдых" }
+    );
+  }
+  const laterFeatures = [];
+  rs.forEach(e => (e.later || []).forEach(t => laterFeatures.push(t)));
+
+  // Расовые заклинания
+  const bestMental = ["int","wis","cha"].reduce((b, ab) => mods[ab] > mods[b] ? ab : b, "int");
+  const raceSpells = [];
+  rs.forEach(e => (e.spells || []).forEach(sp => {
+    const ab = sp.ability === "best" ? bestMental : sp.ability;
+    const lvl = sp.minLevel || 1;
+    if (lvl > 1){ laterFeatures.push({ minLevel: lvl, name: sp.name || sp.id, text: `${sp.note}: ${sp.uses}. Базовая характеристика — ${ABILITY_NAMES[ab]}.` }); return; }
+    const base = DND_DATA.spells.find(x => x.id === sp.id);
+    const extra = RACE_SPELL_TEXT[sp.id] || {};
+    raceSpells.push({
+      id: sp.id, name: extra.name || (base && base.name) || sp.name, level: base ? base.level : (extra.level || 0),
+      school: base ? base.school : null,
+      description: extra.text || (base && base.description) || "",
+      ability: ab, uses: fillRuleText(sp.uses, mods, pb), note: sp.note,
+      circles: sp.circles === "pb" ? pb : (sp.circles || 0),
+      dc: 8 + pb + mods[ab], atk: pb + mods[ab]
+    });
+  }));
+  if (rc.cantrip){
+    const base = DND_DATA.spells.find(x => x.id === rc.cantrip);
+    if (base) raceSpells.push({ id: base.id, name: base.name, level: 0, school: base.school, description: base.description, ability:"int", uses:"неограниченно", note:"Заговор высшего эльфа", circles:0, dc: 8 + pb + mods.int, atk: pb + mods.int });
+  }
+
+  // Атаки
+  const raceAttacks = [];
+  rs.forEach(e => (e.attacks || []).forEach(a => raceAttacks.push({ name: a.name, hit: fmtMod(mods[a.ability] + pb), dmg: `${a.dice}${fmtMod(mods[a.ability])} ${a.type}`, notes: a.notes || "" })));
+  const attacks = buildAttacks({ mods, pb, c, equip, classChoices: cc, raceAttacks });
+  if (r && r.id === "grung") attacks.forEach(a => { if (/колющ/.test(a.dmg)) a.notes = (a.notes ? a.notes + ", " : "") + "яд кожи: +2к4 ядом (спас ТЕЛ Сл 12)"; });
+
+  // Классовые заклинания
+  const subSpellIds = sub ? [...(sub.cantrips || []), ...(sub.id === "nature" && cc.natureCantrip ? [cc.natureCantrip] : []), ...(sub.id === "death" && cc.deathCantrip ? [cc.deathCantrip] : []), ...(sub.spells || [])] : [];
+  const spellsDetailed = [
+    ...state.spells.filter(id => !subSpellIds.includes(id)).map(id => DND_DATA.spells.find(sp=>sp.id===id)),
+    ...subSpellIds.map(id => { const b = DND_DATA.spells.find(sp=>sp.id===id); return b ? Object.assign({}, b, { fromSub: sub.name }) : null; })
+  ].filter(Boolean).sort((a, b) => a.level - b.level);
   const spellNames = spellsDetailed.map(sp => sp.name);
   const slots = c ? (LEVEL1_SPELL_SLOTS[c.id] || 0) : 0;
+  const casting = (c && CASTER_RULES[c.id]) ? (() => {
+    const ab = CASTER_RULES[c.id].ability;
+    return { ab, dc: 8 + pb + mods[ab], atk: pb + mods[ab], text: CASTING_TEXT[c.id] || "" };
+  })() : null;
+
   const avg = avgHeightWeight(state.raceId, state.subraceId);
   const roleplayLines = [
     ...abilityFlavorLines(totals),
     ...physiqueFlavorLines(state.heightCm, state.weightKg, avg.weightKg)
   ];
-  return { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellNames, spellsDetailed, slots, roleplayLines };
+  return { r, s, c, totals, mods, pb, saves, skills, passivePerception, hp, ac, initiative, equip, speeds, darkvision,
+    resist, immune, armorProf, weaponProf, toolProf, languages, classFeatures, raceTraits, laterFeatures,
+    raceSpells, attacks, spellNames, spellsDetailed, slots, casting, roleplayLines };
 }
 
 function renderSheet(view){
   const d = computeFinal();
   view.innerHTML = `
-    <div class="view-header"><h1>Твой герой готов</h1><p>Проверь лист персонажа и экспортируй его в PDF — или вернись назад, чтобы что-то изменить.</p></div>
+    <div class="view-header"><h1>Твой герой готов</h1><p>Нажми на рамку слева вверху, чтобы добавить портрет героя. Потом скачай лист в PDF или сразу отправь на печать.</p></div>
     <div class="sheet-actions">
       <button class="btn btn-gold" id="btnPdf">⇩ Скачать PDF</button>
+      <button class="btn btn-gold" id="btnPdfA4">📜 PDF A4 (лицо + оборот)</button>
+      <button class="btn btn-ghost" id="btnPrint">🖶 Печать</button>
       <button class="btn btn-ghost" id="btnRestart">↻ Начать заново</button>
     </div>
     <div class="sheet-wrap"><div id="charSheet">${sheetHTML(d)}</div></div>
   `;
   view.querySelector("#btnPdf").onclick = () => exportPDF();
+  view.querySelector("#btnPdfA4").onclick = () => exportPDFA4();
+  view.querySelector("#btnPrint").onclick = () => window.print();
+  bindSheetPhoto(view);
   view.querySelector("#btnRestart").onclick = () => {
     if (confirm("Начать создание персонажа заново? Все данные будут сброшены.")){
       localStorage.removeItem(STORAGE_KEY);
@@ -1293,8 +1849,29 @@ function renderSheet(view){
   };
 }
 
+/* Портрет на листе: клик по рамке — загрузка, ✕ — убрать. Картинка кадрируется в вертикальный прямоугольник 3:4. */
+function bindSheetPhoto(view){
+  const box = view.querySelector("#sheetPhoto"); if (!box) return;
+  const input = box.querySelector("#sheetPhotoInput");
+  box.onclick = e => { if (e.target.closest("#sheetPhotoClear")) return; input.click(); };
+  input.onclick = e => e.stopPropagation();
+  input.onchange = e => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    cropImageToSquare(file, 600, 4/3).then(url => { state.photoDataUrl = url; saveState(); renderSheet(view); })
+      .catch(() => toast("Не удалось прочитать картинку"));
+  };
+  const clr = box.querySelector("#sheetPhotoClear");
+  if (clr) clr.onclick = e => { e.stopPropagation(); state.photoDataUrl = null; saveState(); renderSheet(view); };
+}
+
+const KIND_LABEL = { action:"действие", bonus:"бонусное действие", reaction:"реакция" };
+function sheetCircles(n){ return n > 0 ? `<span class="sf-circles">${"☐".repeat(n)}</span>` : ""; }
+
 function sheetHTML(d){
-  const { r, s, c, totals, mods, pb, saves, skills, hp, ac, initiative, equip, spellsDetailed, slots, roleplayLines } = d;
+  const { r, s, c, totals, mods, pb, saves, skills, passivePerception, hp, ac, initiative, equip, speeds,
+    resist, immune, armorProf, weaponProf, toolProf, languages, classFeatures, raceTraits, laterFeatures,
+    raceSpells, attacks, spellsDetailed, slots, casting, roleplayLines } = d;
   const abBox = ab => `
     <div class="ab-box">
       <div class="n">${ABILITY_NAMES[ab]}</div>
@@ -1302,28 +1879,38 @@ function sheetHTML(d){
       <div class="s">${fmtMod(mods[ab])}</div>
     </div>`;
   const saveRow = row => `<div class="save-row ${row.prof?'prof':''}"><span>${row.prof?'●':'○'} ${ABILITY_NAMES[row.ab]}</span><b>${fmtMod(row.value)}</b></div>`;
-  const skillRow = row => `<div class="skill-row ${row.prof?'prof':''}"><span>${row.prof?'●':'○'} ${row.name}</span><b>${fmtMod(row.value)}</b></div>`;
-  const traits = [
-    ...(r ? (r.traits||[]) : []),
-    ...(s ? (s.traits||[]) : [])
-  ];
-  const spellRow = sp => {
+  const skillRow = row => `<div class="skill-row ${row.prof?'prof':''}"><span>${row.exp?'◆':(row.prof?'●':'○')} ${row.name}</span><b>${fmtMod(row.value)}</b></div>`;
+  const featRow = f => {
+    const uses = f.uses === "pb" ? pb : (f.uses || 0);
+    const tags = [KIND_LABEL[f.kind], uses ? `${uses} раз(а)${f.rest ? ", восстанавл.: " + f.rest : ""}` : (f.rest ? "восстанавл.: " + f.rest : "")].filter(Boolean).join(" · ");
+    return `<div class="sf-row"><div class="sf-head"><b>${f.name}</b>${tags ? `<span class="sf-tag">${tags}</span>` : ""}${sheetCircles(uses)}</div><div class="sf-text">${f.text}</div></div>`;
+  };
+  const spellCard = (sp, opts) => {
     const isCantrip = sp.level === 0;
-    const brief = (sp.description || "").split(". ").slice(0,1).join(". ").replace(/\.*$/, ".");
     const col = SCHOOL_COLOR[sp.school] || ["#7a6230","#2a2010"];
     const icon = SPELL_ICON[sp.id] || SCHOOL_GLYPH[sp.school] || "✨";
+    const circles = opts.circles != null ? opts.circles : (isCantrip ? 0 : slots);
+    const meta = opts.meta || ((isCantrip ? "заговор · неограниченно" : `${sp.level}-й круг · тратит ячейку`) + (sp.fromSub ? ` · ${sp.fromSub}: всегда подготовлено` : ""));
     return `
-    <div class="sheet-spell-card" data-spell-id="${sp.id}" title="${escapeHtml(brief)}">
+    <div class="sheet-spell-card" data-spell-id="${sp.id || ""}">
       <div class="sheet-spell-icon" style="background:linear-gradient(160deg,${col[0]},${col[1]});">${icon}</div>
       <div class="sheet-spell-info">
-        <span class="sheet-spell-name">${sp.name}${isCantrip?" <i>(фокус)</i>":""}</span>
-        <span class="sheet-spell-charges">${isCantrip ? `<span class="sheet-spell-charge infinite">∞</span>` : Array.from({length:slots}).map((_,i)=>`<span class="sheet-spell-charge" data-idx="${i}"></span>`).join("")}</span>
+        <div class="sheet-spell-top"><span class="sheet-spell-name">${sp.name}</span>${circles ? sheetCircles(circles) : (isCantrip ? `<span class="sheet-spell-charge infinite">∞</span>` : "")}</div>
+        <span class="sheet-spell-meta">${meta}</span>
+        <span class="sheet-spell-desc">${escapeHtml(sp.description || "")}</span>
       </div>
     </div>`;
   };
+  const speedTxt = [`${speeds.walk} фт`, speeds.climb ? `лазание ${speeds.climb}` : "", speeds.swim ? `плавание ${speeds.swim}` : "", speeds.fly ? `полёт ${speeds.fly}` : ""].filter(Boolean).join(", ");
+  const list = arr => arr.length ? arr.join(", ") : "—";
+  const hasSpells = spellsDetailed.length || raceSpells.length;
   return `
     <div class="sheet-head">
-      ${state.photoDataUrl ? `<img class="sheet-photo" src="${state.photoDataUrl}" alt="Портрет">` : ""}
+      <div class="sheet-photo-box${state.photoDataUrl ? " has-photo" : ""}" id="sheetPhoto" title="Нажми, чтобы ${state.photoDataUrl ? "заменить" : "добавить"} портрет">
+        ${state.photoDataUrl ? `<img src="${state.photoDataUrl}" alt="Портрет">` : `<span class="sheet-photo-hint" data-html2canvas-ignore="true">🖼<br>Нажми, чтобы добавить портрет</span>`}
+        ${state.photoDataUrl ? `<button type="button" class="sheet-photo-clear" id="sheetPhotoClear" title="Убрать портрет" data-html2canvas-ignore="true">✕</button>` : ""}
+        <input type="file" id="sheetPhotoInput" accept="image/*" hidden>
+      </div>
       <div class="sheet-head-text">
         <h2>${escapeHtml(state.name) || "Безымянный герой"}</h2>
         <div class="sub">${r?r.name:""}${s?(" ("+s.name+")"):""} · ${c?c.name:""}${state.alignment?(" · "+state.alignment):""}${(state.heightCm&&state.weightKg)?(" · "+state.heightCm+" см, "+state.weightKg+" кг"):""}</div>
@@ -1333,53 +1920,290 @@ function sheetHTML(d){
     <div class="sheet-grid">
       <div class="abilities-col">
         ${ABILITY_ORDER.map(abBox).join("")}
+        <div class="ab-box"><div class="n">Пассивная внимательность</div><div class="m">${passivePerception}</div></div>
       </div>
       <div class="mid-col">
         <div class="saves-box"><h4>Спасброски</h4>${saves.map(saveRow).join("")}</div>
-        <div class="skills-box"><h4>Навыки</h4>${skills.map(skillRow).join("")}</div>
+        <div class="skills-box"><h4>Навыки</h4>${skills.map(skillRow).join("")}<div class="sheet-legend">● владение · ◆ компетентность (×2)</div></div>
       </div>
       <div class="right-col">
         <div class="combat-stats">
           <div class="cbox"><div class="n">Класс доспеха</div><div class="m">${ac}</div></div>
           <div class="cbox"><div class="n">Хиты</div><div class="m">${hp}</div></div>
           <div class="cbox"><div class="n">Инициатива</div><div class="m">${fmtMod(initiative)}</div></div>
-          <div class="cbox"><div class="n">Скорость</div><div class="m">${r?r.speed:30}</div></div>
+          <div class="cbox"><div class="n">Скорость</div><div class="m">${speeds.walk}</div></div>
+          <div class="cbox"><div class="n">Кость хитов</div><div class="m">1к${c ? c.hitDie : 8}</div></div>
+          <div class="cbox"><div class="n">Спасброски от смерти</div><div class="m sf-death">✓☐☐☐<br>✗☐☐☐</div></div>
         </div>
         <div class="equip-box">
           <h4>Снаряжение</h4>
-          <ul>${equip ? equip.items.map(i=>`<li><b>${i.name||i}</b>${i.info?` <span style="color:var(--text-dim);font-size:.78rem;">(${i.info})</span>`:""}</li>`).join("") : "<li>—</li>"}</ul>
+          <ul>${equip ? equip.items.map(i=>`<li><b>${i.name||i}</b>${i.info?` <span class="eq-info">(${i.info})</span>`:""}</li>`).join("") : "<li>—</li>"}</ul>
+        </div>
+        <div class="equip-box">
+          <h4>Владения и языки</h4>
+          <div class="prof-line"><b>Доспехи:</b> ${list(armorProf)}</div>
+          <div class="prof-line"><b>Оружие:</b> ${list(weaponProf)}</div>
+          <div class="prof-line"><b>Инструменты:</b> ${list(toolProf)}</div>
+          <div class="prof-line"><b>Языки:</b> ${list(languages)}</div>
+          <div class="prof-line"><b>Скорость:</b> ${speedTxt}</div>
+          ${resist.length ? `<div class="prof-line"><b>Сопротивление:</b> ${resist.join(", ")}</div>` : ""}
+          ${immune.length ? `<div class="prof-line"><b>Иммунитет:</b> ${immune.join(", ")}</div>` : ""}
         </div>
       </div>
     </div>
-    ${spellsDetailed.length ? `<div class="spells-box spells-box-bottom" style="margin-top:14px;"><h4>Заклинания</h4><div class="spells-row">${spellsDetailed.map(spellRow).join("")}</div></div>` : ""}
-    <div class="traits-box" style="margin-top:14px;">
-      <h4>Расовые и классовые черты</h4>
-      <div>${traits.join(" · ")}</div>
+    <div class="traits-box sheet-attacks" style="margin-top:14px;">
+      <h4>Атаки</h4>
+      <table class="atk-table"><thead><tr><th>Оружие</th><th>Попадание</th><th>Урон</th><th>Примечания</th></tr></thead>
+      <tbody>${attacks.map(a => `<tr><td>${a.name}</td><td>${a.hit}</td><td>${a.dmg}</td><td>${a.notes || ""}</td></tr>`).join("")}</tbody></table>
     </div>
+    ${hasSpells ? `<div class="spells-box spells-box-bottom" style="margin-top:14px;">
+      <h4>Заклинания</h4>
+      ${casting ? `<div class="spell-casting-line">${casting.text} <b>Сл спасброска ${casting.dc}</b> · <b>атака заклинанием ${fmtMod(casting.atk)}</b>${slots ? ` · ячейки 1-го круга: ${sheetCircles(slots)}` : ""}</div>` : ""}
+      <div class="spells-row">${spellsDetailed.map(sp => spellCard(sp, {})).join("")}</div>
+      ${raceSpells.length ? `<div class="spell-casting-line">Врождённая магия расы — без ячеек:</div>
+        <div class="spells-row">${raceSpells.map(sp => spellCard(sp, { circles: sp.circles, meta: `${sp.note} · ${sp.uses} · ${ABILITY_NAMES[sp.ability]}: Сл ${sp.dc}, атака ${fmtMod(sp.atk)}` })).join("")}</div>` : ""}
+    </div>` : ""}
+    <div class="sheet-features">
+      <div class="traits-box"><h4>Умения класса${c ? ": " + c.name : ""}</h4>${classFeatures.map(featRow).join("") || "—"}</div>
+      <div class="traits-box"><h4>Особенности расы${r ? ": " + (s ? s.name : r.name) : ""}</h4>${raceTraits.map(featRow).join("") || "—"}</div>
+    </div>
+    ${laterFeatures.length ? `<div class="notes-box" style="margin-top:12px;"><h4>Откроется на следующих уровнях</h4><ul>${laterFeatures.sort((a,b)=>a.minLevel-b.minLevel).map(t=>`<li><b>${t.minLevel}-й уровень — ${t.name}.</b> ${t.text}</li>`).join("")}</ul></div>` : ""}
     ${roleplayLines && roleplayLines.length ? `<div class="notes-box" style="margin-top:12px;"><h4>Отыгрыш</h4><ul>${roleplayLines.map(l=>`<li>${l}</li>`).join("")}</ul></div>` : ""}
     ${state.background ? `<div class="notes-box" style="margin-top:12px;"><h4>Предыстория</h4><div>${escapeHtml(state.background)}</div></div>` : ""}
     <div class="sheet-footer"><span>Кузня Героев — редактор персонажей D&amp;D 5e</span><span>SRD (Open Game License)</span></div>
   `;
 }
 
+/* ===== Экспорт в PDF формата A4 альбомная (лицо + оборот) =====
+   Лицо: имя, портрет, предыстория. Оборот: спасброски/навыки сверху,
+   шесть характеристик горизонтально посередине, заклинания (с ячейками
+   и правилом их восстановления) и снаряжение снизу. */
+const ABILITY_ABBR = { str:"Сила", dex:"Ловкость", con:"Телосложение", int:"Интеллект", wis:"Мудрость", cha:"Харизма" };
+
+function a4FrontHTML(d){
+  const { r, s, c } = d;
+  const sub = c ? getSubclass(c.id, state.classChoices || {}) : null;
+  const name = escapeHtml(state.name) || "Безымянный герой";
+  const subtitleParts = [r ? (s ? s.name : r.name) : "", c ? c.name + (sub ? ` (${sub.name})` : "") : ""].filter(Boolean);
+  let portraitHTML = `<span class="a4-ph-glyph">❖</span>`;
+  if (state.photoDataUrl){
+    portraitHTML = `<img src="${state.photoDataUrl}" alt="Портрет">`;
+  } else if (r && typeof WHITE_BG_PORTRAITS !== "undefined"){
+    const cls = WHITE_BG_PORTRAITS.includes(r.id) ? " a4-on-parchment" : "";
+    portraitHTML = `<img class="${cls}" src="assets/img/races/${r.id}.jpg" alt="Портрет расы" onerror="this.parentNode.innerHTML='<span class=&quot;a4-ph-glyph&quot;>❖</span>'">`;
+  }
+  const bg = state.background ? escapeHtml(state.background).split(/\n{2,}/).map(p => `<p>${p.replace(/\n/g,"<br>")}</p>`).join("") : "<p><i>Предыстория не заполнена.</i></p>";
+  const tags = [
+    r ? `Раса: ${s ? s.name : r.name}` : null,
+    c ? `Класс: ${c.name}` : null,
+    sub ? `Путь: ${sub.name}` : null,
+    state.alignment ? `Мировоззрение: ${state.alignment}` : null
+  ].filter(Boolean);
+  return `
+    <div class="a4-card">
+      <div class="a4-name-bar">
+        <span class="a4-crest">⚒</span>
+        <h1>${name}</h1>
+        <div class="a4-subtitle">${subtitleParts.join(" · ") || "Герой без пути"}</div>
+        <span class="a4-crest a4-right">⚒</span>
+      </div>
+      <div class="a4-body-row">
+        <div class="a4-portrait-box">${portraitHTML}</div>
+        <div class="a4-lore-box">
+          <h2>Предыстория</h2>
+          ${bg}
+          <div class="a4-tags">${tags.map(t => `<span class="a4-tag">${escapeHtml(t)}</span>`).join("")}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function a4BackHTML(d){
+  const { c, totals, mods, saves, skills, spellsDetailed, slots, equip } = d;
+  const saveRow = row => `<tr class="${row.prof ? "a4-prof" : ""}"><td class="a4-mod">${fmtMod(row.value)}</td><td class="a4-name">${row.prof ? '<span class="a4-prof-dot"></span>' : ""}${ABILITY_ABBR[row.ab]}</td></tr>`;
+  const skillRow = row => `<tr class="${row.prof ? "a4-prof" : ""}"><td class="a4-mod">${fmtMod(row.value)}</td><td class="a4-name">${row.prof ? '<span class="a4-prof-dot"></span>' : ""}${row.name} (${ABILITY_ABBR[row.ab].slice(0,3)})</td></tr>`;
+  const half = Math.ceil(skills.length / 2);
+  const skillsCol1 = skills.slice(0, half), skillsCol2 = skills.slice(half);
+  const statBox = ab => `<div class="a4-stat-box"><div class="a4-label">${ABILITY_ABBR[ab]}</div><div class="a4-score">${totals[ab]}</div><div class="a4-mod">${fmtMod(mods[ab])}</div></div>`;
+
+  const cantrips = spellsDetailed.filter(sp => sp.level === 0);
+  const leveled = spellsDetailed.filter(sp => sp.level > 0);
+  const spellLine = (sp, circ) => `<li><span>${sp.name}</span>${circ ? `<span class="a4-circ">${"☐".repeat(circ)}</span>` : `<span class="a4-circ">∞</span>`}</li>`;
+  const isWarlock = c && c.id === "warlock";
+  const slotsRule = slots
+    ? (isWarlock
+        ? `Ячейки (${slots} шт., 1-й круг): отмечай ☐, когда тратишь заклинание. Все ячейки чернокнижника восстанавливаются после КОРОТКОГО отдыха (1 час) — не нужно ждать ночи.`
+        : `Ячейки (${slots} шт., 1-й круг): отмечай ☐, когда тратишь заклинание. Восстанавливаются после ДЛИТЕЛЬНОГО отдыха (8 часов).`)
+    : "";
+
+  return `
+    <div class="a4-card">
+      <div class="a4-name-bar">
+        <h1>${escapeHtml(state.name) || "Безымянный герой"}</h1>
+        <div class="a4-subtitle">Оборотная сторона · характеристики, заклинания и снаряжение</div>
+      </div>
+      <div class="a4-row-top">
+        <div class="a4-box">
+          <h2>Спасброски</h2>
+          <table class="a4-rows">${saves.map(saveRow).join("")}</table>
+        </div>
+        <div class="a4-box">
+          <h2>Навыки</h2>
+          <div class="a4-skills-cols">
+            <table class="a4-rows">${skillsCol1.map(skillRow).join("")}</table>
+            <table class="a4-rows">${skillsCol2.map(skillRow).join("")}</table>
+          </div>
+        </div>
+      </div>
+      <div class="a4-row-mid">${ABILITY_ORDER.map(statBox).join("")}</div>
+      <div class="a4-row-bottom">
+        <div class="a4-box">
+          <h2>Заклинания</h2>
+          ${cantrips.length ? `<div class="a4-spell-level"><div class="a4-lvl-title">Заговоры</div><ul class="a4-spell-list">${cantrips.map(sp => spellLine(sp, 0)).join("")}</ul></div>` : ""}
+          ${leveled.length ? `<div class="a4-spell-level"><div class="a4-lvl-title">1 круг</div><ul class="a4-spell-list">${leveled.map(sp => spellLine(sp, slots)).join("")}</ul></div>` : ""}
+          ${!cantrips.length && !leveled.length ? `<p style="font-size:12px;color:#6a5436;"><i>Эта классовая комбинация не использует заклинания.</i></p>` : ""}
+          ${slotsRule ? `<div class="a4-slots-rule">${slotsRule}</div>` : ""}
+        </div>
+        <div class="a4-box">
+          <h2>Снаряжение</h2>
+          <ul class="a4-equip-list">${equip ? equip.items.map(i => `<li><b>${i.name || i}</b>${i.info ? ` <span style="color:#6a5436;">(${i.info})</span>` : ""}</li>`).join("") : "<li>—</li>"}</ul>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function exportPDFA4(){
+  toast("Готовим PDF A4 (лицо + оборот)…");
+  const d = computeFinal();
+  let root = document.getElementById("a4ExportRoot");
+  if (!root){ root = document.createElement("div"); root.id = "a4ExportRoot"; document.body.appendChild(root); }
+  root.innerHTML = `
+    <div class="a4-page" id="a4PageFront">${a4FrontHTML(d)}</div>
+    <div class="a4-page" id="a4PageBack">${a4BackHTML(d)}</div>
+  `;
+  try{
+    // ждём загрузки портретной картинки (если есть), иначе html2canvas может её не захватить
+    const img = root.querySelector("#a4PageFront img");
+    if (img && !img.complete){
+      await new Promise(res => { img.onload = img.onerror = res; setTimeout(res, 1500); });
+    }
+    await new Promise(r => setTimeout(r, 60));
+
+    const frontCanvas = await html2canvas(root.querySelector("#a4PageFront"), { scale: 2, backgroundColor: "#ecdcbf" });
+    const backCanvas = await html2canvas(root.querySelector("#a4PageBack"), { scale: 2, backgroundColor: "#ecdcbf" });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    pdf.addImage(frontCanvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pageW, pageH);
+    pdf.addPage("a4", "landscape");
+    pdf.addImage(backCanvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pageW, pageH);
+
+    const fname = (state.name || "personazh").replace(/[^a-zA-Zа-яА-Я0-9_-]+/g,"_") + "_dnd5e_A4.pdf";
+    const blob = pdf.output("blob");
+    const file = new File([blob], fname, { type: "application/pdf" });
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 760;
+    let shared = false;
+    if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })){
+      try{ await navigator.share({ files: [file], title: fname }); shared = true; }
+      catch(shareErr){ if (shareErr && shareErr.name === "AbortError") shared = true; }
+    }
+    if (!shared){
+      const url = URL.createObjectURL(blob);
+      if (isMobile){
+        window.open(url, "_blank");
+        toast("PDF открыт — сохрани или поделись через меню просмотрщика");
+      } else {
+        const a = document.createElement("a");
+        a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove();
+        toast("PDF (A4, лицо + оборот) сохранён");
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+  } catch(err){
+    console.error(err);
+    toast("Не удалось собрать PDF A4 — попробуй ещё раз");
+  } finally {
+    root.innerHTML = "";
+  }
+}
+
 async function exportPDF(){
   const node = document.getElementById("charSheet");
   toast("Готовим PDF…");
   try{
-    const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ead9b3" });
-    const img = canvas.toDataURL("image/jpeg", 0.95);
+    // Принудительно включаем ту же плотную 3-колоночную раскладку, что уже
+    // используется при печати (@media print) — независимо от реального
+    // размера экрана. Так лист на телефоне выглядит так же, как на десктопе,
+    // а не узкой колонкой из мобильной раскладки.
+    document.body.classList.add("pdf-export-mode");
+    // ждём немного, чтобы браузер применил новый grid-template-columns
+    // (setTimeout, а не requestAnimationFrame — rAF не срабатывает, если
+    // вкладка в фоне/не видна, из-за чего экспорт мог зависнуть навечно)
+    await new Promise(r => setTimeout(r, 80));
+
+    const canvas = await html2canvas(node, { scale: 3, backgroundColor: "#ead9b3" });
+
+    document.body.classList.remove("pdf-export-mode");
+
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "b4" });
+    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
+
+    // Масштабируем ПРОПОРЦИОНАЛЬНО (без искажений текста), по максимуму
+    // заполняя страницу: подгоняем по той стороне, что первой коснётся края,
+    // и центрируем по второй — минимальные поля вместо кривого растяжения.
+    const img = canvas.toDataURL("image/jpeg", 0.92);
     const ratio = canvas.width / canvas.height;
-    let w = pageW - 40, h = w / ratio;
-    if (h > pageH - 40){ h = pageH - 40; w = h * ratio; }
-    pdf.addImage(img, "JPEG", (pageW-w)/2, 20, w, h);
+    let w = pageW, h = w / ratio;
+    if (h > pageH){ h = pageH; w = h * ratio; }
+    const x = (pageW - w) / 2, y = (pageH - h) / 2;
+    pdf.addImage(img, "JPEG", x, y, w, h);
+
     const fname = (state.name || "personazh").replace(/[^a-zA-Zа-яА-Я0-9_-]+/g,"_") + "_dnd5e.pdf";
-    pdf.save(fname);
+    const blob = pdf.output("blob");
+    const file = new File([blob], fname, { type: "application/pdf" });
+
+    // Шаринг открываем только на мобильных: на Windows Edge/Chrome тоже поддерживают
+    // navigator.share (через системное окно), но там раньше работало привычное
+    // автоскачивание — не меняем его ради десктопа, шаринг там не нужен.
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 760;
+    let shared = false;
+    if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })){
+      try{
+        await navigator.share({ files: [file], title: fname });
+        shared = true;
+      }catch(shareErr){
+        if (shareErr && shareErr.name === "AbortError") { shared = true; } // пользователь сам закрыл меню — не ошибка
+      }
+    }
+    if (!shared){
+      const url = URL.createObjectURL(blob);
+      if (isMobile){
+        // Встроенные браузеры (Telegram in-app, некоторые WebView) игнорируют
+        // атрибут download у blob-ссылок — вместо сохранения просто переходят
+        // по ссылке. Открываем PDF в новой вкладке/просмотрщике: там есть
+        // собственная кнопка «Поделиться»/«Сохранить», которая работает
+        // с реальным файлом, а не с мёртвой blob-ссылкой.
+        window.open(url, "_blank");
+        toast("PDF открыт — сохрани или поделись через меню просмотрщика");
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
     toast("PDF сохранён ✓");
   }catch(e){
+    document.body.classList.remove("pdf-export-mode");
     console.error(e);
     toast("Не удалось создать PDF, попробуй кнопку «Печать»");
   }
@@ -1392,6 +2216,7 @@ function validateStep(stepId){
     case "race": return !!state.raceId || "Выбери расу";
     case "subrace": return !!state.subraceId || "Выбери подрасу";
     case "class": return !!state.classId || "Выбери класс";
+    case "subclass": return subclassChoicesDone();
     case "abilities": {
       const allAssigned = ABILITY_ORDER.every(ab => state.abilityAssign[ab] != null);
       return allAssigned || "Распредели все шесть значений характеристик";
@@ -1401,6 +2226,8 @@ function validateStep(stepId){
       if (!flex) return true;
       return flex.done || "Распредели гибкий расовый бонус между характеристиками";
     }
+    case "racechoice": return raceChoicesDone();
+    case "classchoice": return classChoicesDone();
     case "skills": {
       const c = getClass();
       if (c && c.skillChoices && state.skillChoices.length < c.skillChoices.count) return `Выбери ${c.skillChoices.count} навыка(ов)`;
@@ -1427,10 +2254,21 @@ function validateStep(stepId){
     default: return true;
   }
 }
+const CYR_LETTER = { A:"А", B:"Б", C:"В", D:"Г" };
 function updateNextEnabled(){
   const btn = document.getElementById("btnNext");
   if (!btn) return;
-  btn.disabled = validateStep(state.step) !== true;
+  const v = validateStep(state.step);
+  const locked = v !== true;
+  // кнопка не «мёртвая»: при нажатии покажет, чего не хватает, а подсказка видна сразу
+  btn.disabled = false;
+  btn.classList.toggle("is-locked", locked);
+  btn.setAttribute("aria-disabled", locked ? "true" : "false");
+  const cap = document.getElementById("stepCaption");
+  if (cap && STEP_META[state.step]){
+    cap.textContent = locked && typeof v === "string" ? "⚠ " + v : STEP_META[state.step].caption;
+    cap.classList.toggle("warn", locked && typeof v === "string");
+  }
 }
 
 function escapeHtml(str){

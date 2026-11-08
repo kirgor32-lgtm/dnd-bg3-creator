@@ -8,3 +8,6 @@ scripts/pin/
 scripts/yandex/
 scripts/*.json
 scripts/*_page.html
+scripts/grung/*.jpg
+!scripts/grung/grung_11.jpg
+scripts/evil/cache/

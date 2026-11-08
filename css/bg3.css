@@ -355,3 +355,78 @@ input[type=text], input[type=number], select, textarea{
 }
 
 @media print{ .bg3-motes, .nav-controls, .top-bar, .step-rail{ display:none !important; } }
+
+/* Сетка не должна «прыгать» при переключении рас/классов: место под полосу прокрутки
+   зарезервировано всегда, поэтому ширина страницы не меняется, когда описание длиннее экрана. */
+body{ overflow-y:scroll; scrollbar-gutter:stable; }
+
+/* ---------- Карточка расы: переворот «История» ---------- */
+.flip-card{ position:relative; perspective:1600px; transition:height .45s ease; }
+.flip-inner{ position:relative; width:100%; height:100%; transform-style:preserve-3d; transition:transform .7s cubic-bezier(.3,.7,.2,1); }
+.flip-card.flipped .flip-inner{ transform:rotateY(180deg); }
+.flip-face{ backface-visibility:hidden; -webkit-backface-visibility:hidden; }
+.flip-front{ position:relative; }
+.flip-front > .detail-panel{ height:100%; }
+.flip-card.flipped .flip-front{ pointer-events:none; }
+.flip-back{ position:absolute; inset:0; transform:rotateY(180deg); display:flex; flex-direction:column; padding:16px 20px 10px; }
+.flip-card:not(.flipped) .flip-back{ pointer-events:none; }
+/* Подстраховка: в некоторых WebView (Telegram in-app browser, старые Android)
+   backface-visibility:hidden игнорируется — скрытая грань всё равно рисуется,
+   зеркально отражённая, и наезжает на видимую. Прячем её явно через opacity
+   (НЕ visibility — у WebKit/Safari есть баг, когда visibility не пересчитывается
+   после toggle внутри 3D-контекста (transform-style:preserve-3d), и грань
+   остаётся навечно невидимой даже после переключения класса) — opacity работает
+   надёжно везде и не ловит этот баг. */
+.flip-card:not(.flipped) .flip-back{ opacity:0; pointer-events:none; }
+.flip-card.flipped .flip-front{ opacity:0; pointer-events:none; }
+.flip-card.flipped .flip-back{ pointer-events:auto; }
+.flip-card.lore-full .lore-body{ overflow-y:auto !important; max-height:calc(100vh - 200px); }
+.flip-card:not(.flipped) .lore-body{ overflow:hidden; }
+.lore-head{ display:flex; justify-content:flex-end; margin-bottom:6px; }
+.lore-body{ flex:1; min-height:0; overflow-y:auto; padding-right:8px; line-height:1.6; color:var(--text-light, #d8cbb3); scrollbar-width:thin; scrollbar-color:var(--gold-dim) transparent; }
+.lore-body h4{ font-family:'Cinzel',serif; color:var(--gold-bright); letter-spacing:.05em; font-size:.95rem; margin:16px 0 6px; }
+.lore-body p{ margin:0 0 10px; text-indent:1.2em; }
+.lore-body p b{ color:var(--gold-bright); }
+.lore-quote{ margin:8px 0 14px; padding:8px 14px; border-left:2px solid var(--gold-dim); font-style:italic; opacity:.85; }
+.lore-src{ font-size:.75rem; opacity:.55; text-indent:0 !important; margin-top:14px !important; }
+.lore-btn{
+  display:inline-flex; align-items:center; gap:8px; margin-top:14px; padding:7px 16px;
+  font-family:'Cinzel',serif; font-size:.85rem; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--gold-bright); background:linear-gradient(180deg, rgba(60,46,30,.9), rgba(28,22,16,.95));
+  border:1px solid var(--gold); border-radius:2px; cursor:pointer; transition:filter .2s, box-shadow .2s;
+}
+.lore-btn:hover{ filter:brightness(1.2); box-shadow:0 0 10px rgba(230,201,138,.35); }
+.lore-btn--back{ margin-top:0; padding:5px 12px; font-size:.75rem; }
+@media (prefers-reduced-motion: reduce){ .flip-inner, .flip-card{ transition:none; } }
+
+/* Выбор подкласса на шаге класса */
+#subclassPick .spell-group-title{ margin-top:14px; }
+#subclassPick .choice-grid{ grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); }
+.subclass-info{ margin-top:12px; padding:12px 14px; border:1px solid var(--gold-dim); background:rgba(0,0,0,.25); border-radius:2px; line-height:1.5; }
+.subclass-info b{ color:var(--gold-bright); }
+.subclass-info .feature-list{ margin:8px 0 0; }
+
+/* Подробности подкласса и договоров */
+.subclass-info .si-title{ margin:12px 0 6px; color:var(--gold-bright); font-size:1rem; letter-spacing:.02em; }
+.subclass-info .si-title:first-child{ margin-top:0; }
+.subclass-info p{ margin:6px 0; }
+.si-feat{ margin:6px 0; }
+.si-feat p{ display:inline; }
+.si-feat p + p, .si-feat ul{ display:block; margin-top:4px; }
+.si-later span{ display:block; margin:2px 0; color:var(--text-dim); }
+.si-later span::before{ content:"◆ "; color:var(--gold-dim); font-size:.8em; }
+.lore-list{ margin:4px 0 8px 18px; padding:0; }
+.lore-list li{ margin:2px 0; }
+.lore-note{ color:var(--text-dim); font-style:italic; }
+details.pact{ border:1px solid var(--gold-dim); margin:6px 0; padding:6px 10px; background:rgba(0,0,0,.2); }
+details.pact summary{ cursor:pointer; list-style:none; }
+details.pact summary::-webkit-details-marker{ display:none; }
+details.pact summary::before{ content:"▸ "; color:var(--gold-bright); }
+details.pact[open] summary::before{ content:"▾ "; }
+details.pact summary span{ color:var(--text-dim); font-size:.9em; }
+details.pact summary em{ display:block; margin:4px 0 0 14px; color:var(--text-strong, #ead9b3); }
+details.pact > p, details.pact > ul{ margin-left:14px; }
+.rule-note{ color:var(--text-dim); margin:0 0 10px; line-height:1.5; }
+.rule-note p{ margin:4px 0; }
+
+.lore-tag{ font-size:.75em; color:var(--text-dim); border:1px solid var(--gold-dim); padding:0 5px; border-radius:2px; }
