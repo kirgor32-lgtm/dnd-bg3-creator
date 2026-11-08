@@ -134,3 +134,7 @@ table.a4-rows tr.a4-prof td.a4-mod{ color:#b8361f; }
 .a4-prof-dot{ display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px; background:#c6a978; }
 tr.a4-prof .a4-prof-dot{ background:#b8361f; }
 .a4-skills-cols{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.a4-mechanics{ flex:0 0 auto; }
+.a4-mech-rule{ font-size:10.5px; color:#6a5436; line-height:1.35; margin:0 0 5px; font-style:italic; }
+.a4-mechanics .a4-spell-list li{ font-size:11.5px; }
+.a4-mechanics .a4-spell-list li::before{ content:"⚔ "; }

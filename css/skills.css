@@ -1,0 +1,88 @@
+/* ============================================================
+   «Библиотека навыков» — экран конструктора кастомных скиллов.
+   Тема: арканная тёмно-синяя/изумрудная (отличается от золота Кузни
+   Героев и багрянца Кузни Зла) — визуально ясно, что это третий, свой
+   инструмент.
+   ============================================================ */
+.btn-skills{
+  background:linear-gradient(180deg, #123a3c, #07211f) !important; color:#cdf0e6 !important;
+  border:1px solid #1f6e68 !important; box-shadow:inset 0 1px 0 rgba(150,230,210,.2), 0 0 18px rgba(20,120,110,.25);
+}
+.btn-skills:hover{ filter:brightness(1.15); color:#fff !important; box-shadow:inset 0 1px 0 rgba(150,230,210,.3), 0 0 24px rgba(30,150,130,.4); }
+.btn-skills-top{ min-height:38px !important; padding:6px 12px; font-size:.8rem; white-space:nowrap; flex:0 0 auto; }
+@media (max-width:520px){ .btn-skills-top span{ display:none; } }
+
+.skills-screen{
+  position:fixed; inset:0; z-index:200; overflow-y:auto; overscroll-behavior:contain;
+  opacity:0; transition:opacity .5s ease;
+  background:
+    radial-gradient(1000px 520px at 50% -10%, rgba(30,140,125,.25), transparent 65%),
+    radial-gradient(800px 500px at 50% 115%, rgba(10,60,55,.45), transparent 60%),
+    linear-gradient(180deg, #0b1a19 0%, #0a1514 60%, #070f0e 100%);
+  color:#dcf2ec;
+}
+.skills-screen.show{ opacity:1; }
+.skills-screen[hidden]{ display:none; }
+body.skills-open{ overflow:hidden; }
+
+.sk-inner{ position:relative; z-index:1; max-width:860px; margin:0 auto; padding:18px 16px calc(40px + env(safe-area-inset-bottom)); }
+.sk-top{ text-align:center; }
+.sk-back{ float:left; min-height:40px !important; padding:6px 14px; background:rgba(14,38,36,.7) !important; color:#bfe9df !important; border-color:#1f6e68 !important; }
+.sk-brand{ clear:both; display:flex; align-items:center; justify-content:center; gap:12px; padding-top:14px; }
+.sk-brand h1{ margin:0; font-family:"Cinzel Decorative","Cinzel",serif; font-size:clamp(1.8rem,7vw,2.7rem); letter-spacing:.08em; color:#a9e8d8; text-shadow:0 0 22px rgba(40,200,170,.4); }
+.sk-icon{ font-size:2rem; filter:drop-shadow(0 0 10px rgba(60,210,180,.55)); }
+.sk-sub{ max-width:600px; margin:6px auto 16px; color:#9fc4bc; font-style:italic; line-height:1.45; }
+
+.sk-toolbar{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.sk-search{
+  flex:1 1 220px; min-height:46px; font:inherit; font-size:16px; padding:8px 12px; border-radius:2px;
+  color:#e7faf4; background-color:#0b2220; border:1px solid #1f6e68;
+}
+.sk-search:focus{ outline:none; border-color:#39b7a4; box-shadow:0 0 0 2px rgba(57,183,164,.25); }
+.sk-toolbar .btn-gold{ flex:0 0 auto; background:linear-gradient(180deg,#2fa88f,#146457) !important; border-color:#39b7a4 !important; color:#06211d !important; }
+.sk-toolbar .btn-gold:hover{ filter:brightness(1.1); }
+
+.sk-form-wrap[hidden]{ display:none; }
+.sk-form{
+  background:rgba(12,34,32,.85); border:1px solid #1f6e68; border-radius:4px; padding:16px 18px; margin-bottom:18px;
+  box-shadow:inset 0 0 0 1px rgba(150,230,210,.05), 0 12px 30px rgba(0,0,0,.4);
+}
+.sk-form h2{ margin:0 0 12px; font-family:"Cinzel",serif; font-size:1.1rem; color:#a9e8d8; }
+.sk-field{ display:block; margin:0 0 12px; }
+.sk-label{ display:block; font-family:"Cinzel",serif; font-size:.75rem; letter-spacing:.1em; text-transform:uppercase; color:#7fc4b6; margin-bottom:6px; }
+.sk-form input[type=text], .sk-form input[type=number], .sk-form textarea, .sk-form select{
+  width:100%; min-height:46px; font:inherit; font-size:16px; padding:8px 12px; border-radius:2px;
+  color:#e7faf4; background-color:#0b2220; border:1px solid #1f6e68; -webkit-appearance:none; appearance:none;
+}
+.sk-form select{
+  padding-right:36px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%237fc4b6' stroke-width='2'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 12px center;
+}
+.sk-form textarea{ min-height:72px; resize:vertical; font-family:inherit; }
+.sk-form input:focus, .sk-form textarea:focus, .sk-form select:focus{ outline:none; border-color:#39b7a4; box-shadow:0 0 0 2px rgba(57,183,164,.25); }
+.sk-form option{ background:#0b2220; color:#e7faf4; }
+.sk-row{ display:grid; grid-template-columns:1fr; gap:0 12px; }
+@media (min-width:700px){ .sk-row{ grid-template-columns:1fr 1fr 1fr; } }
+.sk-form-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:4px; }
+
+.sk-list{ display:grid; gap:12px; }
+.sk-empty{ text-align:center; padding:22px; color:#a8d8cc; background:rgba(14,46,42,.5); border:1px dashed #1f6e68; border-radius:4px; }
+.sk-card{
+  background:rgba(14,38,36,.78); border:1px solid #1f6e68; border-radius:4px; padding:14px 16px;
+  box-shadow:inset 0 0 0 1px rgba(150,230,210,.04), 0 8px 20px rgba(0,0,0,.3);
+}
+.sk-card-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+.sk-card-head h3{ margin:0; font-family:"Cinzel",serif; font-size:1.08rem; color:#bdeee1; }
+.sk-card-btns{ display:flex; gap:6px; flex:0 0 auto; }
+.sk-icon-btn{
+  min-width:32px; min-height:32px; border-radius:2px; border:1px solid #1f6e68; background:#0b2220; color:#9fc4bc; cursor:pointer; font-size:.95rem;
+}
+.sk-icon-btn:hover{ color:#e7faf4; border-color:#39b7a4; }
+.sk-icon-btn.sk-danger:hover{ color:#ffb3a0; border-color:#c4553a; }
+.sk-card-meta{ display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
+.sk-tag{
+  font-size:.82rem; padding:3px 9px; border-radius:20px; background:rgba(57,183,164,.12); border:1px solid #1f6e68; color:#bfe9df;
+}
+.sk-tag b{ color:#e7faf4; }
+.sk-card-desc{ margin:6px 0 0; color:#c7e4dc; font-size:.94rem; line-height:1.45; }

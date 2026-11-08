@@ -2019,7 +2019,7 @@ function a4FrontHTML(d){
 }
 
 function a4BackHTML(d){
-  const { c, totals, mods, saves, skills, spellsDetailed, slots, equip } = d;
+  const { c, totals, mods, saves, skills, spellsDetailed, slots, equip, attacks, casting } = d;
   const saveRow = row => `<tr class="${row.prof ? "a4-prof" : ""}"><td class="a4-mod">${fmtMod(row.value)}</td><td class="a4-name">${row.prof ? '<span class="a4-prof-dot"></span>' : ""}${ABILITY_ABBR[row.ab]}</td></tr>`;
   const skillRow = row => `<tr class="${row.prof ? "a4-prof" : ""}"><td class="a4-mod">${fmtMod(row.value)}</td><td class="a4-name">${row.prof ? '<span class="a4-prof-dot"></span>' : ""}${row.name} (${ABILITY_ABBR[row.ab].slice(0,3)})</td></tr>`;
   const half = Math.ceil(skills.length / 2);
@@ -2035,6 +2035,21 @@ function a4BackHTML(d){
         ? `Ячейки (${slots} шт., 1-й круг): отмечай ☐, когда тратишь заклинание. Все ячейки чернокнижника восстанавливаются после КОРОТКОГО отдыха (1 час) — не нужно ждать ночи.`
         : `Ячейки (${slots} шт., 1-й круг): отмечай ☐, когда тратишь заклинание. Восстанавливаются после ДЛИТЕЛЬНОГО отдыха (8 часов).`)
     : "";
+
+  // Пояснение игровых механик простым языком с конкретными числами
+  // ЭТОГО персонажа — чтобы за столом не лезть за калькулятором.
+  const atkLines = (attacks || []).map(a =>
+    `<li><span><b>${escapeHtml(a.name)}</b> — бросок к20${a.hit}</span><span class="a4-circ">урон ${escapeHtml(a.dmg)}</span></li>`
+  ).join("");
+  const castLine = casting
+    ? `<li><span>Атака заклинанием — бросок к20${fmtMod(casting.atk)}</span><span class="a4-circ">спасбросок цели: Сл ${casting.dc}</span></li>`
+    : "";
+  const mechanicsBox = (atkLines || castLine) ? `
+    <div class="a4-box a4-mechanics">
+      <h2>Как бросать кости</h2>
+      <p class="a4-mech-rule">Атака = бросок к20 + бонус из строки ниже. Результат ≥ КД цели — попадание, тогда бросаешь указанный урон. Если враг спасается от заклинания — его бросок к20 должен быть ≥ «Сл», иначе эффект сработал.</p>
+      <ul class="a4-spell-list">${atkLines}${castLine}</ul>
+    </div>` : "";
 
   return `
     <div class="a4-card">
@@ -2056,6 +2071,7 @@ function a4BackHTML(d){
         </div>
       </div>
       <div class="a4-row-mid">${ABILITY_ORDER.map(statBox).join("")}</div>
+      ${mechanicsBox}
       <div class="a4-row-bottom">
         <div class="a4-box">
           <h2>Заклинания</h2>
