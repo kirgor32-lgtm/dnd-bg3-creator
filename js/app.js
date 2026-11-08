@@ -1831,12 +1831,14 @@ function renderSheet(view){
     <div class="view-header"><h1>Твой герой готов</h1><p>Нажми на рамку слева вверху, чтобы добавить портрет героя. Потом скачай лист в PDF или сразу отправь на печать.</p></div>
     <div class="sheet-actions">
       <button class="btn btn-gold" id="btnPdf">⇩ Скачать PDF</button>
+      <button class="btn btn-gold" id="btnPdfA4">📜 PDF A4 (лицо + оборот)</button>
       <button class="btn btn-ghost" id="btnPrint">🖶 Печать</button>
       <button class="btn btn-ghost" id="btnRestart">↻ Начать заново</button>
     </div>
     <div class="sheet-wrap"><div id="charSheet">${sheetHTML(d)}</div></div>
   `;
   view.querySelector("#btnPdf").onclick = () => exportPDF();
+  view.querySelector("#btnPdfA4").onclick = () => exportPDFA4();
   view.querySelector("#btnPrint").onclick = () => window.print();
   bindSheetPhoto(view);
   view.querySelector("#btnRestart").onclick = () => {
@@ -1972,6 +1974,161 @@ function sheetHTML(d){
   `;
 }
 
+/* ===== Экспорт в PDF формата A4 альбомная (лицо + оборот) =====
+   Лицо: имя, портрет, предыстория. Оборот: спасброски/навыки сверху,
+   шесть характеристик горизонтально посередине, заклинания (с ячейками
+   и правилом их восстановления) и снаряжение снизу. */
+const ABILITY_ABBR = { str:"Сила", dex:"Ловкость", con:"Телосложение", int:"Интеллект", wis:"Мудрость", cha:"Харизма" };
+
+function a4FrontHTML(d){
+  const { r, s, c } = d;
+  const sub = c ? getSubclass(c.id, state.classChoices || {}) : null;
+  const name = escapeHtml(state.name) || "Безымянный герой";
+  const subtitleParts = [r ? (s ? s.name : r.name) : "", c ? c.name + (sub ? ` (${sub.name})` : "") : ""].filter(Boolean);
+  let portraitHTML = `<span class="a4-ph-glyph">❖</span>`;
+  if (state.photoDataUrl){
+    portraitHTML = `<img src="${state.photoDataUrl}" alt="Портрет">`;
+  } else if (r && typeof WHITE_BG_PORTRAITS !== "undefined"){
+    const cls = WHITE_BG_PORTRAITS.includes(r.id) ? " a4-on-parchment" : "";
+    portraitHTML = `<img class="${cls}" src="assets/img/races/${r.id}.jpg" alt="Портрет расы" onerror="this.parentNode.innerHTML='<span class=&quot;a4-ph-glyph&quot;>❖</span>'">`;
+  }
+  const bg = state.background ? escapeHtml(state.background).split(/\n{2,}/).map(p => `<p>${p.replace(/\n/g,"<br>")}</p>`).join("") : "<p><i>Предыстория не заполнена.</i></p>";
+  const tags = [
+    r ? `Раса: ${s ? s.name : r.name}` : null,
+    c ? `Класс: ${c.name}` : null,
+    sub ? `Путь: ${sub.name}` : null,
+    state.alignment ? `Мировоззрение: ${state.alignment}` : null
+  ].filter(Boolean);
+  return `
+    <div class="a4-card">
+      <div class="a4-name-bar">
+        <span class="a4-crest">⚒</span>
+        <h1>${name}</h1>
+        <div class="a4-subtitle">${subtitleParts.join(" · ") || "Герой без пути"}</div>
+        <span class="a4-crest a4-right">⚒</span>
+      </div>
+      <div class="a4-body-row">
+        <div class="a4-portrait-box">${portraitHTML}</div>
+        <div class="a4-lore-box">
+          <h2>Предыстория</h2>
+          ${bg}
+          <div class="a4-tags">${tags.map(t => `<span class="a4-tag">${escapeHtml(t)}</span>`).join("")}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function a4BackHTML(d){
+  const { c, totals, mods, saves, skills, spellsDetailed, slots, equip } = d;
+  const saveRow = row => `<tr class="${row.prof ? "a4-prof" : ""}"><td class="a4-mod">${fmtMod(row.value)}</td><td class="a4-name">${row.prof ? '<span class="a4-prof-dot"></span>' : ""}${ABILITY_ABBR[row.ab]}</td></tr>`;
+  const skillRow = row => `<tr class="${row.prof ? "a4-prof" : ""}"><td class="a4-mod">${fmtMod(row.value)}</td><td class="a4-name">${row.prof ? '<span class="a4-prof-dot"></span>' : ""}${row.name} (${ABILITY_ABBR[row.ab].slice(0,3)})</td></tr>`;
+  const half = Math.ceil(skills.length / 2);
+  const skillsCol1 = skills.slice(0, half), skillsCol2 = skills.slice(half);
+  const statBox = ab => `<div class="a4-stat-box"><div class="a4-label">${ABILITY_ABBR[ab]}</div><div class="a4-score">${totals[ab]}</div><div class="a4-mod">${fmtMod(mods[ab])}</div></div>`;
+
+  const cantrips = spellsDetailed.filter(sp => sp.level === 0);
+  const leveled = spellsDetailed.filter(sp => sp.level > 0);
+  const spellLine = (sp, circ) => `<li><span>${sp.name}</span>${circ ? `<span class="a4-circ">${"☐".repeat(circ)}</span>` : `<span class="a4-circ">∞</span>`}</li>`;
+  const isWarlock = c && c.id === "warlock";
+  const slotsRule = slots
+    ? (isWarlock
+        ? `Ячейки (${slots} шт., 1-й круг): отмечай ☐, когда тратишь заклинание. Все ячейки чернокнижника восстанавливаются после КОРОТКОГО отдыха (1 час) — не нужно ждать ночи.`
+        : `Ячейки (${slots} шт., 1-й круг): отмечай ☐, когда тратишь заклинание. Восстанавливаются после ДЛИТЕЛЬНОГО отдыха (8 часов).`)
+    : "";
+
+  return `
+    <div class="a4-card">
+      <div class="a4-name-bar">
+        <h1>${escapeHtml(state.name) || "Безымянный герой"}</h1>
+        <div class="a4-subtitle">Оборотная сторона · характеристики, заклинания и снаряжение</div>
+      </div>
+      <div class="a4-row-top">
+        <div class="a4-box">
+          <h2>Спасброски</h2>
+          <table class="a4-rows">${saves.map(saveRow).join("")}</table>
+        </div>
+        <div class="a4-box">
+          <h2>Навыки</h2>
+          <div class="a4-skills-cols">
+            <table class="a4-rows">${skillsCol1.map(skillRow).join("")}</table>
+            <table class="a4-rows">${skillsCol2.map(skillRow).join("")}</table>
+          </div>
+        </div>
+      </div>
+      <div class="a4-row-mid">${ABILITY_ORDER.map(statBox).join("")}</div>
+      <div class="a4-row-bottom">
+        <div class="a4-box">
+          <h2>Заклинания</h2>
+          ${cantrips.length ? `<div class="a4-spell-level"><div class="a4-lvl-title">Заговоры</div><ul class="a4-spell-list">${cantrips.map(sp => spellLine(sp, 0)).join("")}</ul></div>` : ""}
+          ${leveled.length ? `<div class="a4-spell-level"><div class="a4-lvl-title">1 круг</div><ul class="a4-spell-list">${leveled.map(sp => spellLine(sp, slots)).join("")}</ul></div>` : ""}
+          ${!cantrips.length && !leveled.length ? `<p style="font-size:12px;color:#6a5436;"><i>Эта классовая комбинация не использует заклинания.</i></p>` : ""}
+          ${slotsRule ? `<div class="a4-slots-rule">${slotsRule}</div>` : ""}
+        </div>
+        <div class="a4-box">
+          <h2>Снаряжение</h2>
+          <ul class="a4-equip-list">${equip ? equip.items.map(i => `<li><b>${i.name || i}</b>${i.info ? ` <span style="color:#6a5436;">(${i.info})</span>` : ""}</li>`).join("") : "<li>—</li>"}</ul>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function exportPDFA4(){
+  toast("Готовим PDF A4 (лицо + оборот)…");
+  const d = computeFinal();
+  let root = document.getElementById("a4ExportRoot");
+  if (!root){ root = document.createElement("div"); root.id = "a4ExportRoot"; document.body.appendChild(root); }
+  root.innerHTML = `
+    <div class="a4-page" id="a4PageFront">${a4FrontHTML(d)}</div>
+    <div class="a4-page" id="a4PageBack">${a4BackHTML(d)}</div>
+  `;
+  try{
+    // ждём загрузки портретной картинки (если есть), иначе html2canvas может её не захватить
+    const img = root.querySelector("#a4PageFront img");
+    if (img && !img.complete){
+      await new Promise(res => { img.onload = img.onerror = res; setTimeout(res, 1500); });
+    }
+    await new Promise(r => setTimeout(r, 60));
+
+    const frontCanvas = await html2canvas(root.querySelector("#a4PageFront"), { scale: 2, backgroundColor: "#ecdcbf" });
+    const backCanvas = await html2canvas(root.querySelector("#a4PageBack"), { scale: 2, backgroundColor: "#ecdcbf" });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    pdf.addImage(frontCanvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pageW, pageH);
+    pdf.addPage("a4", "landscape");
+    pdf.addImage(backCanvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pageW, pageH);
+
+    const fname = (state.name || "personazh").replace(/[^a-zA-Zа-яА-Я0-9_-]+/g,"_") + "_dnd5e_A4.pdf";
+    const blob = pdf.output("blob");
+    const file = new File([blob], fname, { type: "application/pdf" });
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 760;
+    let shared = false;
+    if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })){
+      try{ await navigator.share({ files: [file], title: fname }); shared = true; }
+      catch(shareErr){ if (shareErr && shareErr.name === "AbortError") shared = true; }
+    }
+    if (!shared){
+      const url = URL.createObjectURL(blob);
+      if (isMobile){
+        window.open(url, "_blank");
+        toast("PDF открыт — сохрани или поделись через меню просмотрщика");
+      } else {
+        const a = document.createElement("a");
+        a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove();
+        toast("PDF (A4, лицо + оборот) сохранён");
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+  } catch(err){
+    console.error(err);
+    toast("Не удалось собрать PDF A4 — попробуй ещё раз");
+  } finally {
+    root.innerHTML = "";
+  }
+}
+
 async function exportPDF(){
   const node = document.getElementById("charSheet");
   toast("Готовим PDF…");
@@ -1991,7 +2148,7 @@ async function exportPDF(){
     document.body.classList.remove("pdf-export-mode");
 
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "b4" });
+    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
 
