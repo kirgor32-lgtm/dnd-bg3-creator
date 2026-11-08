@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="css/style.css?v=30">
 <link rel="stylesheet" href="css/bg3.css?v=30">
 <link rel="stylesheet" href="css/forge.css?v=30">
+<link rel="stylesheet" href="css/evil.css?v=1">
 </head>
 <body>
 
@@ -24,7 +25,11 @@
     <h1 class="landing-title">Кузня Героев</h1>
     <div class="bg3-divider"><span></span></div>
     <p class="landing-sub">Выкуй своего героя D&amp;D 5e в пламени горна — раса, класс, судьба и снаряжение сложатся в единый лист персонажа.</p>
-    <button class="btn btn-gold btn-forge" id="btnForge">⚒ Выковать героя</button>
+    <div class="landing-btns">
+      <button class="btn btn-gold btn-forge" id="btnForge">⚒ Выковать героя</button>
+      <button class="btn btn-evil btn-forge" id="btnEvil">☠ Выковать зло</button>
+    </div>
+    <p class="landing-evil-hint">Для мастера: вампиры, нежить и прочие противники со статблоками по правилам D&amp;D 5e</p>
   </div>
 </div>
 
@@ -34,6 +39,7 @@
     <span class="brand-text">Кузня Героев</span>
   </div>
   <div class="charname-display" id="headerCharName"></div>
+  <button type="button" class="btn btn-evil btn-evil-top" id="btnEvilTop" title="Кузня Зла — генератор противников">☠ <span>Выковать зло</span></button>
 </header>
 
 <nav class="step-rail" id="stepRail" aria-label="Шаги создания персонажа"></nav>
@@ -58,5 +64,7 @@
 <script src="js/sheet-rules.js?v=30"></script>
 <script src="js/app.js?v=30"></script>
 <script src="js/forge.js?v=30"></script>
+<script src="js/evil-data.js?v=1"></script>
+<script src="js/evil.js?v=1"></script>
 </body>
 </html>
