@@ -413,36 +413,101 @@
     if (!window.html2canvas || !window.jspdf){ btn.textContent = "PDF-библиотеки не загрузились — обнови страницу"; return; }
     pdfBusy = true;
     const label = btn.textContent; btn.textContent = "⏳ Готовим PDF…"; btn.disabled = true;
-    const lore = [...outEl.querySelectorAll(".ev-lore")].map(d => [d, d.open]);
+    const sheet = document.createElement("div");
+    sheet.className = "ev-pdf-sheet";
     try{
-      // фиксированная «книжная» ширина — PDF одинаковый на телефоне и на компьютере
-      document.body.classList.add("evil-pdf-mode");
-      lore.forEach(([d]) => d.open = true);
-      await new Promise(r => setTimeout(r, 120));
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ orientation:"portrait", unit:"pt", format:"a4" });
-      const PW = pdf.internal.pageSize.getWidth(), PH = pdf.internal.pageSize.getHeight(), M = 28, CW = PW - M * 2, GAP = 12;
-      let y = M, first = true;
-      for (const n of nodes){
-        const c = await html2canvas(n, { scale:2, backgroundColor:"#f6e8cc", logging:false });
-        const k = CW / c.width;                       // pt на пиксель канваса
-        let h = c.height * k;
-        if (y > M && y + h > PH - M){ pdf.addPage(); y = M; }
-        if (h <= PH - M * 2){
-          pdf.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", M, y, CW, h); y += h + GAP; first = false; continue;
+      // Всё на ОДИН лист A4. CSS-колонки html2canvas рисует с дырами, поэтому
+      // раскладываем сами: режем статблоки на абзацы, меряем их высоту и
+      // жадно набиваем N колонок. Перебираем N и ориентацию листа, берём вариант
+      // с самым крупным текстом.
+      const COL = 330, GAPPX = 14, PAD = 12, FRAG = 30;   // FRAG — поля/рамки куска статблока
+      const meas = document.createElement("div");
+      meas.className = "ev-pdf-sheet"; meas.style.cssText = `width:${COL}px; display:block; padding:0;`;
+      document.body.appendChild(meas);
+      const atoms = [];                        // { el, wrap:"sec"|null, h, keep, block, type }
+      nodes.forEach((n, bi) => {
+        const c = n.cloneNode(true);
+        c.querySelectorAll(".ev-lore, .ev-roll, .ev-rolled, [data-html2canvas-ignore]").forEach(x => x.remove());
+        const src = n.querySelectorAll("input");
+        c.querySelectorAll("input").forEach((inp, i) => { const sp = document.createElement("span"); sp.className = "ev-hpval"; sp.textContent = src[i] ? src[i].value : inp.value; inp.replaceWith(sp); });
+        meas.appendChild(c);
+        if (c.classList.contains("ev-summary")){ atoms.push({ el:c, wrap:null, h:c.offsetHeight + 10, keep:false, block:bi, type:"summary" }); return; }
+        const parts = [];
+        [...c.children].forEach(ch => {
+          if (ch.classList.contains("ev-sec")) [...ch.children].forEach(x => parts.push({ el:x, wrap:"sec" }));
+          else parts.push({ el:ch, wrap:null });
+        });
+        const tops = parts.map(pp => pp.el.getBoundingClientRect().top);
+        const bottom = c.getBoundingClientRect().bottom - 8;
+        parts.forEach((pp, i) => {
+          const h = Math.max(1, (i + 1 < parts.length ? tops[i + 1] : bottom) - tops[i]);
+          const keep = pp.el.classList.contains("ev-head") || pp.el.classList.contains("ev-rule") || pp.el.tagName === "H4";
+          atoms.push({ ...pp, h, keep, block:bi, type:"block" });
+        });
+      });
+      // раскладка при пределе высоты колонки L
+      const pack = L => {
+        const cols = [[]]; let colH = 0, lastBlock = -1;
+        for (let i = 0; i < atoms.length; i++){
+          const at = atoms[i];
+          let need = at.h, j = i;
+          while (atoms[j].keep && j + 1 < atoms.length && atoms[j + 1].block === at.block){ j++; need += atoms[j].h; }
+          const over = (at.type === "block" && at.block !== lastBlock) || colH === 0 ? FRAG : 0;
+          if (colH > 0 && colH + need + over > L){ cols.push([]); colH = 0; lastBlock = -1; }
+          colH += at.h + ((at.type === "block" && (at.block !== lastBlock)) ? FRAG : 0);
+          cols[cols.length - 1].push(at); lastBlock = at.block;
         }
-        // длинный статблок (лич, демилич…) режем на страницы
-        const sliceH = Math.floor((PH - M * 2) / k);
-        for (let sy = 0; sy < c.height; sy += sliceH){
-          const part = document.createElement("canvas");
-          part.width = c.width; part.height = Math.min(sliceH, c.height - sy);
-          const g = part.getContext("2d"); g.fillStyle = "#f6e8cc"; g.fillRect(0, 0, part.width, part.height);
-          g.drawImage(c, 0, sy, c.width, part.height, 0, 0, c.width, part.height);
-          if (y > M){ pdf.addPage(); y = M; }
-          pdf.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", M, y, CW, part.height * k);
-          y += part.height * k + GAP;
+        return { cols, H:Math.max(...cols.map(c => c.reduce((s, a) => s + a.h, 0))) };
+      };
+      const total = atoms.reduce((s, a) => s + a.h + 2, 0) + FRAG * nodes.length;
+      const A4 = [595.28, 841.89], M = 18;
+      let best = null;
+      for (let n = 1; n <= 6; n++){
+        let lo = Math.max(...atoms.map(a => a.h)) + FRAG, hi = total + FRAG;
+        for (let it = 0; it < 30; it++){ const mid = (lo + hi) / 2; pack(mid).cols.length <= n ? hi = mid : lo = mid; }
+        const L = hi, used = pack(L).cols.length;
+        const w = used * COL + (used - 1) * GAPPX + PAD * 2, h = L + PAD * 2;
+        for (const orient of ["portrait", "landscape"]){
+          const [PW, PH] = orient === "portrait" ? A4 : [A4[1], A4[0]];
+          const k = Math.min((PW - M * 2) / w, (PH - M * 2) / h);
+          if (!best || k > best.k + 1e-6) best = { n:used, L, orient, k };
         }
       }
+      // собираем лист
+      const { cols } = pack(best.L);
+      sheet.style.width = (cols.length * COL + (cols.length - 1) * GAPPX + PAD * 2) + "px";
+      sheet.style.setProperty("--gap", GAPPX + "px");
+      cols.forEach(col => {
+        const cd = document.createElement("div"); cd.className = "ev-pdf-col"; cd.style.width = COL + "px";
+        let frag = null, fragBlock = -1, sec = null;
+        col.forEach(at => {
+          if (at.type === "summary"){ cd.appendChild(at.el); frag = null; fragBlock = -1; return; }
+          if (!frag || fragBlock !== at.block){
+            frag = document.createElement("article"); frag.className = "ev-block";
+            if (!at.el.classList.contains("ev-head")) frag.classList.add("ev-cont");
+            cd.appendChild(frag); fragBlock = at.block; sec = null;
+          }
+          if (at.wrap === "sec"){ if (!sec){ sec = document.createElement("div"); sec.className = "ev-sec"; frag.appendChild(sec); } sec.appendChild(at.el); }
+          else { sec = null; frag.appendChild(at.el); }
+        });
+        sheet.appendChild(cd);
+      });
+      meas.remove();
+      document.body.appendChild(sheet);
+      await new Promise(r => setTimeout(r, 30));
+      const { jsPDF } = window.jspdf;
+      // ~250 dpi на листе A4 — чётко и без многосекундной отрисовки
+      const scale = clamp(3000 / Math.max(sheet.offsetWidth, sheet.scrollHeight * 1.414), 1, 2.5);
+      const canvas = await html2canvas(sheet, { scale, backgroundColor:"#f6e8cc", logging:false, windowWidth:sheet.offsetWidth + 40,
+        // не копировать всё приложение и бестиарий — только наш лист (иначе 15–20 с)
+        ignoreElements: el => el.parentElement === document.body && el !== sheet && !/^(SCRIPT|STYLE|LINK)$/.test(el.tagName) });
+      const pdf = new jsPDF({ orientation:best.orient, unit:"pt", format:"a4" });
+      const PW = pdf.internal.pageSize.getWidth(), PH = pdf.internal.pageSize.getHeight();
+      const ratio = canvas.width / canvas.height;
+      let w = PW - M * 2, h = w / ratio;
+      if (h > PH - M * 2){ h = PH - M * 2; w = h * ratio; }
+      pdf.setFillColor(246, 232, 204); pdf.rect(0, 0, PW, PH, "F");
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", (PW - w) / 2, (PH - h) / 2, w, h);
       const base = st.tab === "party" ? "zasada" : st.tab === "book" ? "bestiary" : (outEl.querySelector(".ev-block h3")?.childNodes[0]?.textContent || "zlo");
       const fname = String(base).trim().replace(/[^a-zA-Zа-яА-ЯёЁ0-9_-]+/g, "_").slice(0, 40) + "_dnd5e.pdf";
       const blob = pdf.output("blob");
@@ -463,8 +528,7 @@
     } catch(err){
       console.error(err); btn.textContent = "⚠ Не получилось — попробуй ещё раз";
     } finally {
-      document.body.classList.remove("evil-pdf-mode");
-      lore.forEach(([d, o]) => d.open = o);
+      sheet.remove();
       btn.disabled = false; pdfBusy = false;
       setTimeout(() => { btn.textContent = label; }, 2500);
     }

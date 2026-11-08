@@ -151,12 +151,36 @@ body.evil-open{ overflow:hidden; }
 .ev-en-meta{ font-size:.82rem; color:#b49680; font-style:italic; }
 .ev-entry .ev-block{ margin:4px 8px 10px; }
 
-/* режим снимка для PDF: фиксированная ширина, без анимаций, светлая сводка */
-body.evil-pdf-mode .evil-inner{ width:780px !important; max-width:none !important; }
-body.evil-pdf-mode .ev-block, body.evil-pdf-mode .ev-entry .ev-block{ animation:none !important; opacity:1 !important; transform:none !important; box-shadow:none !important; margin-left:0 !important; margin-right:0 !important; }
-body.evil-pdf-mode .ev-summary{ background:#f6e8cc !important; color:#2a1a0e !important; border-color:#c0782e !important; }
-body.evil-pdf-mode .ev-summary h3{ color:#7a200d !important; }
-body.evil-pdf-mode .ev-summary li span, body.evil-pdf-mode .ev-summary .ev-note{ color:#5a3a1e !important; }
+/* лист для PDF: всё на одной странице A4, газетные колонки, компактный шрифт */
+.ev-pdf-sheet{
+  position:absolute; left:-20000px; top:0; z-index:-1; box-sizing:border-box;
+  padding:12px; display:flex; align-items:flex-start; gap:var(--gap, 14px);
+  background:#f6e8cc; color:#2a1a0e; font-family:"EB Garamond", Georgia, serif; font-size:12.5px; line-height:1.28;
+}
+.ev-pdf-sheet .ev-block, .ev-pdf-sheet .ev-summary{
+  break-inside:auto; margin:0 0 10px; padding:8px 10px; animation:none !important; opacity:1 !important; transform:none !important;
+  box-shadow:none !important; font-size:12.5px; line-height:1.28; border-top-width:3px; border-bottom-width:3px; background:#fbf1dc;
+}
+.ev-pdf-col{ flex:0 0 auto; }
+.ev-pdf-sheet .ev-block.ev-cont{ border-top:1px dashed #c0782e; }
+.ev-pdf-sheet .ev-summary{ break-inside:avoid; color:#2a1a0e; border:1px solid #c0782e; }
+.ev-pdf-sheet .ev-summary h3{ color:#7a200d; font-size:14px; }
+.ev-pdf-sheet .ev-summary li span, .ev-pdf-sheet .ev-summary .ev-note{ color:#5a3a1e; font-size:11.5px; }
+.ev-pdf-sheet .ev-head{ break-after:avoid; }
+.ev-pdf-sheet .ev-head h3{ font-size:16px; }
+.ev-pdf-sheet .ev-epithet{ font-size:10px; }
+.ev-pdf-sheet .ev-badge{ font-size:10px; padding:1px 5px; margin-top:3px; }
+.ev-pdf-sheet .ev-rule{ height:3px; margin:4px 0; }
+.ev-pdf-sheet p, .ev-pdf-sheet .ev-sec p{ margin:2px 0; }
+.ev-pdf-sheet .ev-sec ul{ margin:2px 0; padding-left:14px; }
+.ev-pdf-sheet .ev-sec-t{ font-size:13px; margin:6px 0 2px; break-after:avoid; }
+.ev-pdf-sheet .ev-ab b{ font-size:10.5px; } .ev-pdf-sheet .ev-ab span{ font-size:11.5px; }
+.ev-pdf-sheet .ev-abils{ grid-template-columns:repeat(6, 1fr) !important; }
+.ev-pdf-sheet .ev-flavor{ margin-top:5px; padding:4px 7px; font-size:11.5px; }
+.ev-pdf-sheet .ev-hpbox{ margin-top:5px; padding:4px; gap:5px; }
+.ev-pdf-sheet .ev-hpval{ display:inline-block; min-width:30px; padding:1px 4px; text-align:center; border:1px solid #c8a970; background:#fffaf0; }
+.ev-pdf-sheet .ev-src{ margin-top:3px; font-size:9.5px; }
+.ev-pdf-sheet .ev-chg{ box-shadow:none; }
 
 /* печать: только результат */
 @media print{
