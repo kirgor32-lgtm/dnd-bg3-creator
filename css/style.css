@@ -290,6 +290,8 @@ input[type=number]{text-align:center;}
 .spell-card .sp-desc{font-size:.82rem; color:var(--text-dim); line-height:1.4;}
 .spell-counter{color:var(--gold-bright); margin-bottom:12px; font-size:.95rem;}
 .spell-group-title{color:var(--gold-bright); margin:22px 0 10px; font-family:'Cinzel'; font-size:1.05rem; border-bottom:1px solid var(--line); padding-bottom:6px;}
+.magic-mode-tabs{margin-bottom:14px;}
+.magic-empty{padding:20px; text-align:center; color:var(--text-dim); background:var(--panel-2); border:1px dashed var(--line); border-radius:8px;}
 
 /* ---------- Final character sheet ---------- */
 .sheet-actions{display:flex; gap:12px; justify-content:center; margin-bottom:24px; flex-wrap:wrap;}

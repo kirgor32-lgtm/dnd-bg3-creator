@@ -41,6 +41,11 @@
   const qInput = root.querySelector("#skQ");
 
   const ABILITY_SELECT_OPTIONS = [["none","Без проверки"]].concat(ABILITY_ORDER.map(ab => [ab, ABILITY_NAMES[ab]]));
+  const CATEGORY_OPTIONS = [["cantrip","Фокус — без ограничений по применению"],["level1","1-й круг — тратит ячейку заклинания"]];
+  const ACTION_OPTIONS = [["action","Действие"],["bonus","Бонусное действие"],["reaction","Реакция"],["free","Без действия (пассивный эффект)"]];
+  const ACTION_LABEL = Object.fromEntries(ACTION_OPTIONS);
+  window.CUSTOM_SKILL_ACTION_LABEL = ACTION_LABEL;
+  window.CUSTOM_SKILL_CATEGORY_LABEL = { cantrip:"Фокус", level1:"1-й круг" };
 
   function diceOptionsHtml(sel){
     return DICE_OPTIONS.map(d => `<option value="${d}" ${sel === d ? "selected" : ""}>${d ? d : "Без урона"}</option>`).join("");
@@ -48,15 +53,28 @@
   function abilityOptionsHtml(sel){
     return ABILITY_SELECT_OPTIONS.map(([v,label]) => `<option value="${v}" ${sel === v ? "selected" : ""}>${label}</option>`).join("");
   }
+  function categoryOptionsHtml(sel){
+    return CATEGORY_OPTIONS.map(([v,label]) => `<option value="${v}" ${sel === v ? "selected" : ""}>${label}</option>`).join("");
+  }
+  function actionOptionsHtml(sel){
+    return ACTION_OPTIONS.map(([v,label]) => `<option value="${v}" ${sel === v ? "selected" : ""}>${label}</option>`).join("");
+  }
 
   function emptySkill(){
-    return { id: uid(), name:"", description:"", dice:"", checkAbility:"none", dc:"", createdAt: Date.now() };
+    return { id: uid(), name:"", description:"", dice:"", checkAbility:"none", dc:"",
+      category:"cantrip", slotCost:1, actionType:"action", range:"", duration:"", createdAt: Date.now() };
   }
 
   function renderForm(){
     if (!st.formOpen){ formWrap.hidden = true; formWrap.innerHTML = ""; return; }
     const sk = st.editingId ? lib.find(s => s.id === st.editingId) : emptySkill();
     if (!sk){ st.formOpen = false; st.editingId = null; formWrap.hidden = true; return; }
+    // старые навыки, созданные до появления этих полей — подставляем разумные значения по умолчанию
+    if (sk.category === undefined) sk.category = "cantrip";
+    if (sk.slotCost === undefined) sk.slotCost = 1;
+    if (sk.actionType === undefined) sk.actionType = "action";
+    if (sk.range === undefined) sk.range = "";
+    if (sk.duration === undefined) sk.duration = "";
     formWrap.hidden = false;
     formWrap.innerHTML = `
       <form class="sk-form" id="skForm">
@@ -66,6 +84,14 @@
         <label class="sk-field"><span class="sk-label">Описание</span>
           <textarea id="skfDesc" rows="3" maxlength="600" placeholder="Что делает навык, в каких условиях применяется…">${esc(sk.description)}</textarea></label>
         <div class="sk-row">
+          <label class="sk-field"><span class="sk-label">Категория</span>
+            <select id="skfCategory">${categoryOptionsHtml(sk.category)}</select></label>
+          <label class="sk-field" id="skfSlotWrap"><span class="sk-label">Ячеек за применение</span>
+            <input type="number" id="skfSlotCost" min="1" max="4" value="${esc(sk.slotCost)}"></label>
+          <label class="sk-field"><span class="sk-label">Тип действия</span>
+            <select id="skfAction">${actionOptionsHtml(sk.actionType)}</select></label>
+        </div>
+        <div class="sk-row">
           <label class="sk-field"><span class="sk-label">Урон</span>
             <select id="skfDice">${diceOptionsHtml(sk.dice)}</select></label>
           <label class="sk-field"><span class="sk-label">Проверка характеристики</span>
@@ -73,11 +99,21 @@
           <label class="sk-field"><span class="sk-label">Сл проверки (необязательно)</span>
             <input type="number" id="skfDC" min="1" max="30" placeholder="напр. 13" value="${esc(sk.dc)}"></label>
         </div>
+        <div class="sk-row">
+          <label class="sk-field"><span class="sk-label">Дальность (необязательно)</span>
+            <input type="text" id="skfRange" maxlength="40" placeholder="Касание / 9 м / Ближний бой" value="${esc(sk.range)}"></label>
+          <label class="sk-field"><span class="sk-label">Длительность (необязательно)</span>
+            <input type="text" id="skfDuration" maxlength="40" placeholder="Мгновенно / 1 минута (конц.)" value="${esc(sk.duration)}"></label>
+        </div>
         <div class="sk-form-actions">
           <button type="button" class="btn btn-ghost" id="skfCancel">Отмена</button>
           <button type="submit" class="btn btn-gold">${st.editingId ? "Сохранить" : "Добавить в библиотеку"}</button>
         </div>
       </form>`;
+    const catSel = formWrap.querySelector("#skfCategory");
+    const slotWrap = formWrap.querySelector("#skfSlotWrap");
+    const syncSlotVisibility = () => { slotWrap.style.display = catSel.value === "level1" ? "" : "none"; };
+    catSel.onchange = syncSlotVisibility; syncSlotVisibility();
     formWrap.querySelector("#skfName").focus();
     formWrap.querySelector("#skForm").onsubmit = e => {
       e.preventDefault();
@@ -85,9 +121,14 @@
       if (!name) return;
       sk.name = name;
       sk.description = formWrap.querySelector("#skfDesc").value.trim();
+      sk.category = catSel.value;
+      sk.slotCost = Math.max(1, parseInt(formWrap.querySelector("#skfSlotCost").value, 10) || 1);
+      sk.actionType = formWrap.querySelector("#skfAction").value;
       sk.dice = formWrap.querySelector("#skfDice").value;
       sk.checkAbility = formWrap.querySelector("#skfAbility").value;
       sk.dc = formWrap.querySelector("#skfDC").value.trim();
+      sk.range = formWrap.querySelector("#skfRange").value.trim();
+      sk.duration = formWrap.querySelector("#skfDuration").value.trim();
       if (!st.editingId) lib.unshift(sk);
       save();
       st.formOpen = false; st.editingId = null;
@@ -101,6 +142,11 @@
       ? `Проверка: <b>${ABILITY_NAMES[sk.checkAbility]}</b>${sk.dc ? ` (Сл ${esc(sk.dc)})` : ""}`
       : "Без проверки характеристики";
     const diceLine = sk.dice ? `Урон: <b>${esc(sk.dice)}</b>` : "Без урона";
+    const catLine = sk.category === "level1" ? `1-й круг · ${esc(sk.slotCost||1)} ячейка(и)` : "Фокус · без ограничений";
+    const actionLine = ACTION_LABEL[sk.actionType] || "Действие";
+    const extraTags = [];
+    if (sk.range) extraTags.push(`Дальность: <b>${esc(sk.range)}</b>`);
+    if (sk.duration) extraTags.push(`Длительность: <b>${esc(sk.duration)}</b>`);
     return `
       <article class="sk-card" data-id="${sk.id}">
         <div class="sk-card-head">
@@ -111,8 +157,11 @@
           </div>
         </div>
         <div class="sk-card-meta">
+          <span class="sk-tag">${catLine}</span>
+          <span class="sk-tag">${actionLine}</span>
           <span class="sk-tag">${diceLine}</span>
           <span class="sk-tag">${checkLine}</span>
+          ${extraTags.map(t => `<span class="sk-tag">${t}</span>`).join("")}
         </div>
         ${sk.description ? `<p class="sk-card-desc">${esc(sk.description).replace(/\n/g,"<br>")}</p>` : ""}
       </article>`;

@@ -23,7 +23,7 @@ let state = {
   physiqueMode: null, heightCm: null, weightKg: null, gender: "male", bodyType: "average",
   equipmentChoice: null,
   customEquip: { weapons: [], armorId: null, shield: false, shieldId: null, packId: null },
-  spells: [], spellSlotsUsed: 0,
+  spells: [], spellSlotsUsed: 0, customSkills: [],
   raceChoices: {}, classChoices: {},
 };
 
@@ -83,7 +83,7 @@ function getActiveSteps(){
   steps.push("physique");
   steps.push("equipment");
   const c = getClass();
-  if (c && c.spellcasting && CASTER_RULES[c.id]) steps.push("magic");
+  if (c) steps.push("magic"); // всегда: заклинателям — выбор заклинаний, остальным — кастомные навыки
   steps.push("sheet");
   return steps;
 }
@@ -451,6 +451,7 @@ function renderClassStep(view){
       state.equipmentChoice = null;
       state.customEquip = { weapons: [], armorId: null, shield: false, shieldId: null, packId: null };
       state.spells = [];
+      state.customSkills = [];
       state.classChoices = {};
       state.abilityMode = null;
       state.abilityAssign = {};
@@ -1584,57 +1585,113 @@ const SPELL_ICON = {
   "bless":"🙏","command":"🗣️","burning-hands":"🔥","divine-favor":"⚔️","animal-friendship":"🦌",
   "dissonant-whispers":"👂","fog-cloud":"🌫️"
 };
+let magicTab = "cantrips";
 function renderMagic(view){
   const c = getClass();
-  const r = CASTER_RULES[c.id];
-  const abMod = abilityMod(getTotalAbility(r.ability));
-  const cantripLimit = r.cantrips;
-  const spellLimit = casterKnownCount(c.id, abMod);
-  const slots = LEVEL1_SPELL_SLOTS[c.id] || 2;
-  const granted = [state.classChoices && state.classChoices.natureCantrip, state.classChoices && state.classChoices.deathCantrip].filter(Boolean);
-  const cantrips = DND_DATA.spells.filter(s => s.level === 0 && s.classes.includes(c.id) && !granted.includes(s.id));
-  state.spells = state.spells.filter(id => !granted.includes(id));
-  const sub = getSubclass(c.id, state.classChoices);
-  const extra = (sub && sub.extraList) || [];
-  const fixed = (sub && sub.spells) || []; // заклинания домена всегда подготовлены — их не выбирают
-  const lvl1 = DND_DATA.spells.filter(s => s.level === 1 && (s.classes.includes(c.id) || extra.includes(s.id)) && !fixed.includes(s.id));
-  state.spells = state.spells.filter(id => !fixed.includes(id));
+  const isCaster = !!(c && c.spellcasting && CASTER_RULES[c.id]);
+  const r = isCaster ? CASTER_RULES[c.id] : null;
+  const abMod = isCaster ? abilityMod(getTotalAbility(r.ability)) : 0;
+  const cantripLimit = isCaster ? r.cantrips : 0;
+  const spellLimit = isCaster ? casterKnownCount(c.id, abMod) : 0;
+  const slots = isCaster ? (LEVEL1_SPELL_SLOTS[c.id] || 2) : 0;
+  let cantrips = [], lvl1 = [];
+  if (isCaster){
+    const granted = [state.classChoices && state.classChoices.natureCantrip, state.classChoices && state.classChoices.deathCantrip].filter(Boolean);
+    cantrips = DND_DATA.spells.filter(s => s.level === 0 && s.classes.includes(c.id) && !granted.includes(s.id));
+    state.spells = state.spells.filter(id => !granted.includes(id));
+    const sub = getSubclass(c.id, state.classChoices);
+    const extra = (sub && sub.extraList) || [];
+    const fixed = (sub && sub.spells) || []; // заклинания домена всегда подготовлены — их не выбирают
+    lvl1 = DND_DATA.spells.filter(s => s.level === 1 && (s.classes.includes(c.id) || extra.includes(s.id)) && !fixed.includes(s.id));
+    state.spells = state.spells.filter(id => !fixed.includes(id));
+  }
+
+  const tabs = [];
+  if (isCaster) tabs.push(["cantrips","Фокусы"], ["lvl1","1-й круг"]);
+  tabs.push(["custom","Кастомные"]);
+  if (!tabs.some(t => t[0] === magicTab)) magicTab = tabs[0][0];
+
+  const customLib = window.SkillLibrary ? window.SkillLibrary.get() : [];
+  const chosenCustom = state.customSkills || [];
 
   view.innerHTML = `
-    <div class="view-header"><h1>Выбери заклинания</h1><p>${c.name} черпает силу из ${ABILITY_NAMES[r.ability]}. Выбери фокусы и заклинания 1-го уровня — они появятся в листе персонажа со слотами применения.</p></div>
+    <div class="view-header">
+      <h1>${isCaster ? "Выбери заклинания" : "Навыки и способности"}</h1>
+      <p>${isCaster
+        ? `${c.name} черпает силу из ${ABILITY_NAMES[r.ability]}. Выбери фокусы и заклинания 1-го уровня — они появятся в листе персонажа со слотами применения.`
+        : `${c ? c.name : "Этот класс"} не колдует по правилам D&amp;D, но ты можешь выдать ему свои кастомные навыки из библиотеки.`}</p>
+    </div>
+    <div class="mode-tabs magic-mode-tabs" id="magicTabs">
+      ${tabs.map(([id,label]) => `<button type="button" class="mode-tab${magicTab===id?" active":""}" data-tab="${id}">${label}</button>`).join("")}
+    </div>
     <div class="spell-counter" id="spCounter"></div>
-    <h3 class="spell-group-title">Фокусы (нужно выбрать: ${cantripLimit})</h3>
-    <div class="spell-list" id="cantripList"></div>
-    <h3 class="spell-group-title">Заклинания 1-го уровня (нужно выбрать: ${spellLimit}, ячеек применения в день: ${slots})</h3>
-    <div class="spell-list" id="lvl1List"></div>
+    <div id="magicTabPanel"></div>
   `;
-  const renderList = (container, spells, limit, isCantrip) => {
-    container.innerHTML = "";
-    spells.forEach(sp => {
-      const selected = state.spells.includes(sp.id);
-      const countSelectedInGroup = state.spells.filter(id => spells.some(s=>s.id===id)).length;
-      const atLimit = countSelectedInGroup >= limit && !selected;
-      const card = document.createElement("div");
-      card.className = "spell-card" + (selected?" selected":"") + (atLimit?" disabled":"");
-      card.style.opacity = atLimit ? .45 : 1;
-      card.innerHTML = `
-        <div class="sp-top"><span class="sp-name">${SCHOOL_GLYPH[sp.school]||"✨"} ${sp.name}</span><span class="sp-lvl">${sp.school||""}</span></div>
-        <div class="sp-desc">${sp.description||""}</div>
-      `;
-      if (!atLimit || selected) card.onclick = () => {
-        if (selected) state.spells = state.spells.filter(id => id !== sp.id);
-        else state.spells.push(sp.id);
-        renderMagic(view);
-        updateNextEnabled();
-      };
-      container.appendChild(card);
-    });
-  };
-  renderList(view.querySelector("#cantripList"), cantrips, cantripLimit, true);
-  renderList(view.querySelector("#lvl1List"), lvl1, spellLimit, false);
+  view.querySelectorAll(".magic-mode-tabs .mode-tab").forEach(btn => btn.onclick = () => { magicTab = btn.dataset.tab; renderMagic(view); });
+  const panel = view.querySelector("#magicTabPanel");
+  const counterEl = view.querySelector("#spCounter");
+
+  if (magicTab === "custom"){
+    if (!customLib.length){
+      panel.innerHTML = `<p class="magic-empty">Библиотека навыков пуста. Открой «📘 Библиотека навыков» в верхней панели и добавь хотя бы один, чтобы использовать его тут.</p>`;
+    } else {
+      panel.innerHTML = `<div class="spell-list" id="customSkillList"></div>`;
+      const list = panel.querySelector("#customSkillList");
+      customLib.forEach(sk => {
+        const selected = chosenCustom.includes(sk.id);
+        const card = document.createElement("div");
+        card.className = "spell-card" + (selected ? " selected" : "");
+        const catLabel = sk.category === "level1" ? `1-й круг · ${sk.slotCost||1} ячейка(и)` : "Фокус · без ограничений";
+        const actionLabel = (window.CUSTOM_SKILL_ACTION_LABEL && window.CUSTOM_SKILL_ACTION_LABEL[sk.actionType]) || "Действие";
+        const metaBits = [];
+        if (sk.dice) metaBits.push(`Урон ${sk.dice}`);
+        if (sk.checkAbility && sk.checkAbility !== "none") metaBits.push(`Проверка ${ABILITY_NAMES[sk.checkAbility]}${sk.dc?` (Сл ${sk.dc})`:""}`);
+        if (sk.range) metaBits.push(sk.range);
+        card.innerHTML = `
+          <div class="sp-top"><span class="sp-name">🔖 ${escapeHtml(sk.name)}</span><span class="sp-lvl">${catLabel}</span></div>
+          <div class="sp-desc">${escapeHtml(sk.description||"")}</div>
+          <div class="sp-desc" style="margin-top:4px;opacity:.8;">${actionLabel}${metaBits.length?" · "+metaBits.map(escapeHtml).join(" · "):""}</div>
+        `;
+        card.onclick = () => {
+          if (selected) state.customSkills = chosenCustom.filter(id => id !== sk.id);
+          else state.customSkills = chosenCustom.concat(sk.id);
+          saveState();
+          renderMagic(view);
+        };
+        list.appendChild(card);
+      });
+    }
+    counterEl.textContent = `Кастомных навыков в арсенале: ${chosenCustom.length}${chosenCustom.length ? " — этого достаточно, чтобы продолжить дальше" : ""}`;
+    updateNextEnabled();
+    return;
+  }
+
+  panel.innerHTML = `<div class="spell-list" id="tabSpellList"></div>`;
+  const spells = magicTab === "cantrips" ? cantrips : lvl1;
+  const limit = magicTab === "cantrips" ? cantripLimit : spellLimit;
+  const listEl = panel.querySelector("#tabSpellList");
+  spells.forEach(sp => {
+    const selected = state.spells.includes(sp.id);
+    const countSelectedInGroup = state.spells.filter(id => spells.some(s=>s.id===id)).length;
+    const atLimit = countSelectedInGroup >= limit && !selected;
+    const card = document.createElement("div");
+    card.className = "spell-card" + (selected?" selected":"") + (atLimit?" disabled":"");
+    card.style.opacity = atLimit ? .45 : 1;
+    card.innerHTML = `
+      <div class="sp-top"><span class="sp-name">${SCHOOL_GLYPH[sp.school]||"✨"} ${sp.name}</span><span class="sp-lvl">${sp.school||""}</span></div>
+      <div class="sp-desc">${sp.description||""}</div>
+    `;
+    if (!atLimit || selected) card.onclick = () => {
+      if (selected) state.spells = state.spells.filter(id => id !== sp.id);
+      else state.spells.push(sp.id);
+      renderMagic(view);
+      updateNextEnabled();
+    };
+    listEl.appendChild(card);
+  });
   const chosenCantrips = state.spells.filter(id => cantrips.some(s=>s.id===id)).length;
-  const chosenLvl1Ids = state.spells.filter(id => lvl1.some(s=>s.id===id));
-  view.querySelector("#spCounter").textContent = `Выбрано фокусов: ${chosenCantrips}/${cantripLimit} · заклинаний 1-го уровня: ${chosenLvl1Ids.length}/${spellLimit}`;
+  const chosenLvl1 = state.spells.filter(id => lvl1.some(s=>s.id===id)).length;
+  counterEl.textContent = `Выбрано фокусов: ${chosenCantrips}/${cantripLimit} · заклинаний 1-го уровня: ${chosenLvl1}/${spellLimit} (ячеек в день: ${slots})${chosenCustom.length ? ` · кастомных навыков: ${chosenCustom.length}` : ""}`;
   updateNextEnabled();
 }
 function getTotalAbility(ab){
@@ -1820,9 +1877,11 @@ function computeFinal(){
     ...abilityFlavorLines(totals),
     ...physiqueFlavorLines(state.heightCm, state.weightKg, avg.weightKg)
   ];
+  const customLib = window.SkillLibrary ? window.SkillLibrary.get() : [];
+  const customSkillsDetailed = (state.customSkills || []).map(id => customLib.find(sk => sk.id === id)).filter(Boolean);
   return { r, s, c, totals, mods, pb, saves, skills, passivePerception, hp, ac, initiative, equip, speeds, darkvision,
     resist, immune, armorProf, weaponProf, toolProf, languages, classFeatures, raceTraits, laterFeatures,
-    raceSpells, attacks, spellNames, spellsDetailed, slots, casting, roleplayLines };
+    raceSpells, attacks, spellNames, spellsDetailed, slots, casting, roleplayLines, customSkillsDetailed };
 }
 
 function renderSheet(view){
@@ -1869,7 +1928,7 @@ function sheetCircles(n){ return n > 0 ? `<span class="sf-circles">${"☐".repea
 function sheetHTML(d){
   const { r, s, c, totals, mods, pb, saves, skills, passivePerception, hp, ac, initiative, equip, speeds,
     resist, immune, armorProf, weaponProf, toolProf, languages, classFeatures, raceTraits, laterFeatures,
-    raceSpells, attacks, spellsDetailed, slots, casting, roleplayLines } = d;
+    raceSpells, attacks, spellsDetailed, slots, casting, roleplayLines, customSkillsDetailed } = d;
   const abBox = ab => `
     <div class="ab-box">
       <div class="n">${ABILITY_NAMES[ab]}</div>
@@ -1901,7 +1960,26 @@ function sheetHTML(d){
   };
   const speedTxt = [`${speeds.walk} фт`, speeds.climb ? `лазание ${speeds.climb}` : "", speeds.swim ? `плавание ${speeds.swim}` : "", speeds.fly ? `полёт ${speeds.fly}` : ""].filter(Boolean).join(", ");
   const list = arr => arr.length ? arr.join(", ") : "—";
-  const hasSpells = spellsDetailed.length || raceSpells.length;
+  const customSkillCard = sk => {
+    const isCantrip = sk.category !== "level1";
+    const circles = isCantrip ? 0 : (sk.slotCost || 1);
+    const actionLabel = (window.CUSTOM_SKILL_ACTION_LABEL && window.CUSTOM_SKILL_ACTION_LABEL[sk.actionType]) || "Действие";
+    const metaBits = [isCantrip ? "кастомный · фокус · неограниченно" : `кастомный · 1-й круг · тратит ${sk.slotCost||1} ячейку(и)`, actionLabel];
+    if (sk.dice) metaBits.push(`урон ${sk.dice}`);
+    if (sk.checkAbility && sk.checkAbility !== "none") metaBits.push(`проверка ${ABILITY_NAMES[sk.checkAbility]}${sk.dc?` Сл ${sk.dc}`:""}`);
+    if (sk.range) metaBits.push(sk.range);
+    if (sk.duration) metaBits.push(sk.duration);
+    return `
+    <div class="sheet-spell-card" data-spell-id="${sk.id}">
+      <div class="sheet-spell-icon" style="background:linear-gradient(160deg,#2b8f7e,#123a3c);">🔖</div>
+      <div class="sheet-spell-info">
+        <div class="sheet-spell-top"><span class="sheet-spell-name">${escapeHtml(sk.name)}</span>${circles ? sheetCircles(circles) : `<span class="sheet-spell-charge infinite">∞</span>`}</div>
+        <span class="sheet-spell-meta">${metaBits.join(" · ")}</span>
+        <span class="sheet-spell-desc">${escapeHtml(sk.description || "")}</span>
+      </div>
+    </div>`;
+  };
+  const hasSpells = spellsDetailed.length || raceSpells.length || (customSkillsDetailed && customSkillsDetailed.length);
   return `
     <div class="sheet-head">
       <div class="sheet-photo-box${state.photoDataUrl ? " has-photo" : ""}" id="sheetPhoto" title="Нажми, чтобы ${state.photoDataUrl ? "заменить" : "добавить"} портрет">
@@ -1955,11 +2033,13 @@ function sheetHTML(d){
       <tbody>${attacks.map(a => `<tr><td>${a.name}</td><td>${a.hit}</td><td>${a.dmg}</td><td>${a.notes || ""}</td></tr>`).join("")}</tbody></table>
     </div>
     ${hasSpells ? `<div class="spells-box spells-box-bottom" style="margin-top:14px;">
-      <h4>Заклинания</h4>
+      <h4>${(spellsDetailed.length || raceSpells.length) ? "Заклинания" : "Навыки"}</h4>
       ${casting ? `<div class="spell-casting-line">${casting.text} <b>Сл спасброска ${casting.dc}</b> · <b>атака заклинанием ${fmtMod(casting.atk)}</b>${slots ? ` · ячейки 1-го круга: ${sheetCircles(slots)}` : ""}</div>` : ""}
       <div class="spells-row">${spellsDetailed.map(sp => spellCard(sp, {})).join("")}</div>
       ${raceSpells.length ? `<div class="spell-casting-line">Врождённая магия расы — без ячеек:</div>
         <div class="spells-row">${raceSpells.map(sp => spellCard(sp, { circles: sp.circles, meta: `${sp.note} · ${sp.uses} · ${ABILITY_NAMES[sp.ability]}: Сл ${sp.dc}, атака ${fmtMod(sp.atk)}` })).join("")}</div>` : ""}
+      ${(customSkillsDetailed && customSkillsDetailed.length) ? `<div class="spell-casting-line">Кастомные навыки из твоей библиотеки:</div>
+        <div class="spells-row">${customSkillsDetailed.map(customSkillCard).join("")}</div>` : ""}
     </div>` : ""}
     <div class="sheet-features">
       <div class="traits-box"><h4>Умения класса${c ? ": " + c.name : ""}</h4>${classFeatures.map(featRow).join("") || "—"}</div>
@@ -2019,7 +2099,7 @@ function a4FrontHTML(d){
 }
 
 function a4BackHTML(d){
-  const { c, totals, mods, saves, skills, spellsDetailed, slots, equip, attacks, casting } = d;
+  const { c, totals, mods, saves, skills, spellsDetailed, slots, equip, attacks, casting, customSkillsDetailed } = d;
   const saveRow = row => `<tr class="${row.prof ? "a4-prof" : ""}"><td class="a4-mod">${fmtMod(row.value)}</td><td class="a4-name">${row.prof ? '<span class="a4-prof-dot"></span>' : ""}${ABILITY_ABBR[row.ab]}</td></tr>`;
   const skillRow = row => `<tr class="${row.prof ? "a4-prof" : ""}"><td class="a4-mod">${fmtMod(row.value)}</td><td class="a4-name">${row.prof ? '<span class="a4-prof-dot"></span>' : ""}${row.name} (${ABILITY_ABBR[row.ab].slice(0,3)})</td></tr>`;
   const half = Math.ceil(skills.length / 2);
@@ -2074,10 +2154,11 @@ function a4BackHTML(d){
       ${mechanicsBox}
       <div class="a4-row-bottom">
         <div class="a4-box">
-          <h2>Заклинания</h2>
+          <h2>${(cantrips.length || leveled.length) ? "Заклинания" : "Навыки"}</h2>
           ${cantrips.length ? `<div class="a4-spell-level"><div class="a4-lvl-title">Заговоры</div><ul class="a4-spell-list">${cantrips.map(sp => spellLine(sp, 0)).join("")}</ul></div>` : ""}
           ${leveled.length ? `<div class="a4-spell-level"><div class="a4-lvl-title">1 круг</div><ul class="a4-spell-list">${leveled.map(sp => spellLine(sp, slots)).join("")}</ul></div>` : ""}
-          ${!cantrips.length && !leveled.length ? `<p style="font-size:12px;color:#6a5436;"><i>Эта классовая комбинация не использует заклинания.</i></p>` : ""}
+          ${(customSkillsDetailed && customSkillsDetailed.length) ? `<div class="a4-spell-level"><div class="a4-lvl-title">Кастомные</div><ul class="a4-spell-list">${customSkillsDetailed.map(sk => `<li><span>${escapeHtml(sk.name)}${sk.dice ? ` (${escapeHtml(sk.dice)})` : ""}</span>${sk.category === "level1" ? `<span class="a4-circ">${"☐".repeat(sk.slotCost||1)}</span>` : `<span class="a4-circ">∞</span>`}</li>`).join("")}</ul></div>` : ""}
+          ${!cantrips.length && !leveled.length && !(customSkillsDetailed && customSkillsDetailed.length) ? `<p style="font-size:12px;color:#6a5436;"><i>Эта классовая комбинация не использует заклинания.</i></p>` : ""}
           ${slotsRule ? `<div class="a4-slots-rule">${slotsRule}</div>` : ""}
         </div>
         <div class="a4-box">
@@ -2188,10 +2269,13 @@ function validateStep(stepId){
       return !!state.equipmentChoice || "Выбери комплект снаряжения";
     }
     case "magic": {
-      const c = getClass(); const r = CASTER_RULES[c.id];
+      const c = getClass();
+      if ((state.customSkills||[]).length > 0) return true; // есть кастомный навык — пропускаем проверку количества
+      if (!c || !c.spellcasting || !CASTER_RULES[c.id]) return true; // не заклинатель — шаг необязателен, если не взял кастомный
+      const r = CASTER_RULES[c.id];
       const abMod = abilityMod(getTotalAbility(r.ability));
       const need = r.cantrips + casterKnownCount(c.id, abMod);
-      return state.spells.length >= need || "Выбери все доступные заклинания и кантрипы";
+      return state.spells.length >= need || "Выбери все доступные заклинания и кантрипы, или добавь хотя бы один кастомный навык";
     }
     default: return true;
   }
