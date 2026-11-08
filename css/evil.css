@@ -151,6 +151,13 @@ body.evil-open{ overflow:hidden; }
 .ev-en-meta{ font-size:.82rem; color:#b49680; font-style:italic; }
 .ev-entry .ev-block{ margin:4px 8px 10px; }
 
+/* режим снимка для PDF: фиксированная ширина, без анимаций, светлая сводка */
+body.evil-pdf-mode .evil-inner{ width:780px !important; max-width:none !important; }
+body.evil-pdf-mode .ev-block, body.evil-pdf-mode .ev-entry .ev-block{ animation:none !important; opacity:1 !important; transform:none !important; box-shadow:none !important; margin-left:0 !important; margin-right:0 !important; }
+body.evil-pdf-mode .ev-summary{ background:#f6e8cc !important; color:#2a1a0e !important; border-color:#c0782e !important; }
+body.evil-pdf-mode .ev-summary h3{ color:#7a200d !important; }
+body.evil-pdf-mode .ev-summary li span, body.evil-pdf-mode .ev-summary .ev-note{ color:#5a3a1e !important; }
+
 /* печать: только результат */
 @media print{
   body.evil-open > *:not(#evilScreen){ display:none !important; }

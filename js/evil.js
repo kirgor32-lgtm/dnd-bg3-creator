@@ -217,7 +217,7 @@
       </header>
       <div class="ev-rule"></div>
       <p><b>Класс Доспеха</b> ${m.acText}</p>
-      <p><b>Хиты</b> <span class="ev-hp">${m.hpText}</span> <button type="button" class="ev-roll" data-n="${m.hd[0]}" data-d="${m.hd[1]}" data-b="${m.hd[2]}" title="Бросить кости хитов">🎲</button> <span class="ev-rolled"></span></p>
+      <p><b>Хиты</b> <span class="ev-hp">${m.hpText}</span> <button type="button" data-html2canvas-ignore="true" class="ev-roll" data-n="${m.hd[0]}" data-d="${m.hd[1]}" data-b="${m.hd[2]}" title="Бросить кости хитов">🎲</button> <span class="ev-rolled"></span></p>
       <p><b>Скорость</b> ${esc(m.props["Скорость"] || "")}</p>
       <div class="ev-rule"></div>
       <div class="ev-abils">${abil}</div>
@@ -319,7 +319,7 @@
     const m = build(base, cr);
     const fl = flavorFor(m);
     let html = statBlock(m, { flavor:fl });
-    outEl.innerHTML = `<div class="ev-result-bar"><button type="button" class="btn ev-again" id="evAgain">🎲 Ещё вариант</button><button type="button" class="btn ev-print" id="evPrint">🖨 Печать</button></div>` + html;
+    outEl.innerHTML = `<div class="ev-result-bar"><button type="button" class="btn ev-again" id="evAgain">🎲 Ещё вариант</button><button type="button" class="btn btn-gold ev-pdf" id="evPdf">📄 Скачать PDF</button><button type="button" class="btn ev-print" id="evPrint">🖨 Печать</button></div>` + html;
     if (st.hpMode === "roll") outEl.querySelectorAll(".ev-roll").forEach(b => b.click());
     revealOut();
   }
@@ -376,7 +376,7 @@
     }
     const realDiff = (() => { const { t } = budget(); let d = -1; t.forEach((v, i) => { if (best.cur.adj >= v) d = i; }); return d < 0 ? "Ниже лёгкой" : DIFF[d]; })();
     const mult = multiplier(best.cur.n, st.party);
-    let html = `<div class="ev-result-bar"><button type="button" class="btn ev-again" id="evAgain">🎲 Другая засада</button><button type="button" class="btn ev-print" id="evPrint">🖨 Печать</button></div>
+    let html = `<div class="ev-result-bar"><button type="button" class="btn ev-again" id="evAgain">🎲 Другая засада</button><button type="button" class="btn btn-gold ev-pdf" id="evPdf">📄 Скачать PDF</button><button type="button" class="btn ev-print" id="evPrint">🖨 Печать</button></div>
       <div class="ev-summary">
         <h3>${theme.icon} ${esc(theme.name)} — ${st.party} геро${st.party === 1 ? "й" : st.party < 5 ? "я" : "ев"} ${st.level}-го уровня</h3>
         <ul>${list.map(([m, k, cr]) => `<li><b>${k} × ${esc(m.name)}</b> <span>ПО ${cr == null ? m.crText : crLabel(cr) + " (подогнан по DMG, в книге " + m.crText + ")"}, ${fmtNum(cr == null ? m.xp : row(cr).xp)} опыта каждый</span></li>`).join("")}</ul>
@@ -396,12 +396,78 @@
   function renderBook(){
     const q = st.q.trim().toLowerCase();
     const list = sortedPool(st.bgroup).filter(m => !q || m.name.toLowerCase().includes(q) || m.en.toLowerCase().includes(q));
-    outEl.innerHTML = `<p class="ev-note">${list.length} существ. Нажми на строку, чтобы открыть статблок.</p>` + list.map(m => `
+    outEl.innerHTML = `<div class="ev-result-bar"><button type="button" class="btn btn-gold ev-pdf" id="evPdf">📄 PDF открытых статблоков</button></div><p class="ev-note">${list.length} существ. Нажми на строку, чтобы открыть статблок; открытые попадут в PDF.</p>` + list.map(m => `
       <details class="ev-entry" data-id="${m.id}"><summary><span class="ev-cr">${m.crText}</span><span class="ev-en-name">${esc(m.name)}</span><span class="ev-en-meta">${esc(m.meta)}</span></summary></details>`).join("");
   }
 
   function revealOut(){
     if (innerWidth < 900){ const r = outEl.getBoundingClientRect(); if (r.top > innerHeight * 0.6) outEl.scrollIntoView({ behavior:"smooth", block:"start" }); }
+  }
+
+  /* ---------- экспорт в PDF (html2canvas + jsPDF, A4) ---------- */
+  let pdfBusy = false;
+  async function exportPDF(btn){
+    if (pdfBusy) return;
+    const nodes = [...outEl.querySelectorAll(".ev-summary, .ev-block")].filter(n => n.offsetParent !== null);
+    if (!nodes.length){ btn.textContent = "Сначала открой хотя бы один статблок"; setTimeout(() => { btn.textContent = "📄 PDF открытых статблоков"; }, 2500); return; }
+    if (!window.html2canvas || !window.jspdf){ btn.textContent = "PDF-библиотеки не загрузились — обнови страницу"; return; }
+    pdfBusy = true;
+    const label = btn.textContent; btn.textContent = "⏳ Готовим PDF…"; btn.disabled = true;
+    const lore = [...outEl.querySelectorAll(".ev-lore")].map(d => [d, d.open]);
+    try{
+      // фиксированная «книжная» ширина — PDF одинаковый на телефоне и на компьютере
+      document.body.classList.add("evil-pdf-mode");
+      lore.forEach(([d]) => d.open = true);
+      await new Promise(r => setTimeout(r, 120));
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation:"portrait", unit:"pt", format:"a4" });
+      const PW = pdf.internal.pageSize.getWidth(), PH = pdf.internal.pageSize.getHeight(), M = 28, CW = PW - M * 2, GAP = 12;
+      let y = M, first = true;
+      for (const n of nodes){
+        const c = await html2canvas(n, { scale:2, backgroundColor:"#f6e8cc", logging:false });
+        const k = CW / c.width;                       // pt на пиксель канваса
+        let h = c.height * k;
+        if (y > M && y + h > PH - M){ pdf.addPage(); y = M; }
+        if (h <= PH - M * 2){
+          pdf.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", M, y, CW, h); y += h + GAP; first = false; continue;
+        }
+        // длинный статблок (лич, демилич…) режем на страницы
+        const sliceH = Math.floor((PH - M * 2) / k);
+        for (let sy = 0; sy < c.height; sy += sliceH){
+          const part = document.createElement("canvas");
+          part.width = c.width; part.height = Math.min(sliceH, c.height - sy);
+          const g = part.getContext("2d"); g.fillStyle = "#f6e8cc"; g.fillRect(0, 0, part.width, part.height);
+          g.drawImage(c, 0, sy, c.width, part.height, 0, 0, c.width, part.height);
+          if (y > M){ pdf.addPage(); y = M; }
+          pdf.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", M, y, CW, part.height * k);
+          y += part.height * k + GAP;
+        }
+      }
+      const base = st.tab === "party" ? "zasada" : st.tab === "book" ? "bestiary" : (outEl.querySelector(".ev-block h3")?.childNodes[0]?.textContent || "zlo");
+      const fname = String(base).trim().replace(/[^a-zA-Zа-яА-ЯёЁ0-9_-]+/g, "_").slice(0, 40) + "_dnd5e.pdf";
+      const blob = pdf.output("blob");
+      const file = new File([blob], fname, { type:"application/pdf" });
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || innerWidth < 760;
+      let shared = false;
+      if (isMobile && navigator.canShare && navigator.canShare({ files:[file] })){
+        try { await navigator.share({ files:[file], title:fname }); shared = true; }
+        catch(err){ if (err && err.name === "AbortError") shared = true; }
+      }
+      if (!shared){
+        const url = URL.createObjectURL(blob);
+        if (isMobile){ window.open(url, "_blank"); }
+        else { const a = document.createElement("a"); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove(); }
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      }
+      btn.textContent = "✅ PDF готов";
+    } catch(err){
+      console.error(err); btn.textContent = "⚠ Не получилось — попробуй ещё раз";
+    } finally {
+      document.body.classList.remove("evil-pdf-mode");
+      lore.forEach(([d, o]) => d.open = o);
+      btn.disabled = false; pdfBusy = false;
+      setTimeout(() => { btn.textContent = label; }, 2500);
+    }
   }
 
   /* ---------- события ---------- */
@@ -418,6 +484,7 @@
     }
     if (e.target.closest("#evGo") || e.target.closest("#evAgain")){ st.tab === "party" ? forgeEncounter() : forgeOne(); return; }
     if (e.target.closest("#evPrint")){ window.print(); return; }
+    if (e.target.closest("#evPdf")){ exportPDF(e.target.closest("#evPdf")); return; }
     if (e.target.closest("#evilBack")){ closeEvil(); return; }
     const r = e.target.closest(".ev-roll");
     if (r){
