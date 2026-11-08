@@ -493,8 +493,17 @@
         sheet.appendChild(cd);
       });
       meas.remove();
+      sheet.style.backgroundColor = "#f6e8cc";
+      sheet.querySelectorAll(".ev-block, .ev-summary").forEach(el => { el.style.backgroundColor = "#fbf1dc"; el.style.boxShadow = "none"; });
       document.body.appendChild(sheet);
-      await new Promise(r => setTimeout(r, 30));
+      // Ждём загрузки шрифтов и двух кадров отрисовки — иначе html2canvas
+      // иногда успевает снять «фото» листа ДО того, как браузер прокрасил
+      // фоновые градиенты карточек, и PDF выходит с полупрозрачными/белыми
+      // кусками статблоков (та же беда, что раньше была и у exportPDF() листа
+      // персонажа — там её лечили паузой и принудительной раскладкой).
+      if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(_){} }
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await new Promise(r => setTimeout(r, 120));
       const { jsPDF } = window.jspdf;
       // ~250 dpi на листе A4 — чётко и без многосекундной отрисовки
       const scale = clamp(3000 / Math.max(sheet.offsetWidth, sheet.scrollHeight * 1.414), 1, 2.5);
